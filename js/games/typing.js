@@ -1,14 +1,14 @@
 // 예능: 타이핑 퀴즈 (6~10명, 팀전)
 // - 무작위로 잘생긴팀 vs 못생긴팀, 팀장도 무작위
 // - 라운드마다 두 팀에서 한 명씩 설명자(팀장부터 차례로). 둘 다 같은 제시어를 보고 설명을 타이핑
-// - 설명에 제시어가 들어가면 입력 불가
+// - 설명에 제시어(또는 제시어의 절반 이상 이어진 부분)가 들어가면 입력 불가
+// - 설명 제한 시간 없음 (방장은 문제 넘기기 가능)
 // - 설명자 말고 누구나 정답을 외칠 수 있음. 먼저 맞힌 사람의 팀 +1점. 오답이면 그 팀 10초 잠금
-// - 팀원끼리만 보이는 팀 채팅 (설명자는 자기 라운드에 사용 불가)
+// - 맞히는 사람들의 채팅은 모두에게 보이고, 팀 캐릭터 옆 말풍선으로 나옴 (설명자는 채팅 없음)
 // - 라운드(5~10) 후 이긴 팀 모두 가넷 +2
 import { GARNET } from '../profile.js';
 import { WORDS, mainWord, allAnswers } from './typing-words.js';
 
-const ROUND_MS = 90000;
 const LOCK_MS = 10000;
 const REVEAL_MS = 5000;
 const REWARD = 2;
@@ -21,8 +21,20 @@ export const TEAM = {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const norm = (s) => String(s ?? '').replace(/\s+/g, '').toLowerCase();
-// 제시어(또는 같이 인정하는 답)가 들어 있는지
-export const hasWord = (text, entry) => allAnswers(entry).some((w) => norm(text).includes(norm(w)));
+// 설명에 쓸 수 없는 부분: 제시어(·같이 인정하는 답)의 절반 이상 길이로 이어진 모든 부분
+// 예) 번아웃 → 번아, 아웃 / 와신상담 → 와신, 신상, 상담 / 두 글자 제시어는 단어 전체만
+export function forbiddenParts(entry) {
+  const parts = new Set();
+  for (const w of allAnswers(entry).map(norm)) {
+    const k = Math.max(2, Math.ceil(w.length / 2));
+    if (w.length <= k) { parts.add(w); continue; }
+    for (let i = 0; i + k <= w.length; i++) parts.add(w.slice(i, i + k));
+  }
+  return [...parts];
+}
+// 설명에 금지된 부분이 있으면 그 부분을, 없으면 '' 를 돌려줘요
+export const forbiddenIn = (text, entry) => forbiddenParts(entry).find((p) => norm(text).includes(p)) || '';
+export const hasWord = (text, entry) => !!forbiddenIn(text, entry);
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -44,8 +56,8 @@ function newRound(state, roundNo, now) {
   };
   return {
     ...state, round: roundNo, phase: 'play', word, usedWords: [...state.usedWords, word],
-    describers, lines: [], wrong: [], lockUntil: { A: 0, B: 0 },
-    deadline: now + ROUND_MS, revealUntil: 0, solvedBy: '', solvedTeam: '',
+    describers, lines: [], chat: [], wrong: [], lockUntil: { A: 0, B: 0 },
+    revealUntil: 0, solvedBy: '', solvedTeam: '', skipped: false,
   };
 }
 
@@ -132,10 +144,11 @@ export default {
     '라운드마다 두 팀에서 한 명씩 설명자가 나와요. 팀장부터 시작해서 팀원들이 차례로 맡아요.',
     '두 설명자는 같은 제시어를 보고 설명을 타이핑해요. 설명은 모두에게 보여요.',
     '설명에 제시어가 들어가면 입력되지 않아요. 설명자 말고는 아무도 제시어를 볼 수 없어요.',
+    '설명에 제시어는 물론, 제시어의 절반 이상이 이어진 부분도 쓸 수 없어요. (예: 번아웃 → "아웃" 금지)',
     '설명자 말고 누구나 정답을 외칠 수 있어요. 먼저 맞힌 사람의 팀이 1점!',
     '제시어는 사자성어, 의학·경제·과학·법 용어, 어려운 단어 중에서 나와요.',
-    '우리 팀끼리만 보이는 팀 채팅으로 작전을 짤 수 있어요. (설명자는 자기 라운드에 사용 불가)',
-    `틀리면 그 팀 전체가 10초 동안 정답을 외칠 수 없어요. 라운드 제한 시간은 ${ROUND_MS / 1000}초예요.`,
+    '맞히는 사람들은 채팅을 할 수 있어요. 채팅은 모두에게 보이고 팀 캐릭터 옆에 말풍선으로 나와요. (설명자는 채팅 불가)',
+    '틀리면 그 팀 전체가 10초 동안 정답을 외칠 수 없어요. 설명 제한 시간은 없고, 방장은 문제를 넘길 수 있어요.',
     '모든 라운드가 끝나면 이긴 팀 모두에게 가넷 +2개! (동점이면 보상 없음)',
   ],
 
@@ -145,7 +158,7 @@ export default {
     const [A, B] = Math.random() < 0.5 ? [ids.slice(0, half), ids.slice(half)] : [ids.slice(half), ids.slice(0, half)];
     const rounds = Math.min(10, Math.max(5, Number(room?.options?.rounds) || 5));
     // 각 팀 배열의 첫 번째 사람이 팀장
-    const base = { rounds, teams: { A, B }, leaders: { A: A[0], B: B[0] }, scores: { A: 0, B: 0 }, usedWords: [], chat: [] };
+    const base = { rounds, host: room?.hostId || '', teams: { A, B }, leaders: { A: A[0], B: B[0] }, scores: { A: 0, B: 0 }, usedWords: [], chat: [] };
     return newRound(base, 1, Date.now());
   },
 
@@ -159,16 +172,22 @@ export default {
       if (!isDescriber) throw new Error('이번 라운드 설명자가 아니에요');
       const text = String(move.text ?? '').trim().slice(0, MAX_LINE);
       if (!text) throw new Error('설명을 입력해 주세요');
-      if (hasWord(text, state.word)) throw new Error('제시어가 포함된 단어가 있습니다');
+      if (forbiddenIn(text, state.word)) throw new Error('제시어가 포함된 단어가 있습니다');
       return { state: { ...state, lines: [...state.lines, { team: myTeam, text }].slice(-30) } };
     }
 
     if (move?.type === 'chat') {
       if (!myTeam) throw new Error('참가자가 아니에요');
-      if (state.phase === 'play' && isDescriber) throw new Error('설명자는 이번 라운드에 팀 채팅을 쓸 수 없어요');
+      if (isDescriber && state.phase === 'play') throw new Error('설명자는 채팅을 쓸 수 없어요');
       const text = String(move.text ?? '').trim().slice(0, MAX_CHAT);
       if (!text) throw new Error('메시지를 입력해 주세요');
-      return { state: { ...state, chat: [...(state.chat || []), { team: myTeam, uid, text }].slice(-60) } };
+      return { state: { ...state, chat: [...(state.chat || []), { team: myTeam, uid, text }].slice(-40) } };
+    }
+
+    if (move?.type === 'skip') {
+      if (uid !== state.host) throw new Error('방장만 문제를 넘길 수 있어요');
+      if (state.phase !== 'play') throw new Error('지금은 넘길 수 없어요');
+      return { state: { ...state, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: '', solvedTeam: '', skipped: true } };
     }
 
     if (move?.type === 'answer') {
@@ -186,9 +205,6 @@ export default {
     }
 
     if (move?.type === 'tick') {
-      if (state.phase === 'play' && now >= state.deadline) {
-        return { state: { ...state, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: '', solvedTeam: '' } };
-      }
       if (state.phase === 'reveal' && now >= state.revealUntil) {
         if (state.round >= state.rounds) return { state: { ...state, phase: 'done' }, result: result(state, players) };
         return { state: newRound(state, state.round + 1, now) };
@@ -228,37 +244,45 @@ export default {
       return;
     }
 
-    const bubble = (t) => {
+    const descBubble = (t) => {
       const lines = state.lines.filter((l) => l.team === t).slice(-4);
-      return `<div class="tq-bubble">${lines.length ? lines.map((l) => `<p>${esc(l.text)}</p>`).join('') : '<p class="muted">…</p>'}</div>`;
+      return `<div class="tq-bubble tq-${t}">${lines.length ? lines.map((l) => `<p>${esc(l.text)}</p>`).join('') : '<p class="muted">설명을 기다리는 중…</p>'}</div>`;
+    };
+    // 맞히는 사람들의 채팅: 팀 캐릭터 바깥쪽에 말풍선으로
+    const chatCol = (t, side) => {
+      const msgs = (state.chat || []).filter((c) => c.team === t).slice(-4);
+      return `<div class="tq-chatcol ${side}">${msgs.map((c) => `
+        <div class="tq-cb tq-${t} ${c.uid === me ? 'mine' : ''}"><small>${name(c.uid)}</small>${esc(c.text)}</div>`).join('')}</div>`;
     };
     const lockLeft = myTeam ? Math.max(0, (state.lockUntil[myTeam] || 0) - Date.now()) : 0;
+    const isHost = me === state.host;
 
     let banner = '';
     if (state.phase === 'reveal') {
       banner = state.solvedBy
         ? `<span><b>${name(state.solvedBy)}</b>님 정답! <span class="gold">${TEAM[state.solvedTeam].name} +1점</span> · 제시어 <b>${esc(mainWord(state.word))}</b></span>`
-        : `<span>시간 초과! 제시어는 <b>${esc(mainWord(state.word))}</b>였어요</span>`;
+        : `<span>${state.skipped ? '방장이 문제를 넘겼어요' : '라운드 종료'}! 제시어는 <b>${esc(mainWord(state.word))}</b>였어요</span>`;
     } else {
-      banner = amDescriber ? '<span>제시어를 설명해 주세요! <b>제시어가 들어간 말</b>은 쓸 수 없어요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
+      banner = amDescriber ? '<span>제시어를 설명해 주세요! 제시어의 <b>절반 이상</b>이 들어간 말은 못 써요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
     }
 
     el.innerHTML = `
       <div class="tq">
         <div class="nb-top">
           <span class="nb-round">ROUND <b>${state.round}</b> / ${state.rounds}</span>
-          <span class="nb-timer" data-timer></span>
+          <span class="nb-timer" data-timer>${state.phase === 'play' ? '' : '공개'}</span>
         </div>
         <div class="tq-score"><span class="tq-A">${TEAM.A.name} <b>${state.scores.A}</b></span><i>:</i><span class="tq-B"><b>${state.scores.B}</b> ${TEAM.B.name}</span></div>
-        <div class="nb-bar"><i data-bar></i></div>
 
+        <div class="tq-descs">${descBubble('A')}${descBubble('B')}</div>
         <div class="tq-stage">
+          ${chatCol('A', 'left')}
           ${['A', 'B'].map((t) => `
             <div class="tq-side tq-${t} ${state.solvedTeam === t ? 'scored' : ''}">
-              ${bubble(t)}
               <div class="tq-char">${t === 'A' ? HANDSOME : GOOFY}</div>
-              <div class="tq-plate"><small>${TEAM[t].short}</small>${name(state.describers[t])}</div>
+              <div class="tq-plate"><small>${TEAM[t].short} 설명</small>${name(state.describers[t])}</div>
             </div>`).join('')}
+          ${chatCol('B', 'right')}
         </div>
 
         <div class="nb-banner">${banner}</div>
@@ -275,33 +299,19 @@ export default {
             <input data-key="ans" maxlength="30" placeholder="${lockLeft ? '오답! 잠시 기다려요' : '정답 입력'}" autocomplete="off">
             <button class="btn gold-btn" data-ans-btn>정답!</button>
           </form>
-          <div class="tq-warn" data-lock></div>` : ''}
+          <div class="tq-warn" data-lock></div>
+          <form class="tq-say tq-chatform" data-form="chat">
+            <input data-key="chat" maxlength="${MAX_CHAT}" placeholder="💬 채팅 (모두에게 보여요)" autocomplete="off">
+            <button class="btn">전송</button>
+          </form>` : ''}
+        ${state.phase === 'play' && isHost ? '<button class="btn ghost sm tq-skip" data-skip>⏭ 문제 넘기기 (방장)</button>' : ''}
 
-        ${myTeam ? (() => {
-          const msgs = (state.chat || []).filter((c) => c.team === myTeam).slice(-20);
-          const blocked = state.phase === 'play' && amDescriber;
-          return `
-          <div class="tq-chat tq-${myTeam}">
-            <div class="tq-chat-title">💬 우리 팀 채팅 <small>${TEAM[myTeam].name}만 보여요</small></div>
-            <div class="tq-chat-list" data-chatlist>
-              ${msgs.length ? msgs.map((c) => `
-                <div class="tq-msg ${c.uid === me ? 'mine' : ''}">
-                  <span class="tq-msg-char">${myTeam === 'A' ? HANDSOME : GOOFY}</span>
-                  <div class="tq-msg-body"><small>${name(c.uid)}</small><p>${esc(c.text)}</p></div>
-                </div>`).join('') : '<p class="tq-chat-empty">팀원과 작전을 짜 보세요!</p>'}
-            </div>
-            <form class="tq-say" data-form="chat">
-              <input data-key="chat" maxlength="${MAX_CHAT}" placeholder="${blocked ? '설명자는 이번 라운드에 팀 채팅을 쓸 수 없어요' : '팀원에게 메시지'}" autocomplete="off" ${blocked ? 'disabled' : ''}>
-              <button class="btn" ${blocked ? 'disabled' : ''}>전송</button>
-            </form>
-          </div>`;
-        })() : ''}
         ${state.wrong.length ? `<div class="tq-wrong">오답: ${state.wrong.map((w) => `<span class="tq-${w.team}">${name(w.uid)} "${esc(w.text)}"</span>`).join(' ')}</div>` : ''}
         ${teamList('A')}${teamList('B')}
       </div>`;
 
-    // 말풍선·채팅은 항상 최신 줄이 보이게
-    el.querySelectorAll('.tq-bubble, [data-chatlist]').forEach((b) => (b.scrollTop = b.scrollHeight));
+    // 설명 말풍선은 항상 최신 줄이 보이게
+    el.querySelectorAll('.tq-bubble').forEach((b) => (b.scrollTop = b.scrollHeight));
 
     // 입력값·포커스 유지
     el.querySelectorAll('[data-key]').forEach((inp) => {
@@ -317,8 +327,9 @@ export default {
     const $sayInput = el.querySelector('[data-key="say"]');
     function checkWord() {
       if (!$warn || !$sayInput) return false;
-      const bad = hasWord($sayInput.value, state.word);
-      $warn.textContent = bad ? '⚠ 제시어가 포함된 단어가 있습니다' : '';
+      const part = forbiddenIn($sayInput.value, state.word);
+      const bad = !!part;
+      $warn.textContent = bad ? `⚠ 제시어가 포함된 단어가 있습니다 ("${part}")` : '';
       $sayInput.classList.toggle('bad', bad);
       return bad;
     }
@@ -335,6 +346,8 @@ export default {
         sendMove({ type: 'say', text: v });
       };
     }
+    const $skip = el.querySelector('[data-skip]');
+    if ($skip) $skip.onclick = () => { if (confirm('이 문제를 넘길까요? (무득점)')) sendMove({ type: 'skip' }); };
     const $chat = el.querySelector('[data-form="chat"]');
     if ($chat) {
       $chat.onsubmit = (e) => {
@@ -361,8 +374,6 @@ export default {
     }
 
     // 타이머, 팀 잠금 표시, 진행 신호
-    const $t = el.querySelector('[data-timer]');
-    const $bar = el.querySelector('[data-bar]');
     const $lock = el.querySelector('[data-lock]');
     const $ansBtn = el.querySelector('[data-ans-btn]');
     const order = [...state.teams.A, ...state.teams.B];
@@ -371,19 +382,7 @@ export default {
     const update = () => {
       if (!el.isConnected) return clearInterval(timer);
       const now = Date.now();
-      let due;
-      if (state.phase === 'play') {
-        due = state.deadline;
-        const left = Math.max(0, due - now);
-        $t.textContent = Math.ceil(left / 1000);
-        $t.classList.toggle('hurry', left <= 10000);
-        $bar.style.width = `${(left / ROUND_MS) * 100}%`;
-      } else {
-        due = state.revealUntil;
-        $t.textContent = '공개';
-        $t.classList.remove('hurry');
-        $bar.style.width = '0%';
-      }
+      const due = state.phase === 'reveal' ? state.revealUntil : 0; // 설명 중에는 제한 시간 없음
       if (myTeam && $lock) {
         const l = Math.max(0, (state.lockUntil[myTeam] || 0) - now);
         $lock.textContent = l ? `🔒 우리 팀 오답! ${Math.ceil(l / 1000)}초 뒤에 다시 외칠 수 있어요` : '';
