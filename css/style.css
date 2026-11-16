@@ -625,7 +625,7 @@ a.cat-banner:active { transform: translateY(0); }
 /* ───────── 언더독레이스 ───────── */
 .ud { display: grid; gap: 12px; }
 /* 경주 트랙: 왼쪽 7등 → 오른쪽 결승선 */
-.ud-race { position: relative; display: flex; border-radius: 16px; overflow: hidden; padding: 22px 0 6px 4px;
+.ud-race { position: relative; display: flex; border-radius: 16px; overflow: hidden; padding: 30px 0 6px 4px;
   background: linear-gradient(180deg, #8fd0ff 0 38%, #b8e6ff 38% 52%, #6cc04a 52% 100%); box-shadow: inset 0 0 0 3px #2e6b2a; }
 .ud-race::before { content: ''; position: absolute; left: 0; right: 0; top: 52%; height: 3px; background: repeating-linear-gradient(90deg, #fff 0 10px, transparent 10px 18px); opacity: .7; }
 .ud-lane { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; position: relative; }
@@ -636,15 +636,32 @@ a.cat-banner:active { transform: translateY(0); }
 .ud-base { width: 86%; height: 7px; border-radius: 3px; background: #2f8a35; box-shadow: 0 2px 0 #1c5a20; margin-top: -4px; }
 .ud-rk { margin-top: 3px; font-family: var(--logo); font-size: 15px; line-height: 1; color: #fff; text-shadow: 0 2px 0 #1c5a20; }
 .ud-rk small { font-size: 9px; }
-.ud-pt { font-size: 10px; font-weight: 800; color: #10360f; background: rgba(255, 255, 255, .7); border-radius: 99px; padding: 0 5px; margin-top: 2px; }
-.ud-slot.mine .ud-pt { background: #ff4f9a; color: #fff; }
+.ud-slot.mine .ud-rk { color: #ffd1e6; text-shadow: 0 2px 0 #b0105a; }
 .ud-slot.dh .ud-base { background: #1d1640; box-shadow: 0 0 0 2px #ffd84d; }
-.ud-dhb, .ud-myb { position: absolute; top: -18px; z-index: 3; font-size: 13px; line-height: 1; }
-.ud-dhb { left: 4%; background: #1d1640; border-radius: 99px; padding: 2px; box-shadow: 0 0 0 2px #ffd84d; }
-.ud-myb { right: 4%; }
+.ud-myb { position: absolute; top: -18px; right: 4%; z-index: 3; font-size: 13px; line-height: 1; }
+.ud-dhb { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); z-index: 4; white-space: nowrap;
+  padding: 2px 5px; border-radius: 5px; background: linear-gradient(180deg, #2a0a12, #000); color: #ffd84d; border: 2px solid #ff2e4d;
+  font-family: var(--logo); font-size: 11px; letter-spacing: -.5px; line-height: 1.1; box-shadow: 0 0 10px rgba(255, 46, 77, .9);
+  animation: ud-dh 1.1s ease-in-out infinite; }
+.ud-dhb::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #ff2e4d; border-bottom: 0; }
+@keyframes ud-dh { 50% { box-shadow: 0 0 18px #ff2e4d; color: #fff; } }
+.ud-slot.dh .ud-myb { top: -36px; }
+.ud-score { padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .1); display: grid; gap: 6px; }
+.ud-score-t { font-family: var(--display); font-size: 13.5px; }
+.ud-score-t small { display: block; font-family: Pretendard, sans-serif; font-size: 11px; color: var(--muted); }
+.ud-score-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.ud-score-row span { display: grid; text-align: center; padding: 4px 0; border-radius: 8px; background: rgba(255, 255, 255, .08); font-size: 12px; font-weight: 800; }
+.ud-score-row span b { font-size: 10.5px; color: var(--muted); font-weight: 700; }
+.ud-score-row span.top { background: rgba(255, 216, 77, .16); color: var(--gold); }
+.ud-score-dh { font-size: 12px; color: var(--muted); }
+.up { color: #4ee07a; } .dn { color: #ff5c7a; }
+.ud-bk { white-space: nowrap; }
+.ud-bk b { color: var(--ink); }
+.ud-break i { font-style: normal; margin: 0 3px; color: var(--muted); }
+.ud-sum { color: var(--gold); }
 .ud-finish { width: 18px; margin-left: 2px; position: relative; background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0 / 9px 9px; }
 .ud-finish span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(90deg); font-family: var(--logo); font-size: 10px; letter-spacing: 2px; color: #c81d38; background: #fff; padding: 0 4px; border-radius: 3px; white-space: nowrap; }
-@media (min-width: 560px) { .ud-rk { font-size: 20px; } .ud-pt { font-size: 12px; } .ud-race { padding-top: 26px; } }
+@media (min-width: 560px) { .ud-rk { font-size: 20px; } .ud-dhb { font-size: 13px; } }
 
 .ud-info { display: grid; gap: 6px; }
 .ud-token { padding: 8px 10px; border-radius: 12px; background: rgba(29, 22, 64, .8); border: 1px solid rgba(255, 216, 77, .4); font-size: 13.5px; }
@@ -698,7 +715,7 @@ a.cat-banner:active { transform: translateY(0); }
 .udc-cn { position: absolute; top: 3px; z-index: 2; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 99px; background: var(--c1); color: #fff; border: 2px solid #fff; font-family: var(--logo); font-size: 12px; line-height: 16px; text-align: center; }
 .udc-cn small { font-size: 8px; }
 .udc-cn.l { left: 3px; } .udc-cn.r { right: 3px; }
-.udc-pic { display: grid; place-items: center; padding-top: 16px; }
+.udc-pic { display: grid; place-items: center; padding-top: 16px; min-height: 0; }
 .udc-pic svg { width: 100%; height: auto; display: block; }
 .udc-pic.two { grid-template-columns: 1fr 1fr; gap: 0; }
 .udc-pic.two svg { width: 130%; margin: 0 -15%; }
@@ -728,7 +745,7 @@ a.cat-banner:active { transform: translateY(0); }
 .ud-opts.one { grid-template-columns: 1fr; }
 .ud-opt-title { font-size: 13px; font-weight: 800; color: var(--gold); }
 .ud-who { display: flex; flex-wrap: wrap; gap: 6px; }
-.ud-break { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+.ud-break { grid-column: 1 / -1; font-size: 12.5px; color: #cfc8ea; font-weight: 600; line-height: 1.7; padding: 6px 10px; border-radius: 8px; background: rgba(0, 0, 0, .2); }
 
 /* ───────── 프로필 편집 창 ───────── */
 .modal-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(5, 2, 15, .7); display: grid; place-items: center; padding: 16px; }
@@ -748,3 +765,6 @@ a.cat-banner:active { transform: translateY(0); }
   transition: opacity .2s, transform .2s; z-index: 60; word-break: break-all; box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+.ud-slot:first-child .ud-dhb { left: 2px; transform: none; }
+.ud-slot:first-child .ud-dhb::after { left: 18px; }
+.ud-bk b.up { color: #4ee07a; } .ud-bk b.dn { color: #ff5c7a; }

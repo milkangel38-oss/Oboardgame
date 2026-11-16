@@ -150,25 +150,56 @@ export function cardArt(c) {
   }
   if (c.kind === 'pos') {
     return `<div class="udc k-pos">
-      <span class="udc-cn l">${c.pos}<small>등</small></span><span class="udc-cn r">${c.pos}<small>등</small></span>
-      <span class="udc-big">${c.pos}<small>등</small></span>
+      <span class="udc-cn l">${c.pos}</span><span class="udc-cn r">${c.pos}</span>
+      <span class="udc-pic">${medalSvg(c.pos)}</span>
       ${miniTrack(c.pos)}
       <span class="udc-mv">${arrows(c.steps)}</span>
       <span class="udc-name">${c.pos}등 말 ${c.steps}칸</span></div>`;
   }
   if (c.kind === 'fall') {
     return `<div class="udc k-fall">
-      <span class="udc-cn l">${c.pos}<small>등</small></span><span class="udc-cn r">${c.pos}<small>등</small></span>
-      <span class="udc-big">💥<small>낙마</small></span>
+      <span class="udc-cn l">${c.pos}</span><span class="udc-cn r">${c.pos}</span>
+      <span class="udc-pic">${fallSvg(c.pos)}</span>
       ${miniTrack(c.pos, true)}
       <span class="udc-mv"><span class="b">${c.pos}등 ➜ 꼴찌</span></span>
       <span class="udc-name">${c.pos}등 말 낙마!</span></div>`;
   }
   return `<div class="udc k-ticket">
     <span class="udc-cn l">⇄</span><span class="udc-cn r">⇄</span>
-    <span class="udc-big">🎫<small>⇄</small></span>
+    <span class="udc-pic">${swapSvg()}</span>
     <span class="udc-mv"><em>나 또는 상대</em></span>
     <span class="udc-name">티켓 교환</span></div>`;
+}
+
+// 카드 그림: 등수 메달 / 낙마 / 티켓 교환
+const MEDAL = { 1: ['#ffd84d', '#c99412'], 2: ['#e3e7ee', '#9aa3ad'], 3: ['#e5a066', '#a8642c'] };
+function medalSvg(pos) {
+  const [f, d] = MEDAL[pos] || ['#8fb8ff', '#3b5fb0'];
+  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+    <path d="M44 4 l14 34 l-12 4 l-16 -34 z" fill="#d64545"/><path d="M76 4 l-14 34 l12 4 l16 -34 z" fill="#2f6fd6"/>
+    <circle cx="60" cy="56" r="28" fill="${d}"/><circle cx="60" cy="56" r="22" fill="${f}" stroke="#fff" stroke-width="2"/>
+    <text x="60" y="66" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="28" fill="#2b1d12">${pos}<tspan font-size="14">등</tspan></text>
+  </svg>`;
+}
+function fallSvg(pos) {
+  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="#2b1d12" stroke-width="2" stroke-linejoin="round">
+      <rect x="18" y="52" width="6" height="30" fill="#fff"/><rect x="96" y="52" width="6" height="30" fill="#fff"/>
+      <rect x="14" y="48" width="92" height="9" rx="2" fill="#fff"/>
+      <path d="M14 48 h14 v9 h-14 z M42 48 h14 v9 h-14 z M70 48 h14 v9 h-14 z M98 48 h8 v9 h-8 z" fill="#d64545"/>
+      <path d="M60 4 l6 14 l15 -6 l-7 14 l15 4 l-14 6 l8 12 l-15 -4 l-4 14 l-6 -13 l-11 9 l1 -14 l-15 0 l11 -10 l-10 -11 l15 2 z" fill="#ffd84d"/>
+    </g>
+    <text x="60" y="35" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="13" fill="#c81d38">낙마</text>
+    <g fill="#cbb08a" opacity=".9"><circle cx="30" cy="84" r="6"/><circle cx="44" cy="86" r="5"/><circle cx="78" cy="86" r="5"/><circle cx="90" cy="84" r="6"/></g>
+  </svg>`;
+}
+function swapSvg() {
+  const tk = (x, y, r, c) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-22" y="-14" width="44" height="28" rx="4" fill="${c}" stroke="#2b1d12" stroke-width="2"/><path d="M-10 -14 v28" stroke="#2b1d12" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="6" cy="0" r="7" fill="#fff" stroke="#2b1d12" stroke-width="1.5"/><text x="6" y="4" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="10" fill="#2b1d12">?</text></g>`;
+  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
+    ${tk(38, 36, -12, '#ffd84d')}${tk(82, 54, 10, '#ff8fb8')}
+    <path d="M60 14 q30 -4 34 22" fill="none" stroke="#2f6fd6" stroke-width="4" stroke-linecap="round"/><path d="M88 32 l6 8 l5 -10 z" fill="#2f6fd6"/>
+    <path d="M60 78 q-30 4 -34 -22" fill="none" stroke="#d64545" stroke-width="4" stroke-linecap="round"/><path d="M32 60 l-6 -8 l-5 10 z" fill="#d64545"/>
+  </svg>`;
 }
 
 // ── 그림: 티켓 카드 ──
@@ -187,15 +218,26 @@ function raceTrack(state, me) {
   const slots = [6, 5, 4, 3, 2, 1, 0].map((i) => {
     const a = state.lineup[i];
     return `<div class="ud-slot ${a === state.darkHorse ? 'dh' : ''} ${mine.includes(a) ? 'mine' : ''}" data-ani="${a}" style="--c1:${NUM_COLOR[a]}">
-      ${a === state.darkHorse ? '<span class="ud-dhb">🌑</span>' : ''}
+      ${a === state.darkHorse ? '<span class="ud-dhb">다크호스</span>' : ''}
       ${mine.includes(a) ? '<span class="ud-myb">🎫</span>' : ''}
       <span class="ud-stand">${animalSvg(a)}</span>
       <span class="ud-base"></span>
       <span class="ud-rk">${i + 1}<small>등</small></span>
-      <span class="ud-pt">${POINTS[i]}점</span>
     </div>`;
   }).join('');
-  return `<div class="ud-race"><div class="ud-lane">${slots}</div><div class="ud-finish"><span>FINISH</span></div></div>`;
+  return `<div class="ud-race"><div class="ud-lane">${slots}</div><div class="ud-finish"><span>FINISH</span></div></div>
+    <div class="ud-score">
+      <div class="ud-score-t">🏆 등수별 점수 <small>경주가 끝났을 때 내 티켓 동물의 등수로 점수를 받아요</small></div>
+      <div class="ud-score-row">${POINTS.map((p, i) => `<span class="${i < 3 ? 'top' : ''}"><b>${i + 1}등</b>${p}점</span>`).join('')}</div>
+      <div class="ud-score-dh">🌑 다크호스 토큰: 다크호스가 3등 안 <b class="up">+${DH_GOOD}점</b> · 4등 이하 <b class="dn">${DH_BAD}점</b></div>
+    </div>`;
+}
+
+// 점수 합산 내역: 여우 1등 10점 + 판다 4등 4점 + 다크호스 +5점
+function breakdown(state, sc) {
+  const parts = sc.tickets.map((a, i) => `<span class="ud-bk">${esc(ANIMALS[a].name)} ${state.lineup.indexOf(a) + 1}등 <b>${sc.ticketPts[i]}점</b></span>`);
+  if (sc.token) parts.push(`<span class="ud-bk dh">🌑다크호스(${esc(ANIMALS[state.darkHorse].name)} ${state.lineup.indexOf(state.darkHorse) + 1}등) <b class="${sc.token > 0 ? 'up' : 'dn'}">${sc.token > 0 ? '+' : ''}${sc.token}점</b></span>`);
+  return parts.join('<i>+</i>') + ` <i>=</i> <b class="ud-sum">${sc.total}점</b>`;
 }
 
 // 말이 움직이면 미끄러지듯 이동하는 애니메이션
@@ -335,9 +377,10 @@ export default {
               const sc = scoreOf(state, r.uid);
               return `<li class="${r.uid === me ? 'me' : ''}">
                 <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
-                <span class="nb-name">${name(r.uid)}<small class="ud-break">${sc.tickets.map((a, i) => `${ANIMALS[a].name} ${sc.ticketPts[i]}`).join(' + ')}${sc.token ? ` ${sc.token > 0 ? '+' : '−'} 🌑${Math.abs(sc.token)}` : ''}</small></span>
+                <span class="nb-name">${name(r.uid)}</span>
                 <span class="nb-score">${r.score}점</span>
                 <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span>
+                <div class="ud-break">${breakdown(state, sc)}</div>
               </li>`;
             }).join('')}
           </ol>
