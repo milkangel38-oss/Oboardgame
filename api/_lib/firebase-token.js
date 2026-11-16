@@ -9,11 +9,19 @@ const AUDIENCE = 'https://identitytoolkit.googleapis.com/google.identity.identit
 function getServiceAccount() {
   let email = process.env.FIREBASE_CLIENT_EMAIL;
   let key = process.env.FIREBASE_PRIVATE_KEY;
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    email = sa.client_email;
-    key = sa.private_key;
+  const raw = (process.env.FIREBASE_SERVICE_ACCOUNT || '').trim();
+  if (raw) {
+    try {
+      const sa = JSON.parse(raw);
+      email = sa.client_email;
+      key = sa.private_key;
+    } catch {
+      // 붙여 넣다가 괄호가 빠지는 등 JSON이 조금 깨져도, 필요한 두 값만 찾아서 사용
+      email = raw.match(/"client_email"\s*:\s*"([^"]+)"/)?.[1];
+      key = raw.match(/"private_key"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1];
+    }
   }
+  if (key && !key.includes('BEGIN PRIVATE KEY')) key = null;
   if (!email || !key) throw new Error('FIREBASE_SERVICE_ACCOUNT 환경 변수가 설정되지 않았어요');
   return { email, key: key.replace(/\\n/g, '\n') };
 }
