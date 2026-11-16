@@ -4,12 +4,12 @@
 // - 액션카드 33장: 2명 8장 / 3명 7장 / 4~5명 6장 / 6명 5장
 // - 다크호스 토큰: 2~4명 2개, 5~6명 3개 (1인 1개)
 // - 내 차례: ① 다크호스 토큰 가져오기(선택) ② 액션카드 1장 공개해서 효과 실행 (시간 제한 없음)
-// - 모두 액션카드를 다 쓰면 경주 끝: 티켓 동물 순위 점수(10·8·6·4·3·2·1) + 다크호스 토큰(+5 / −5)
+// - 모두 액션카드를 다 쓰면 경주 끝: 티켓 동물 순위 점수(10·8·6·4·3·2·1) + 다크호스 토큰(+5 / −3)
 import { GARNET } from '../profile.js';
 import { animalSvg, NUM_COLOR } from './underdog-art.js';
 
 export const POINTS = [10, 8, 6, 4, 3, 2, 1];
-const DH_GOOD = 5, DH_BAD = -5;
+const DH_GOOD = 5, DH_BAD = -3;
 
 const NAMES = { 1: '토끼', 2: '호랑이', 3: '판다', 4: '개구리', 5: '펭귄', 6: '여우', 7: '코끼리' };
 export const ANIMALS = Object.fromEntries(Object.entries(NAMES).map(([n, name]) => [n, { name, color: NUM_COLOR[n] }]));
@@ -447,7 +447,7 @@ export default {
           <div class="ud-mine">
             <div class="ud-mine-title">🎫 내 티켓 <small>나만 보여요</small></div>
             <div class="ud-tickets">${(state.tickets[me] || []).map((a) => ticketArt(state, a)).join('')}
-              ${state.tokensHeld[me] ? '<span class="udt dhk"><span class="udt-pic">🌑</span><span class="udt-info"><b>다크호스 토큰</b><small>3등 안 +5 / 아니면 −5</small></span></span>' : ''}</div>
+              ${state.tokensHeld[me] ? '<span class="udt dhk"><span class="udt-pic">🌑</span><span class="udt-info"><b>다크호스 토큰</b><small>3등 안 +5 / 아니면 −3</small></span></span>' : ''}</div>
           </div>
           ${canToken ? `<button class="btn ud-tokenbtn block" data-token>🌑 다크호스 토큰 가져오기 (선택)</button>` : ''}
           ${myTurn && state.tokenThisTurn ? '<div class="ud-took">🌑 토큰을 가져왔어요. 이제 카드를 내세요</div>' : ''}
