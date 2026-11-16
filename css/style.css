@@ -147,6 +147,7 @@ input:focus { outline: 2px solid rgba(62, 230, 255, .5); border-color: var(--cya
 .insert-coin { margin: 6px 0 0; font-family: ui-monospace, Menlo, monospace; font-weight: 700; letter-spacing: .2em; font-size: 13px; color: var(--cyan); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 .version { margin: -6px 0 0; font-size: 11px; color: rgba(255, 255, 255, .3); }
+.version a { color: rgba(255, 255, 255, .5); }
 
 /* ───────── 헤더 ───────── */
 .top {

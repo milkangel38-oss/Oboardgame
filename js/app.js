@@ -139,7 +139,7 @@ function renderLogin(invited) {
           <button class="arcade-btn naver" data-p="naver"><span class="ico">N</span>네이버로 참여하기</button>
         </div>
         <p class="insert-coin">▶ INSERT COIN ◀</p>
-        <p class="version">${APP_VERSION}</p>
+        <p class="version">${APP_VERSION} · <a href="/privacy.html">개인정보 처리방침</a></p>
       </div>
     </main>`;
   $app.querySelectorAll('[data-p]').forEach((b) => {
