@@ -2,6 +2,28 @@
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
 export const ART = {
+  // 미스터리 사인: 어두운 배경에 빛나는 ◆ 기호와 힌트 식들
+  mystery: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="ms-bg" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="#4a4a4a"/><stop offset=".5" stop-color="#1f1f1f"/><stop offset="1" stop-color="#080808"/></radialGradient>
+    <linearGradient id="ms-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#d4a640"/><stop offset="1" stop-color="#7a5212"/></linearGradient>
+    <filter id="ms-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="300" height="420" fill="url(#ms-bg)"/>
+  <g font-family="'Black Han Sans', 'Jua', sans-serif" fill="#fff" opacity=".16" font-size="20">
+    <text x="22" y="92">5 ◆ 2 = 12</text><text x="170" y="118">4 ◆ 4 = 16</text>
+    <text x="40" y="300">9 ◆ 1 = 18</text><text x="168" y="328">3 ◆ 7 = 14</text><text x="70" y="372">8 ◆ 6 = 28</text>
+  </g>
+  <g transform="translate(150 158)">
+    <rect x="-36" y="-36" width="72" height="72" rx="10" transform="rotate(45)" fill="#160c08" stroke="url(#ms-gold)" stroke-width="5" filter="url(#ms-glow)"/>
+    <text x="0" y="17" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="50" fill="#e0364f" filter="url(#ms-glow)">?</text>
+    <text x="-100" y="16" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="46" fill="#f3e2b0">7</text>
+    <text x="100" y="16" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="46" fill="#f3e2b0">3</text>
+  </g>
+  <g stroke="url(#ms-gold)" stroke-width="2" opacity=".7"><path d="M30 150 h70"/><path d="M200 250 h70"/></g>
+</svg>`,
+
   // 숫자눈치게임: 흩어진 숫자들 + 9·9(겹침)·7(득점) 카드
   numbers: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

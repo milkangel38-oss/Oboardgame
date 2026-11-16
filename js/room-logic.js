@@ -62,6 +62,16 @@ export function setReady(room, uid, ready) {
   return room;
 }
 
+// 방장이 게임 시작 전에 고르는 설정 (예: 라운드 수)
+export function setOption(room, uid, game, key, value) {
+  if (room.hostId !== uid) throw new Error('방장만 바꿀 수 있어요');
+  if (room.status !== 'waiting') throw new Error('게임 중에는 바꿀 수 없어요');
+  const opt = (game.options || []).find((o) => o.key === key);
+  if (!opt || !opt.choices.includes(value)) throw new Error('고를 수 없는 값이에요');
+  room.options = { ...(room.options || {}), [key]: value };
+  return room;
+}
+
 export function canStart(room, game) {
   const list = sortedPlayers(room);
   if (room.status !== 'waiting') return { ok: false, reason: '이미 시작했어요' };

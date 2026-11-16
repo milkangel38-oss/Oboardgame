@@ -487,6 +487,12 @@ function drawRoom($main, room, game) {
          <div class="ribbon static"><span><i>◆</i>${esc(game.name)}<i>◆</i></span></div>
          <p class="muted">${playerCount(game)} · ${esc(game.duration)}</p>
          ${game.rules ? `<ol class="rules">${game.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>` : ''}
+         ${(game.options || []).map((o) => {
+           const val = room.options?.[o.key] ?? o.default;
+           return `<div class="game-opt"><span>${esc(o.label)}</span>${isHost
+             ? `<select data-opt="${o.key}">${o.choices.map((c) => `<option value="${c}" ${c === val ? 'selected' : ''}>${c}</option>`).join('')}</select>`
+             : `<b>${esc(val)}</b>`}</div>`;
+         }).join('')}
          ${controls}
        </div>`
     : `${resultBanner}<div class="game-area"></div>`;
@@ -537,6 +543,9 @@ function drawRoom($main, room, game) {
   $main.querySelector('[data-ready]')?.addEventListener('click', () => act((r) => R.setReady(r, user.uid, !mine.ready)));
   $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.start(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
+  $main.querySelectorAll('[data-opt]').forEach((sel) => {
+    sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number(sel.value)));
+  });
 
   const $area = $main.querySelector('.game-area');
   if ($area && room.game) {
