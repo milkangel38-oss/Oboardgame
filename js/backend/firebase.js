@@ -3,7 +3,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
-  signInAnonymously, updateProfile, signOut as fbSignOut,
+  signInAnonymously, signInWithCustomToken, updateProfile, signOut as fbSignOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
   initializeFirestore, doc, onSnapshot, runTransaction,
@@ -19,7 +19,7 @@ export function createBackend(config) {
     uid: u.uid,
     name: u.displayName || '게스트',
     photo: u.photoURL || '',
-    provider: u.isAnonymous ? 'guest' : (u.providerData[0]?.providerId || 'custom'),
+    provider: u.isAnonymous ? 'guest' : (u.providerData[0]?.providerId || (u.uid.startsWith('naver:') ? 'naver' : 'custom')),
   };
 
   let authCb = null;
@@ -40,11 +40,21 @@ export function createBackend(config) {
         await updateProfile(cred.user, { displayName: name || '게스트' });
         authCb?.(toUser(auth.currentUser)); // 닉네임 반영 후 다시 알림
       } else if (provider === 'naver') {
-        // 네이버는 Firebase 기본 제공이 아니라 서버(Cloud Functions)에서
-        // 커스텀 토큰을 발급해야 합니다. README의 "네이버 로그인 붙이기" 참고.
-        throw new Error('네이버 로그인은 서버 설정 후 사용할 수 있어요 (README 참고)');
+        // 서버(api/auth/naver)가 네이버 로그인 → Firebase 토큰 발급 후 #/auth/naver 로 돌려보냄
+        location.href = '/api/auth/naver/start';
+        await new Promise(() => {}); // 페이지 이동 중
       } else {
         throw new Error('지원하지 않는 로그인 방식이에요');
+      }
+    },
+
+    // 네이버 로그인 마지막 단계: 서버가 준 토큰으로 Firebase 로그인
+    async signInWithNaverToken(token, { name, photo } = {}) {
+      const cred = await signInWithCustomToken(auth, token);
+      const u = cred.user;
+      if ((name && u.displayName !== name) || (photo && u.photoURL !== photo)) {
+        await updateProfile(u, { displayName: name || u.displayName, photoURL: photo || u.photoURL });
+        authCb?.(toUser(auth.currentUser));
       }
     },
 

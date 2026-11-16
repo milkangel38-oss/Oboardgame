@@ -31,17 +31,26 @@ python3 -m http.server 8000
    ```
    배포된 주소(`https://프로젝트명.web.app`)를 친구들에게 보내면 끝!
 
-## 3. 네이버 로그인 붙이기 (나중에)
+## 3. 네이버 로그인 (Vercel 서버 기능 사용)
 
-네이버는 Firebase가 기본으로 지원하지 않아서 서버가 조금 필요해요.
+동작 순서: 네이버 버튼 → `api/auth/naver/start` → 네이버 로그인 → `api/auth/naver/callback`
+→ 서버가 Firebase 로그인 토큰 발급 → 사이트로 돌아와 자동 로그인
 
-1. https://developers.naver.com 에서 애플리케이션 등록 (Callback URL 설정)
-2. Firebase **Cloud Functions**에 함수 하나 추가 (Blaze 요금제 필요, 소규모는 사실상 무료):
-   네이버 인증 코드 → 네이버 액세스 토큰 → 사용자 정보 조회 → `admin.auth().createCustomToken('naver:' + id)`
-3. 웹에서는 `signInWithCustomToken(auth, token)`으로 로그인
-4. `js/backend/firebase.js`의 `provider === 'naver'` 부분을 위 흐름으로 교체
+Vercel > 프로젝트 > Settings > Environment Variables 에 아래 3개를 넣어야 동작해요.
 
-카카오 로그인도 같은 방식으로 붙일 수 있어요.
+| 이름 | 값 |
+|---|---|
+| `NAVER_CLIENT_ID` | 네이버 개발자센터 > 내 애플리케이션 > Client ID |
+| `NAVER_CLIENT_SECRET` | 같은 곳의 Client Secret |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase > 프로젝트 설정 > 서비스 계정 > 새 비공개 키 생성 으로 받은 JSON 파일 내용 전체 |
+
+⚠️ 서비스 계정 JSON과 Client Secret은 비밀번호와 같아요. **GitHub에 올리지 말고** Vercel 환경 변수에만 넣으세요.
+
+네이버 개발자센터 설정
+- 사용 API: 네이버 로그인 (제공 정보: 별명, 프로필 사진)
+- 서비스 URL: `https://내주소.vercel.app`
+- Callback URL: `https://내주소.vercel.app/api/auth/naver/callback`
+- 앱이 "개발 중" 상태일 때는 **멤버 관리**에 등록한 네이버 아이디만 로그인할 수 있어요.
 
 ## 4. 새 게임 추가하기
 
@@ -70,5 +79,6 @@ js/
   games/
     index.js        게임 목록
     tictactoe.js    예시 게임
+api/auth/naver/     네이버 로그인 서버 기능 (Vercel)
 firestore.rules     Firestore 보안 규칙
 ```

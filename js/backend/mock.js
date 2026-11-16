@@ -46,6 +46,10 @@ export function createBackend() {
       authCb?.(user);
     },
 
+    async signInWithNaverToken() {
+      throw new Error('테스트 모드에서는 네이버 로그인을 쓸 수 없어요');
+    },
+
     async signOut() {
       sessionStorage.removeItem(USER_KEY);
       authCb?.(null);

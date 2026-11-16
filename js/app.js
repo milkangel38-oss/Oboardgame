@@ -34,6 +34,22 @@ function playerCount(g) {
 // ───────── 라우팅 ─────────
 // #/            로그인 또는 로비
 // #/room/CODE   게임 방 (초대 링크)
+// 네이버 로그인에서 돌아온 경우 (#/auth/naver?token=... 또는 ?error=...)
+let naverPending = null;
+const naverReturn = location.hash.match(/^#\/auth\/naver\?(.*)$/);
+if (naverReturn) {
+  const params = new URLSearchParams(naverReturn[1]);
+  history.replaceState(null, '', location.pathname + location.search + '#/'); // 주소창에서 토큰 지우기
+  if (params.get('error')) {
+    setTimeout(() => toast(params.get('error')), 300);
+  } else if (params.get('token')) {
+    naverPending = backend
+      .signInWithNaverToken(params.get('token'), { name: params.get('name'), photo: params.get('photo') })
+      .catch((e) => toast('네이버 로그인 실패: ' + e.message))
+      .finally(() => { naverPending = null; route(); });
+  }
+}
+
 backend.onAuth((u) => { user = u; authReady = true; route(); });
 window.addEventListener('hashchange', route);
 
@@ -41,6 +57,10 @@ function route() {
   if (!authReady) return;
   cleanup?.();
   cleanup = null;
+  if (naverPending) {
+    $app.innerHTML = '<div class="center muted" style="min-height:100vh;align-content:center">네이버로 로그인하는 중…</div>';
+    return;
+  }
 
   const hash = location.hash.slice(1) || '/';
   const m = hash.match(/^\/room\/([A-Za-z0-9]{4,8})$/);
