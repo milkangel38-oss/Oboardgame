@@ -1,5 +1,5 @@
 import { backend } from './backend/index.js';
-import { GAMES, getGame } from './games/index.js';
+import { GAMES, CATEGORIES, getGame } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS } from './profile.js';
@@ -170,8 +170,14 @@ function renderLobby() {
     <main class="wrap lobby">
       <section class="profile" id="profile"></section>
 
-      <section class="game-list">
-        <div class="games">${GAMES.map(gameCard).join('')}</div>
+      <section class="cat-cols">
+        ${CATEGORIES.map((c) => {
+          const list = GAMES.filter((g) => g.category === c.id);
+          return `<div class="cat-col">
+            <div class="cat-head">${c.icon} ${esc(c.name)}</div>
+            <div class="cat-cards">${list.length ? list.map(gameCard).join('') : emptyCard(c)}</div>
+          </div>`;
+        }).join('')}
       </section>
 
       <section class="panel join-box">
@@ -270,6 +276,16 @@ function gameCard(g) {
         </div>
         <div class="gcard-foot">👥 ${playerCount(g)} · ⏱ ${esc(g.duration)}</div>
       </button>
+    </div>`;
+}
+
+function emptyCard(c) {
+  return `
+    <div class="gcard empty-card" aria-label="${esc(c.name)} 준비중">
+      <div class="ribbon"><span><i>◆</i>준비중<i>◆</i></span></div>
+      <div class="empty-icon">${c.icon}</div>
+      <div class="gcard-bottom"><p class="gdesc">새 게임이 곧 추가돼요</p></div>
+      <div class="gcard-foot">COMING SOON</div>
     </div>`;
 }
 
