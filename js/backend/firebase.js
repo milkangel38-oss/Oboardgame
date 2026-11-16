@@ -112,7 +112,7 @@ export function createBackend(config) {
         g.plays += 1;
         if (place === 1) g.wins += 1;
         g.garnets += garnets;
-        t.set(ref, { stats: { ...stats, [gameId]: g }, garnets: (p.garnets || 0) + garnets, lastMatch: matchKey }, { merge: true });
+        t.set(ref, { stats: { ...stats, [gameId]: g }, garnets: Math.max(0, (p.garnets || 0) + garnets), lastMatch: matchKey }, { merge: true });
       });
     },
 

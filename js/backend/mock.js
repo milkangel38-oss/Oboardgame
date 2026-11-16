@@ -106,7 +106,7 @@ export function createBackend() {
       g.plays += 1;
       if (place === 1) g.wins += 1;
       g.garnets += garnets;
-      saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: (p.garnets || 0) + garnets, lastMatch: matchKey });
+      saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: Math.max(0, (p.garnets || 0) + garnets), lastMatch: matchKey });
     },
 
     watchRoom(code, cb) {

@@ -2,6 +2,36 @@
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
 export const ART = {
+  // 결합 (데스매치): 붉은 경고 줄무늬 + 결합 타일 + 교차한 칼
+  combo: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cb-bg" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#5a0a14"/><stop offset=".6" stop-color="#22040a"/><stop offset="1" stop-color="#070103"/></radialGradient>
+    <pattern id="cb-stripe" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="13" height="26" fill="#ff1f3d" opacity=".08"/></pattern>
+    <filter id="cb-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="cb-sh"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".6"/></filter>
+  </defs>
+  <rect width="300" height="420" fill="url(#cb-bg)"/>
+  <rect width="300" height="420" fill="url(#cb-stripe)"/>
+  <!-- 교차한 칼 -->
+  <g opacity=".55" stroke="#c9c9d6" stroke-width="7" stroke-linecap="round">
+    <line x1="40" y1="330" x2="260" y2="90"/><line x1="260" y1="330" x2="40" y2="90"/>
+  </g>
+  <g fill="#d4a640"><rect x="22" y="322" width="40" height="10" rx="4" transform="rotate(-47 42 327)"/><rect x="238" y="322" width="40" height="10" rx="4" transform="rotate(47 258 327)"/></g>
+  <!-- 결합 타일 3×3 -->
+  <g transform="translate(150 196) rotate(-6)" filter="url(#cb-sh)">
+    ${[[0, 0, 0], [1, 1, 1], [2, 2, 2], [1, 0, 2], [0, 2, 1], [2, 1, 0], [2, 0, 1], [1, 2, 0], [0, 1, 2]].map(([sh, co, bg], i) => {
+      const x = (i % 3) * 46 - 69, y = Math.floor(i / 3) * 46 - 69;
+      const fill = ['#e8333f', '#ffc928', '#2f6bff'][co];
+      const base = ['#f4f1ea', '#8d8b96', '#1c1b24'][bg];
+      const shp = sh === 0 ? `<circle cx="${x + 21}" cy="${y + 21}" r="12" fill="${fill}"/>`
+        : sh === 1 ? `<polygon points="${x + 21},${y + 7} ${x + 35},${y + 33} ${x + 7},${y + 33}" fill="${fill}"/>`
+        : `<rect x="${x + 9}" y="${y + 9}" width="24" height="24" rx="2" fill="${fill}"/>`;
+      return `<rect x="${x}" y="${y}" width="42" height="42" rx="6" fill="${base}" stroke="${[0, 4, 8].includes(i) ? '#ffd84d' : '#000'}" stroke-width="${[0, 4, 8].includes(i) ? 3 : 1}"/>${shp}`;
+    }).join('')}
+  </g>
+</svg>`,
+
   // 미스터리 사인: 어두운 배경에 빛나는 ◆ 기호와 힌트 식들
   mystery: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
