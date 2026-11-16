@@ -1,5 +1,5 @@
 import { backend } from './backend/index.js';
-import { GAMES, CATEGORIES, getGame } from './games/index.js';
+import { GAMES, CATEGORIES, getGame, getCategory } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS } from './profile.js';
@@ -112,7 +112,9 @@ function route() {
     sessionStorage.removeItem('mbg:after');
     if (after !== hash) { location.hash = after; return; }
   }
+  const cat = hash.match(/^\/cat\/([a-z]+)$/);
   if (m) cleanup = renderRoom(m[1].toUpperCase());
+  else if (cat && getCategory(cat[1])) renderCategory(getCategory(cat[1]));
   else renderLobby();
 }
 
@@ -170,15 +172,19 @@ function renderLobby() {
     <main class="wrap lobby">
       <section class="profile" id="profile"></section>
 
-      <section class="cat-cols">
+      <nav class="cat-banners" aria-label="게임 분류">
         ${CATEGORIES.map((c) => {
-          const list = GAMES.filter((g) => g.category === c.id);
-          return `<div class="cat-col">
-            <div class="cat-head">${c.icon} ${esc(c.name)}</div>
-            <div class="cat-cards">${list.length ? list.map(gameCard).join('') : emptyCard(c)}</div>
-          </div>`;
+          const n = GAMES.filter((g) => g.category === c.id && !g.comingSoon).length;
+          return `<a class="cat-banner cat-${c.id}" href="#/cat/${c.id}">
+            <div class="cat-art">${c.art}</div>
+            <div class="cat-text">
+              <span class="cat-name">${esc(c.name)}</span>
+              <span class="cat-desc">${esc(c.desc)}</span>
+              <span class="cat-count">${n ? `게임 ${n}개 ▶` : '준비중'}</span>
+            </div>
+          </a>`;
         }).join('')}
-      </section>
+      </nav>
 
       <section class="panel join-box">
         <h2 class="section-title sm">초대 코드로 입장</h2>
@@ -192,6 +198,32 @@ function renderLobby() {
   drawProfile();
   profileListeners.add(() => { drawProfile(); refreshGameRecords(); });
 
+  $app.querySelector('form.join').onsubmit = (e) => {
+    e.preventDefault();
+    const code = e.target.code.value.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) return toast('6자리 코드를 입력해 주세요');
+    location.hash = `#/room/${code}`;
+  };
+}
+
+// ───────── 분류별 게임 목록 ─────────
+function renderCategory(c) {
+  const list = GAMES.filter((g) => g.category === c.id);
+  $app.innerHTML = `${header()}
+    <main class="wrap">
+      <div class="cat-top">
+        <a class="btn ghost sm" href="#/">← 뒤로</a>
+      </div>
+      <div class="cat-banner cat-${c.id} small">
+        <div class="cat-art">${c.art}</div>
+        <div class="cat-text"><span class="cat-name">${esc(c.name)}</span><span class="cat-desc">${esc(c.desc)}</span></div>
+      </div>
+      ${list.length
+        ? `<div class="games">${list.map(gameCard).join('')}</div>`
+        : `<div class="panel center"><div style="font-size:42px">${c.icon}</div><p class="muted">아직 게임이 없어요. 곧 추가될 예정이에요!</p></div>`}
+    </main>`;
+  bindHeader();
+  profileListeners.add(refreshGameRecords);
   $app.querySelectorAll('[data-game]').forEach((el) => {
     el.onclick = async () => {
       const game = getGame(el.dataset.game);
@@ -207,12 +239,6 @@ function renderLobby() {
     };
   });
 
-  $app.querySelector('form.join').onsubmit = (e) => {
-    e.preventDefault();
-    const code = e.target.code.value.trim().toUpperCase();
-    if (!/^[A-Z0-9]{6}$/.test(code)) return toast('6자리 코드를 입력해 주세요');
-    location.hash = `#/room/${code}`;
-  };
 }
 
 function drawProfile() {
@@ -276,16 +302,6 @@ function gameCard(g) {
         </div>
         <div class="gcard-foot">👥 ${playerCount(g)} · ⏱ ${esc(g.duration)}</div>
       </button>
-    </div>`;
-}
-
-function emptyCard(c) {
-  return `
-    <div class="gcard empty-card" aria-label="${esc(c.name)} 준비중">
-      <div class="ribbon"><span><i>◆</i>준비중<i>◆</i></span></div>
-      <div class="empty-icon">${c.icon}</div>
-      <div class="gcard-bottom"><p class="gdesc">새 게임이 곧 추가돼요</p></div>
-      <div class="gcard-foot">COMING SOON</div>
     </div>`;
 }
 

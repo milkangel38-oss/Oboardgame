@@ -8,14 +8,16 @@
 //   render(el, ctx)                      → 화면 그리기. ctx = { state, me, players, finished, sendMove }
 // 카드 그림은 art.js 에 게임 id로 추가해요.
 import tictactoe from './tictactoe.js';
-import { ART } from './art.js';
+import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
 export const CATEGORIES = [
-  { id: 'mini', name: '미니게임', icon: '🕹️' },
-  { id: 'genius', name: '더 지니어스', icon: '🧠' },
-  { id: 'classic', name: '클래식', icon: '♟️' },
-];
+  { id: 'mini', name: '미니게임', icon: '🕹️', desc: '가볍게 한 판, 짧고 신나는 게임' },
+  { id: 'genius', name: '더 지니어스', icon: '🧠', desc: '심리전과 두뇌 싸움' },
+  { id: 'classic', name: '클래식', icon: '♟️', desc: '오목 · 섯다, 언제 해도 재밌는 게임' },
+].map((c) => ({ ...c, art: CATEGORY_ART[c.id] || '' }));
+
+export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);
 
 export const GAMES = [
   { ...tictactoe, category: 'classic' },
