@@ -42,7 +42,8 @@ export function join(room, user, game) {
   return room;
 }
 
-export function leave(room, uid) {
+// reason: 'leave'(나가기 버튼) | 'disconnect'(연결 끊김)
+export function leave(room, uid, reason = 'leave') {
   const leaving = room.players[uid];
   if (!leaving) return room;
   delete room.players[uid];
@@ -51,9 +52,27 @@ export function leave(room, uid) {
   if (room.hostId === uid) room.hostId = rest[0].uid;
   if (room.status === 'playing') {
     room.status = 'finished';
-    room.result = { message: `${leaving.name}님이 나가서 게임이 끝났어요`, winners: [], aborted: true };
+    room.result = {
+      message: reason === 'disconnect' ? `${leaving.name}님의 연결이 끊겨 게임이 끝났어요 (가넷 지급 없음)` : `${leaving.name}님이 나가서 게임이 끝났어요 (가넷 지급 없음)`,
+      winners: [], aborted: true,
+    };
   }
   return room;
+}
+
+// ── 접속 확인 (게임 중) ──
+// 게임 중인 사람은 몇 초마다 seen 시간을 갱신해요.
+// 누군가 오랫동안 갱신이 없으면(창을 닫음, 화면 꺼짐 등) 나간 것으로 보고 게임을 끝내요.
+export function heartbeat(room, uid) {
+  if (room.status === 'playing' && room.players[uid]) room.players[uid].seen = Date.now();
+  return room;
+}
+
+export function dropIfGone(room, uid, timeoutMs) {
+  const p = room.players[uid];
+  if (!p || room.status !== 'playing') return room;
+  if (Date.now() - (p.seen || 0) < timeoutMs) return room; // 그새 다시 접속했으면 그대로
+  return leave(room, uid, 'disconnect');
 }
 
 export function setReady(room, uid, ready) {
@@ -88,6 +107,8 @@ export function start(room, game, uid) {
   if (!check.ok) throw new Error(check.reason);
   room.game = game.setup(sortedPlayers(room), room);
   room.matchId = (room.matchId || 0) + 1; // 전적 중복 기록 방지용 판 번호
+  const now = Date.now();
+  Object.values(room.players).forEach((p) => (p.seen = now)); // 접속 확인 시작
   room.status = 'playing';
   room.result = null;
   return room;

@@ -4,6 +4,7 @@ import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
+import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 
 const $app = document.getElementById('app');
 let user = null;      // 로그인 정보 (구글/네이버)
@@ -107,6 +108,7 @@ function route() {
     if (m) sessionStorage.setItem('mbg:after', hash); // 로그인 후 초대받은 방으로 이동
     return renderLogin(!!m);
   }
+  stopBgm(); // BGM은 로그인 화면에서만
   const after = sessionStorage.getItem('mbg:after');
   if (after) {
     sessionStorage.removeItem('mbg:after');
@@ -122,6 +124,7 @@ function route() {
 function renderLogin(invited) {
   $app.innerHTML = `
     <main class="login">
+      <button class="bgm-btn" data-bgm aria-label="배경음악 켜고 끄기"></button>
       <div class="login-card">
         ${logo('lg')}
 
@@ -148,6 +151,25 @@ function renderLogin(invited) {
       try { await backend.signIn(b.dataset.p, {}); } catch (e) { toast(e.message); }
     };
   });
+
+  // BGM 버튼 (브라우저 정책상 화면을 한 번 눌러야 소리가 나요)
+  const $bgm = $app.querySelector('[data-bgm]');
+  const paintBgm = () => {
+    const on = bgmPlaying();
+    $bgm.classList.toggle('on', on);
+    $bgm.innerHTML = on ? '🔊 <span>BGM</span>' : '🔇 <span>BGM</span>';
+  };
+  $bgm.onclick = async (e) => {
+    e.stopPropagation();
+    if (bgmPlaying()) stopBgm(true); else await startBgm().catch(() => {});
+    paintBgm();
+  };
+  paintBgm();
+  if (bgmWanted() && !bgmPlaying()) {
+    // 전에 켜 두었다면, 화면을 처음 누를 때 자동으로 다시 재생
+    const resume = async () => { await startBgm().catch(() => {}); paintBgm(); };
+    $app.querySelector('.login').addEventListener('pointerdown', resume, { once: true });
+  }
 }
 
 // ───────── 공통 헤더 ─────────
@@ -412,7 +434,26 @@ function renderRoom(code) {
       <a class="btn primary" href="#/">로비로 돌아가기</a></div>`;
   };
 
+  // 게임 중 접속 확인: 10초마다 내 접속 신호, 40초 넘게 신호가 없는 사람은 나간 것으로 처리
+  // (혼자 테스트 모드에서는 뒤쪽 탭이 느려져서 꺼 둬요. 확인용으로 ?presence 를 붙이면 켜져요)
+  const HEARTBEAT_MS = 10000;
+  const GONE_MS = Number(new URLSearchParams(location.search).get('gone')) || 40000;
+  const presenceOn = backend.mode !== 'mock' || new URLSearchParams(location.search).has('presence');
+  let latest = null;
+  let lastSig = '';
+  const presence = presenceOn ? setInterval(() => {
+    if (!latest || latest.status !== 'playing' || !latest.players[user.uid]) return;
+    backend.mutateRoom(code, (r) => R.heartbeat(r, user.uid)).catch(() => {});
+    const now = Date.now();
+    Object.values(latest.players).forEach((p) => {
+      if (p.uid !== user.uid && p.seen && now - p.seen > GONE_MS) {
+        backend.mutateRoom(code, (r) => R.dropIfGone(r, p.uid, GONE_MS)).catch(() => {});
+      }
+    });
+  }, Math.min(HEARTBEAT_MS, GONE_MS / 3)) : null;
+
   const unsub = backend.watchRoom(code, (room, err) => {
+    latest = room;
     if (err) return message('방을 불러오지 못했어요', err.message);
     if (!room) return message('방을 찾을 수 없어요', '코드가 맞는지, 방이 아직 있는지 확인해 주세요.');
     const game = getGame(room.gameId);
@@ -431,10 +472,14 @@ function renderRoom(code) {
       return;
     }
     recordIfFinished(room);
+    // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
+    const sig = JSON.stringify(room, (k, v) => (k === 'seen' ? undefined : v));
+    if (sig === lastSig && $main.querySelector('.room-head')) return;
+    lastSig = sig;
     drawRoom($main, room, game);
   });
 
-  return unsub;
+  return () => { unsub(); if (presence) clearInterval(presence); };
 }
 
 // 게임이 끝나면 내 전적에 한 번만 기록

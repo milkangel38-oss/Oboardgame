@@ -85,6 +85,15 @@ function tileSvg(t) {
 }
 export const tileLabel = (t) => `${BGS[t.b]} 배경 ${COLORS[t.c]} ${SHAPES[t.s]}`;
 
+// 합 하나를 타일 그림 3장 + 번호로
+function hapChip(key, tiles, extraClass = '', who = '') {
+  const idx = key.split('-').map(Number);
+  return `<span class="cb-hap-chip ${extraClass}">
+    <span class="cb-mini">${idx.map((i) => `<span class="cb-mini-tile">${tileSvg(tiles[i])}</span>`).join('')}</span>
+    <span class="cb-hap-num">${idx.map((i) => i + 1).join('·')}</span>${who ? `<small>${who}</small>` : ''}
+  </span>`;
+}
+
 // 고른 타일 (화면을 다시 그려도 유지)
 let picked = [];
 let pickedKey = '';
@@ -219,7 +228,7 @@ export default {
 
         ${reveal ? `
           <div class="nb-banner"><span><b>${name(state.winner)}</b>님 <span class="gold">결! +3점</span> · 이번 판의 합 ${all.length}개</span></div>
-          <div class="cb-found all">${all.map((k) => `<span class="${foundKeys.has(k) ? 'got' : 'miss'}">${k.split('-').map((i) => Number(i) + 1).join('·')}</span>`).join('')}</div>`
+          <div class="cb-found all">${all.map((k) => hapChip(k, state.tiles, foundKeys.has(k) ? 'got' : 'miss', foundKeys.has(k) ? '찾음' : '놓침')).join('')}</div>`
         : isPlayer ? `
           <div class="cb-actions">
             <button class="btn primary big cb-hap" data-hap>합! <small>(${picked.length}/3)</small></button>
@@ -229,7 +238,7 @@ export default {
 
         <div class="ms-hints-title">나온 합 ${state.found.length}개</div>
         <div class="cb-found">${state.found.length
-          ? state.found.map((f) => `<span class="${f.by === me ? 'mine' : ''}">${f.key.split('-').map((i) => Number(i) + 1).join('·')}<small>${name(f.by)}</small></span>`).join('')
+          ? state.found.map((f) => hapChip(f.key, state.tiles, f.by === me ? 'mine' : '', name(f.by))).join('')
           : '<em>아직 없어요</em>'}</div>
         ${state.log.length ? `<ul class="cb-log">${state.log.slice().reverse().map((l) => `<li class="${l.ok ? 'ok' : 'bad'}"><b>${name(l.uid)}</b> ${esc(l.text)}</li>`).join('')}</ul>` : ''}
       </div>`;

@@ -37,8 +37,18 @@ export function summarize(profile) {
   return { garnets, plays, wins, rate: plays ? Math.round((wins / plays) * 100) : 0, tier, next, progress };
 }
 
-// 가넷 아이콘 (붉은 보석)
-export const GARNET = `<svg class="garnet" viewBox="0 0 20 20" aria-hidden="true"><polygon points="10,1 18,6 18,14 10,19 2,14 2,6" fill="#a3122a"/><polygon points="10,1 18,6 10,10" fill="#ff4f63"/><polygon points="10,1 2,6 10,10" fill="#ff8a96"/><polygon points="18,6 18,14 10,10" fill="#c81d38"/><polygon points="10,10 18,14 10,19" fill="#7a0b1e"/><circle cx="7" cy="5.5" r="1.3" fill="#fff" opacity=".85"/></svg>`;
+// 가넷 아이콘 — 브릴리언트 컷 보석을 옆에서 본 모양 (짙은 석류빛 빨강)
+export const GARNET = `<svg class="garnet" viewBox="0 0 20 20" aria-hidden="true">
+<polygon points="3,7.5 7,3 13,3 17,7.5 10,18.5" fill="#5a0715"/>
+<polygon points="3,7.5 7,3 8.6,7.5" fill="#c8223f"/>
+<polygon points="7,3 13,3 11.4,7.5 8.6,7.5" fill="#e8455e"/>
+<polygon points="13,3 17,7.5 11.4,7.5" fill="#931229"/>
+<polygon points="3,7.5 8.6,7.5 10,18.5" fill="#a0162f"/>
+<polygon points="8.6,7.5 11.4,7.5 10,18.5" fill="#6d0a1d"/>
+<polygon points="11.4,7.5 17,7.5 10,18.5" fill="#480512"/>
+<polyline points="3,7.5 17,7.5" stroke="#ff8a9a" stroke-width=".5" fill="none" opacity=".7"/>
+<polygon points="8,3.6 10.6,3.6 9.6,6.4 8.4,6.4" fill="#fff" opacity=".75"/>
+</svg>`;
 
 // 고를 수 있는 캐릭터 프로필 (avatars.js의 오리지널 캐릭터)
 import { CHARACTERS } from './avatars.js';
