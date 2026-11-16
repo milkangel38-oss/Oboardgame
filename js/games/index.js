@@ -1,7 +1,7 @@
 // 게임 목록 — 새 게임은 numbers.js 처럼 파일을 만들고 여기에 추가하세요.
 //
 // 게임 모듈이 갖춰야 할 것:
-//   id, name, emoji, category('mini'|'genius'|'classic'), minPlayers, maxPlayers, duration, description, rules(문자열 배열)
+//   id, name, emoji, category('mini'|'genius'|'variety'), minPlayers, maxPlayers, duration, description, rules(문자열 배열)
 //   rewards: [1등 가넷, 2등 가넷, ...]
 //   options: [{ key, label, choices, default }]  → 방장이 시작 전에 고르는 설정 (room.options 로 setup에 전달)
 //   setup(players, room)                 → 첫 게임 상태
@@ -17,7 +17,7 @@ import { ART, CATEGORY_ART } from './art.js';
 export const CATEGORIES = [
   { id: 'mini', name: '미니게임', icon: '🕹️', desc: '가볍게 한 판, 짧고 신나는 게임' },
   { id: 'genius', name: '더 지니어스', icon: '🧠', desc: '심리전과 두뇌 싸움' },
-  { id: 'classic', name: '클래식', icon: '♟️', desc: '오목 · 섯다, 언제 해도 재밌는 게임' },
+  { id: 'variety', name: '예능', icon: '📺', desc: 'TV 예능에서 보던 바로 그 게임!' },
 ].map((c) => ({ ...c, art: CATEGORY_ART[c.id] || '' }));
 
 export const getCategory = (id) => CATEGORIES.find((c) => c.id === id);

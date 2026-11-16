@@ -1,22 +1,24 @@
 // 더 지니어스: 미스터리 사인 (2~4명)
 // - 라운드마다 "X ◆ Y = ?" 문제가 나와요. ◆ 는 숨겨진 규칙.
 // - 차례대로 숫자 두 개를 입력하면 그 숫자에 ◆를 적용한 결과가 모두에게 힌트로 공개돼요.
-// - 언제든 정답을 낼 수 있어요. 정답 +1점, 오답 -1점 (오답이면 그 라운드는 더 못 맞힘)
-// - 방장이 정한 라운드(5~10) 후 1등에게 가넷 3개
+// - 언제든 정답을 낼 수 있어요. 정답 +1점, 오답 -1점 (틀려도 계속 도전 가능)
+// - 난이도(쉬움·보통·어려움·넌센스)는 라운드마다 무작위
+// - 방장이 정한 라운드(5~10) 후 1등 가넷 3개, 2등 1개
 import { GARNET } from '../profile.js';
-import { getRule, levelFor, pickRule, pickTarget } from './mystery-rules.js';
+import { getRule, pickRule, pickTarget, apply, LEVELS } from './mystery-rules.js';
 
 const HINT_MS = 20000;     // 힌트 차례 제한 시간
 const MAX_HINTS = 10;      // 라운드당 최대 힌트 수
 const FINAL_MS = 30000;    // 힌트를 다 쓴 뒤 마지막으로 맞힐 시간
 const REVEAL_MS = 6000;    // 정답 공개 시간
-const REWARDS = [3];       // 1등만 가넷 3개 (1점 이상일 때)
+const REWARDS = [3, 1];    // 1등 가넷 3개, 2등 1개 (1점 이상일 때)
+const MAX_DIGITS = 9;      // 힌트 숫자: 0 ~ 999,999,999 (1억대까지)
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const SIGN = '<span class="ms-sign">◆</span>';
 
 function newRound(state, roundNo, now) {
-  const rule = pickRule(levelFor(roundNo, state.rounds), state.usedRules);
+  const rule = pickRule(state.usedRules);
   const target = pickTarget();
   return {
     ...state,
@@ -24,12 +26,11 @@ function newRound(state, roundNo, now) {
     phase: 'play',
     ruleId: rule.id,
     target,
-    answer: rule.f(target[0], target[1]),
+    answer: apply(rule, target[0], target[1]),
     hints: [],
     turnIdx: (roundNo - 1) % state.order.length,
     turnDeadline: now + HINT_MS,
     finalDeadline: 0,
-    locked: {},
     wrong: [],
     winner: '',
     usedRules: [...state.usedRules, rule.id],
@@ -51,7 +52,7 @@ export function rank(order, scores) {
     .sort((a, b) => b.score - a.score)
     .map((r, _, all) => {
       const place = 1 + all.filter((o) => o.score > r.score).length;
-      return { ...r, place, garnets: place === 1 && r.score > 0 ? REWARDS[0] : 0 };
+      return { ...r, place, garnets: r.score > 0 ? REWARDS[place - 1] || 0 : 0 };
     });
 }
 
@@ -74,11 +75,12 @@ export default {
   ],
   rules: [
     '라운드마다 "X ◆ Y = ?" 문제가 나와요. ◆는 숨겨진 규칙이에요.',
-    `차례가 되면 숫자 두 개(0~99)를 입력해요. 그 숫자에 ◆를 적용한 결과가 모두에게 힌트로 공개돼요. (차례당 ${HINT_MS / 1000}초)`,
+    `차례가 되면 숫자 두 개(0 ~ 999,999,999)를 입력해요. 그 숫자에 ◆를 적용한 결과가 모두에게 힌트로 공개돼요. (차례당 ${HINT_MS / 1000}초)`,
     '정답은 자기 차례가 아니어도 언제든 낼 수 있어요.',
-    '정답 +1점, 오답 −1점! 틀리면 그 라운드에서는 다시 맞힐 수 없어요.',
+    '정답 +1점, 오답 −1점! 틀려도 그 라운드에서 다시 도전할 수 있어요.',
+    '문제 난이도(쉬움·보통·어려움·넌센스)는 라운드마다 무작위로 나와요.',
     `힌트가 ${MAX_HINTS}개 나온 뒤 ${FINAL_MS / 1000}초 안에 아무도 못 맞히면 라운드가 끝나요.`,
-    '방장이 정한 라운드(5~10)가 끝나면 1등에게 가넷 3개! (1점 이상일 때)',
+    '방장이 정한 라운드(5~10)가 끝나면 1등 가넷 3개, 2등 가넷 1개! (1점 이상일 때)',
   ],
 
   setup(players, room) {
@@ -97,34 +99,27 @@ export default {
     if (move?.type === 'hint') {
       if (state.phase !== 'play') throw new Error('지금은 힌트를 볼 수 없어요');
       if (turnUid !== uid) throw new Error('내 힌트 차례가 아니에요');
-      const a = Number(move.a), b = Number(move.b);
-      const ok = (n) => Number.isInteger(n) && n >= 0 && n <= 99;
-      if (!ok(a) || !ok(b)) throw new Error('0~99 사이의 정수를 넣어 주세요');
-      if (a === state.target[0] && b === state.target[1]) throw new Error('문제와 같은 숫자는 힌트로 쓸 수 없어요');
-      const c = getRule(state.ruleId).f(a, b);
+      const re = new RegExp(`^\\d{1,${MAX_DIGITS}}$`);
+      if (!re.test(String(move.a)) || !re.test(String(move.b))) throw new Error('0 ~ 999,999,999 사이의 정수를 넣어 주세요');
+      const a = BigInt(move.a).toString(), b = BigInt(move.b).toString();
+      if (a === String(state.target[0]) && b === String(state.target[1])) throw new Error('문제와 같은 숫자는 힌트로 쓸 수 없어요');
+      const c = apply(getRule(state.ruleId), a, b);
       const next = { ...state, hints: [...state.hints, { by: uid, a, b, c }] };
       return { state: nextTurn(next, now) };
     }
 
-    if (move?.type === 'pass') {
-      if (state.phase !== 'play' || turnUid !== uid) throw new Error('내 차례가 아니에요');
-      return { state: { ...state, turnIdx: (state.turnIdx + 1) % state.order.length, turnDeadline: now + HINT_MS } };
-    }
-
     if (move?.type === 'answer') {
       if (state.phase !== 'play') throw new Error('지금은 정답을 낼 수 없어요');
-      if (state.locked[uid]) throw new Error('이번 라운드는 이미 틀려서 더 맞힐 수 없어요');
-      const n = Number(move.n);
-      if (!Number.isFinite(n) || String(move.n).trim() === '') throw new Error('숫자를 입력해 주세요');
+      const raw = String(move.n ?? '').trim();
+      if (!/^-?\d{1,30}$/.test(raw)) throw new Error('숫자를 입력해 주세요');
+      const n = BigInt(raw).toString();
       const scores = { ...state.scores };
       if (n === state.answer) {
         scores[uid] += 1;
         return { state: endRound({ ...state, scores }, now, uid) };
       }
-      scores[uid] -= 1;
-      const next = { ...state, scores, locked: { ...state.locked, [uid]: true }, wrong: [...state.wrong, { uid, n }] };
-      const allLocked = next.order.every((u) => next.locked[u]);
-      return { state: allLocked ? endRound(next, now) : next };
+      scores[uid] -= 1; // 틀려도 라운드는 잠기지 않아요
+      return { state: { ...state, scores, wrong: [...state.wrong, { uid, n }].slice(-6) } };
     }
 
     if (move?.type === 'tick') {
@@ -162,7 +157,6 @@ export default {
     const isPlayer = state.order.includes(me);
     const turnUid = state.turnIdx >= 0 ? state.order[state.turnIdx] : null;
     const myTurn = state.phase === 'play' && turnUid === me;
-    const locked = !!state.locked?.[me];
 
     if (finished) {
       const ranking = room?.result?.ranking || rank(state.order, state.scores);
@@ -170,7 +164,7 @@ export default {
         <div class="ms">
           <ol class="nb-final">
             ${ranking.map((r) => `<li class="${r.uid === me ? 'me' : ''}">
-              <span class="nb-place">${r.place === 1 ? '🥇' : r.place + '등'}</span>
+              <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
               <span class="nb-name">${name(r.uid)}</span>
               <span class="nb-score">${r.score}점</span>
               <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span>
@@ -182,7 +176,7 @@ export default {
 
     const rule = getRule(state.ruleId);
     const scoreChips = state.order.map((u) => `
-      <span class="ms-chip ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${state.locked?.[u] ? 'locked' : ''}">
+      <span class="ms-chip ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''}">
         <b>${name(u)}</b><i>${state.scores[u]}</i>
       </span>`).join('');
 
@@ -209,7 +203,7 @@ export default {
           <span>${state.target[0]}</span>${SIGN}<span>${state.target[1]}</span><span class="ms-eq">=</span>
           <span class="ms-q ${state.phase === 'reveal' ? 'open' : ''}">${state.phase === 'reveal' ? state.answer : '?'}</span>
         </div>
-        ${state.phase === 'reveal' ? `<div class="ms-rule">◆ = ${esc(rule?.desc || '')}</div>` : ''}
+        ${state.phase === 'reveal' ? `<div class="ms-rule"><span class="ms-level">${LEVELS[rule?.level] || ''}</span> ◆ = ${esc(rule?.desc || '')}</div>` : ''}
 
         <div class="nb-bar"><i data-bar></i></div>
         <div class="nb-banner"><span>${status}</span></div>
@@ -218,15 +212,16 @@ export default {
           <div class="ms-actions">
             ${myTurn ? `
               <form class="ms-hint" data-form="hint">
-                <input data-key="ha" inputmode="numeric" maxlength="2" placeholder="0~99" aria-label="첫 번째 숫자">
-                ${SIGN}
-                <input data-key="hb" inputmode="numeric" maxlength="2" placeholder="0~99" aria-label="두 번째 숫자">
-                <button class="btn primary sm">힌트 보기</button>
-                <button type="button" class="btn ghost sm" data-pass>패스</button>
+                <div class="ms-hint-row">
+                  <input data-key="ha" inputmode="numeric" maxlength="${MAX_DIGITS}" placeholder="첫 번째 수" aria-label="첫 번째 숫자">
+                  ${SIGN}
+                  <input data-key="hb" inputmode="numeric" maxlength="${MAX_DIGITS}" placeholder="두 번째 수" aria-label="두 번째 숫자">
+                </div>
+                <button class="btn primary block">힌트 보기</button>
               </form>` : ''}
             <form class="ms-answer" data-form="answer">
-              <input data-key="ans" inputmode="numeric" placeholder="${locked ? '이번 라운드는 오답 처리됐어요' : '정답 숫자'}" ${locked ? 'disabled' : ''} aria-label="정답">
-              <button class="btn ${locked ? 'ghost' : 'gold-btn'}" ${locked ? 'disabled' : ''}>정답!</button>
+              <input data-key="ans" inputmode="numeric" placeholder="정답 숫자" aria-label="정답">
+              <button class="btn gold-btn">정답!</button>
             </form>
           </div>` : ''}
 
@@ -257,9 +252,8 @@ export default {
         const b = $hint.querySelector('[data-key="hb"]').value.trim();
         if (a === '' || b === '') return;
         delete drafts[`${key}:ha`]; delete drafts[`${key}:hb`];
-        sendMove({ type: 'hint', a: Number(a), b: Number(b) });
+        sendMove({ type: 'hint', a, b });
       };
-      el.querySelector('[data-pass]').onclick = () => sendMove({ type: 'pass' });
     }
     const $ans = el.querySelector('[data-form="answer"]');
     if ($ans) {
@@ -268,7 +262,7 @@ export default {
         const v = $ans.querySelector('[data-key="ans"]').value.trim();
         if (v === '') return;
         delete drafts[`${key}:ans`];
-        sendMove({ type: 'answer', n: Number(v) });
+        sendMove({ type: 'answer', n: v });
       };
     }
 

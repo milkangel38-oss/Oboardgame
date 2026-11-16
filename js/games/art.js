@@ -119,40 +119,45 @@ export const CATEGORY_ART = {
   <g fill="#d4a640" opacity=".6"><circle cx="440" cy="150" r="2"/><circle cx="330" cy="130" r="1.6"/><circle cx="560" cy="40" r="2"/></g>
 </svg>`,
 
-  classic: `
+  // 예능: 방송 스튜디오 — 조명, 무대, 레트로 TV, ON AIR 사인
+  variety: `
 <svg viewBox="0 0 600 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <radialGradient id="cc-felt" cx="70%" cy="40%" r="80%"><stop offset="0" stop-color="#2f7a52"/><stop offset="1" stop-color="#123d27"/></radialGradient>
-    <linearGradient id="cc-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8b86a"/><stop offset="1" stop-color="#b47a35"/></linearGradient>
-    <radialGradient id="cc-b" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#666"/><stop offset="1" stop-color="#0b0b0b"/></radialGradient>
-    <radialGradient id="cc-w" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfc8bb"/></radialGradient>
-    <filter id="cc-sh"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".45"/></filter>
+    <linearGradient id="cv-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0f52"/><stop offset="1" stop-color="#0d0624"/></linearGradient>
+    <linearGradient id="cv-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2" stop-opacity=".55"/><stop offset="1" stop-color="#fff6c2" stop-opacity="0"/></linearGradient>
+    <linearGradient id="cv-curtain" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a0f2e"/><stop offset=".5" stop-color="#c2224d"/><stop offset="1" stop-color="#7a0f2e"/></linearGradient>
+    <linearGradient id="cv-screen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4f9a"/><stop offset=".5" stop-color="#9b5cff"/><stop offset="1" stop-color="#3ee6ff"/></linearGradient>
+    <filter id="cv-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <rect width="600" height="200" fill="url(#cc-felt)"/>
-  <g transform="rotate(-8 360 110)" filter="url(#cc-sh)">
-    <rect x="270" y="30" width="190" height="190" rx="6" fill="url(#cc-wood)"/>
-    <g stroke="#5a3a17" stroke-width="1.6" opacity=".7">
-      ${Array.from({ length: 9 }, (_, i) => `<line x1="282" y1="${46 + i * 20}" x2="448" y2="${46 + i * 20}"/><line x1="${286 + i * 20}" y1="38" x2="${286 + i * 20}" y2="210"/>`).join('')}
-    </g>
-    ${[[306, 66], [326, 86], [346, 106], [366, 126], [386, 146]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8.5" fill="url(#cc-b)"/>`).join('')}
-    ${[[346, 86], [366, 106], [326, 126], [406, 126], [306, 106]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8.5" fill="url(#cc-w)"/>`).join('')}
+  <rect width="600" height="200" fill="url(#cv-bg)"/>
+  <!-- 무대 커튼 -->
+  ${Array.from({ length: 8 }, (_, i) => `<rect x="${250 + i * 44}" y="0" width="44" height="150" fill="url(#cv-curtain)" opacity=".85"/>`).join('')}
+  <path d="M250 0 h352 v22 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 q-22 14 -44 0 z" fill="#ffd84d" opacity=".9"/>
+  <!-- 무대 바닥 -->
+  <path d="M220 150 h390 v60 h-420 z" fill="#3a1f6b"/>
+  <path d="M220 150 h390" stroke="#ffd84d" stroke-width="3"/>
+  ${Array.from({ length: 10 }, (_, i) => `<circle cx="${236 + i * 38}" cy="160" r="3" fill="#fff3b0" filter="url(#cv-glow)"/>`).join('')}
+  <!-- 조명 -->
+  <path d="M300 0 L340 0 L420 150 L250 150 Z" fill="url(#cv-beam)"/>
+  <path d="M520 0 L556 0 L590 150 L450 150 Z" fill="url(#cv-beam)" opacity=".7"/>
+  <!-- 레트로 TV -->
+  <g transform="translate(395 58)">
+    <path d="M-16 -30 L-34 -54 M16 -30 L34 -54" stroke="#d8d3ef" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="-34" cy="-54" r="4" fill="#ff4f9a"/><circle cx="34" cy="-54" r="4" fill="#3ee6ff"/>
+    <rect x="-62" y="-32" width="124" height="94" rx="18" fill="#ffb02e" stroke="#7a4a00" stroke-width="3"/>
+    <rect x="-52" y="-22" width="84" height="74" rx="12" fill="url(#cv-screen)"/>
+    <text x="-10" y="26" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="34" fill="#fff" filter="url(#cv-glow)">O</text>
+    <circle cx="46" cy="-6" r="6" fill="#7a4a00"/><circle cx="46" cy="14" r="6" fill="#7a4a00"/>
+    <rect x="-42" y="62" width="10" height="12" fill="#7a4a00"/><rect x="32" y="62" width="10" height="12" fill="#7a4a00"/>
   </g>
-  <g transform="translate(452 46) rotate(-10)" filter="url(#cc-sh)">
-    <rect width="62" height="96" rx="6" fill="#fffdf6"/><rect x="4" y="4" width="54" height="88" rx="4" fill="#ffefe0"/>
-    <rect x="4" y="4" width="54" height="56" rx="4" fill="#d9362b"/>
-    <circle cx="31" cy="34" r="17" fill="#fffbe8"/>
-    <path d="M4 92 v-36 q14 -14 27 -4 q14 -12 27 4 v36 z" fill="#1b1b1b"/>
-    <rect x="40" y="8" width="13" height="22" rx="2" fill="#fff" stroke="#d9362b" stroke-width="1.5"/>
-    <text x="46.5" y="24" font-size="13" font-family="serif" font-weight="700" text-anchor="middle" fill="#d9362b">光</text>
+  <!-- ON AIR -->
+  <g transform="translate(528 46)" filter="url(#cv-glow)">
+    <rect x="-44" y="-17" width="88" height="34" rx="8" fill="#e0233f" stroke="#ffd0d6" stroke-width="2"/>
+    <text x="0" y="8" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="20" fill="#fff" letter-spacing="2">ON AIR</text>
   </g>
-  <g transform="translate(530 44) rotate(10)" filter="url(#cc-sh)">
-    <rect width="62" height="96" rx="6" fill="#fffdf6"/><rect x="4" y="4" width="54" height="88" rx="4" fill="#fff3d6"/>
-    <circle cx="40" cy="24" r="13" fill="#e2332a"/>
-    <path d="M8 92 q6 -40 22 -50 q-6 22 4 50 z" fill="#1d5e2e"/>
-    <path d="M14 70 q8 -10 22 -6 q-10 2 -14 12 z M24 52 q10 -8 22 -2 q-10 0 -16 8 z" fill="#2f8a43"/>
-    <path d="M30 86 q2 -22 16 -30 l6 4 q-10 6 -12 26 z" fill="#fff"/><circle cx="50" cy="56" r="3" fill="#e2332a"/>
-    <rect x="9" y="8" width="13" height="22" rx="2" fill="#fff" stroke="#d9362b" stroke-width="1.5"/>
-    <text x="15.5" y="24" font-size="13" font-family="serif" font-weight="700" text-anchor="middle" fill="#d9362b">光</text>
+  <!-- 반짝이 -->
+  <g fill="#ffd84d" filter="url(#cv-glow)">
+    <path d="M470 120 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4 z"/><path d="M290 100 l3 6 6 3 -6 3 -3 6 -3 -6 -6 -3 6 -3 z"/>
   </g>
 </svg>`,
 };
