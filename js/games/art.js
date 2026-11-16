@@ -6,6 +6,34 @@ import { HANDSOME, GOOFY } from './typing.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 시드포커: 검정·금색 테이블 위 숫자카드, 금빛 시드카드, 칩
+  seedpoker: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sp-bg" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#3a3a3a"/><stop offset=".55" stop-color="#161616"/><stop offset="1" stop-color="#050505"/></radialGradient>
+    <linearGradient id="sp-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#d4a640"/><stop offset="1" stop-color="#7a5212"/></linearGradient>
+    <filter id="sp-sh"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-opacity=".6"/></filter>
+  </defs>
+  <rect width="300" height="420" fill="url(#sp-bg)"/>
+  <ellipse cx="150" cy="215" rx="150" ry="95" fill="#123d27" opacity=".55"/>
+  ${[[-24, 98, '3'], [0, 150, '15'], [24, 202, '7']].map(([r, x, n]) => `
+  <g transform="translate(${x} 168) rotate(${r})" filter="url(#sp-sh)">
+    <rect x="-30" y="-44" width="60" height="88" rx="8" fill="#fbf8f0"/>
+    <rect x="-25" y="-39" width="50" height="78" rx="5" fill="none" stroke="#1c1c1c" stroke-width="1.5"/>
+    <text x="0" y="15" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="${n.length > 1 ? 34 : 42}" fill="#1c1c1c">${n}</text>
+  </g>`).join('')}
+  ${[[44, 166, '12'], [256, 164, '9']].map(([x, y, n]) => `
+  <g transform="translate(${x} ${y})" filter="url(#sp-sh)">
+    <rect x="-24" y="-34" width="48" height="68" rx="7" fill="url(#sp-gold)"/>
+    <text x="0" y="12" text-anchor="middle" font-family="'Black Han Sans', 'Jua', sans-serif" font-size="28" fill="#3a2400">${n}</text>
+    <text x="0" y="-18" text-anchor="middle" font-size="12">🌱</text>
+  </g>`).join('')}
+  <g filter="url(#sp-sh)">
+    ${[0, 1, 2, 3].map((i) => `<ellipse cx="236" cy="${300 - i * 7}" rx="20" ry="7" fill="${i % 2 ? '#c81d38' : '#e8e8ee'}" stroke="#222" stroke-width="1"/>`).join('')}
+    ${[0, 1, 2].map((i) => `<ellipse cx="66" cy="${306 - i * 7}" rx="20" ry="7" fill="${i % 2 ? '#e8e8ee' : '#2f6bff'}" stroke="#222" stroke-width="1"/>`).join('')}
+  </g>
+</svg>`,
+
   // 타이핑 퀴즈: 스튜디오 조명 아래 잘생긴팀 vs 못생긴팀 캐릭터 + 말풍선 + 키보드
   typing: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
