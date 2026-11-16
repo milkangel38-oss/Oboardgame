@@ -4,6 +4,8 @@
 // - 설명에 제시어(또는 제시어의 절반 이상 이어진 부분)가 들어가면 입력 불가
 // - 설명 제한 시간 없음 (방장은 문제 넘기기 가능)
 // - 설명자 말고 누구나 정답을 외칠 수 있음. 먼저 맞힌 사람의 팀 +1점. 오답이면 그 팀 10초 잠금
+// - 라운드 시작 후 20초 동안 두 설명자가 상대 설명자용 함정단어(최대 3개)를 설치
+//   상대 설명에 함정단어가 들어가면 "함정단어입니다" — 보낼 수 없음. 라운드가 끝나면 함정 공개
 // - 맞히는 사람들의 채팅은 모두에게 보이고, 팀 캐릭터 옆 말풍선으로 나옴 (설명자는 채팅 없음)
 // - 라운드(5~10) 후 이긴 팀 모두 가넷 +2
 import { GARNET } from '../profile.js';
@@ -14,6 +16,8 @@ const REVEAL_MS = 5000;
 const REWARD = 2;
 const MAX_LINE = 60;
 const MAX_CHAT = 80;
+const TRAP_MS = 20000;   // 함정 설치 시간
+const MAX_TRAPS = 3;     // 설명자 한 명당 함정 수
 export const TEAM = {
   A: { name: '잘생긴팀', short: '잘생김', color: '#3ee6ff' },
   B: { name: '못생긴팀', short: '못생김', color: '#ffb02e' },
@@ -35,6 +39,9 @@ export function forbiddenParts(entry) {
 // 설명에 금지된 부분이 있으면 그 부분을, 없으면 '' 를 돌려줘요
 export const forbiddenIn = (text, entry) => forbiddenParts(entry).find((p) => norm(text).includes(p)) || '';
 export const hasWord = (text, entry) => !!forbiddenIn(text, entry);
+// 상대 팀이 설치한 함정단어가 들어 있는지
+const other = (t) => (t === 'A' ? 'B' : 'A');
+export const trapIn = (text, traps) => (traps || []).find((w) => norm(text).includes(w)) || '';
 
 const shuffle = (arr) => {
   const a = [...arr];
@@ -55,7 +62,8 @@ function newRound(state, roundNo, now) {
     B: state.teams.B[(roundNo - 1) % state.teams.B.length],
   };
   return {
-    ...state, round: roundNo, phase: 'play', word, usedWords: [...state.usedWords, word],
+    ...state, round: roundNo, phase: 'trap', trapUntil: now + TRAP_MS, traps: { A: [], B: [] }, trapDone: { A: false, B: false },
+    word, usedWords: [...state.usedWords, word],
     describers, lines: [], chat: [], wrong: [], lockUntil: { A: 0, B: 0 },
     revealUntil: 0, solvedBy: '', solvedTeam: '', skipped: false,
   };
@@ -145,6 +153,7 @@ export default {
     '두 설명자는 같은 제시어를 보고 설명을 타이핑해요. 설명은 모두에게 보여요.',
     '설명에 제시어가 들어가면 입력되지 않아요. 설명자 말고는 아무도 제시어를 볼 수 없어요.',
     '설명에 제시어는 물론, 제시어의 절반 이상이 이어진 부분도 쓸 수 없어요. (예: 번아웃 → "아웃" 금지)',
+    `🪤 라운드 시작 후 ${TRAP_MS / 1000}초 동안 설명자는 상대 설명자용 함정단어를 최대 ${MAX_TRAPS}개 설치해요. 상대가 그 단어를 쓰면 "함정단어입니다"가 뜨고 설명할 수 없어요.`,
     '설명자 말고 누구나 정답을 외칠 수 있어요. 먼저 맞힌 사람의 팀이 1점!',
     '제시어는 사자성어, 의학·경제·과학·법 용어, 어려운 단어 중에서 나와요.',
     '맞히는 사람들은 채팅을 할 수 있어요. 채팅은 모두에게 보이고 팀 캐릭터 옆에 말풍선으로 나와요. (설명자는 채팅 불가)',
@@ -167,12 +176,31 @@ export default {
     const myTeam = teamOf(state, uid);
     const isDescriber = state.describers.A === uid || state.describers.B === uid;
 
+    if (move?.type === 'trap' || move?.type === 'untrap' || move?.type === 'trapDone') {
+      if (state.phase !== 'trap') throw new Error('함정 설치 시간이 끝났어요');
+      if (!isDescriber) throw new Error('설명자만 함정을 설치할 수 있어요');
+      const mine = state.traps[myTeam] || [];
+      if (move.type === 'trapDone') {
+        const trapDone = { ...state.trapDone, [myTeam]: true };
+        const both = trapDone.A && trapDone.B;
+        return { state: { ...state, trapDone, ...(both ? { phase: 'play' } : {}) } };
+      }
+      const w = norm(move.word).slice(0, 10);
+      if (move.type === 'untrap') return { state: { ...state, traps: { ...state.traps, [myTeam]: mine.filter((x) => x !== w) } } };
+      if (w.length < 2) throw new Error('함정단어는 2글자 이상이어야 해요');
+      if (mine.includes(w)) throw new Error('이미 설치한 함정이에요');
+      if (mine.length >= MAX_TRAPS) throw new Error(`함정은 최대 ${MAX_TRAPS}개까지예요`);
+      if (forbiddenIn(w, state.word)) throw new Error('제시어는 이미 금지돼 있어요. 다른 단어를 골라 주세요');
+      return { state: { ...state, traps: { ...state.traps, [myTeam]: [...mine, w] } } };
+    }
+
     if (move?.type === 'say') {
       if (state.phase !== 'play') throw new Error('지금은 설명할 수 없어요');
       if (!isDescriber) throw new Error('이번 라운드 설명자가 아니에요');
       const text = String(move.text ?? '').trim().slice(0, MAX_LINE);
       if (!text) throw new Error('설명을 입력해 주세요');
       if (forbiddenIn(text, state.word)) throw new Error('제시어가 포함된 단어가 있습니다');
+      if (trapIn(text, state.traps?.[other(myTeam)])) throw new Error('함정단어입니다');
       return { state: { ...state, lines: [...state.lines, { team: myTeam, text }].slice(-30) } };
     }
 
@@ -202,6 +230,10 @@ export default {
         return { state: { ...state, scores: { ...state.scores, [myTeam]: state.scores[myTeam] + 1 }, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: uid, solvedTeam: myTeam } };
       }
       return { state: { ...state, lockUntil: { ...state.lockUntil, [myTeam]: now + LOCK_MS }, wrong: [...state.wrong, { uid, team: myTeam, text }].slice(-6) } };
+    }
+
+    if (move?.type === 'tick' && state.phase === 'trap' && now >= state.trapUntil) {
+      return { state: { ...state, phase: 'play' } };
     }
 
     if (move?.type === 'tick') {
@@ -263,14 +295,16 @@ export default {
         ? `<span><b>${name(state.solvedBy)}</b>님 정답! <span class="gold">${TEAM[state.solvedTeam].name} +1점</span> · 제시어 <b>${esc(mainWord(state.word))}</b></span>`
         : `<span>${state.skipped ? '방장이 문제를 넘겼어요' : '라운드 종료'}! 제시어는 <b>${esc(mainWord(state.word))}</b>였어요</span>`;
     } else {
-      banner = amDescriber ? '<span>제시어를 설명해 주세요! 제시어의 <b>절반 이상</b>이 들어간 말은 못 써요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
+      banner = state.phase === 'trap'
+        ? (amDescriber ? '<span>🪤 <b>함정 설치 시간!</b> 상대 설명자가 쓸 만한 단어를 함정으로 숨기세요</span>' : '<span>🪤 설명자들이 함정단어를 설치하는 중…</span>')
+        : amDescriber ? '<span>제시어를 설명해 주세요! 제시어의 <b>절반 이상</b>이 들어간 말과 <b>함정단어</b>는 못 써요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
     }
 
     el.innerHTML = `
       <div class="tq">
         <div class="nb-top">
           <span class="nb-round">ROUND <b>${state.round}</b> / ${state.rounds}</span>
-          <span class="nb-timer" data-timer>${state.phase === 'play' ? '' : '공개'}</span>
+          <span class="nb-timer" data-timer>${state.phase === 'reveal' ? '공개' : ''}</span>
         </div>
         <div class="tq-score"><span class="tq-A">${TEAM.A.name} <b>${state.scores.A}</b></span><i>:</i><span class="tq-B"><b>${state.scores.B}</b> ${TEAM.B.name}</span></div>
 
@@ -287,13 +321,33 @@ export default {
 
         <div class="nb-banner">${banner}</div>
 
+        ${state.phase === 'trap' && amDescriber ? `
+          <div class="tq-word">제시어 <b>${esc(mainWord(state.word))}</b>${allAnswers(state.word).length > 1 ? `<small>(${allAnswers(state.word).slice(1).map(esc).join(', ')}도 쓰면 안 돼요)</small>` : ''}</div>
+          <div class="tq-trapbox">
+            <div class="tq-trap-title">🪤 함정단어 설치 <small>상대 설명자가 이 단어를 쓰면 설명할 수 없어요 · 2글자 이상 · 최대 ${MAX_TRAPS}개</small></div>
+            <div class="tq-traps">${(state.traps[myTeam] || []).map((w) => `<button class="tq-trap" data-untrap="${esc(w)}">${esc(w)} ✕</button>`).join('') || '<em>아직 없어요</em>'}</div>
+            ${state.trapDone[myTeam] ? '<p class="tq-trap-done">✅ 설치 완료! 상대 설명자를 기다리는 중…</p>' : `
+            <form class="tq-say" data-form="trap">
+              <input data-key="trap" maxlength="10" placeholder="함정단어 입력" autocomplete="off" ${(state.traps[myTeam] || []).length >= MAX_TRAPS ? 'disabled' : ''}>
+              <button class="btn" ${(state.traps[myTeam] || []).length >= MAX_TRAPS ? 'disabled' : ''}>추가</button>
+            </form>
+            <button class="btn primary block" data-trapdone>설치 완료</button>`}
+          </div>` : ''}
         ${state.phase === 'play' && amDescriber ? `
           <div class="tq-word">제시어 <b>${esc(mainWord(state.word))}</b>${allAnswers(state.word).length > 1 ? `<small>(${allAnswers(state.word).slice(1).map(esc).join(', ')}도 쓰면 안 돼요)</small>` : ''}</div>
           <form class="tq-say" data-form="say">
             <input data-key="say" maxlength="${MAX_LINE}" placeholder="설명을 입력하세요" autocomplete="off">
             <button class="btn primary">보내기</button>
           </form>
-          <div class="tq-warn" data-warn></div>` : ''}
+          <div class="tq-warn" data-warn></div>
+          ${(state.traps[myTeam] || []).length ? `<div class="tq-mytraps">내가 설치한 함정: ${state.traps[myTeam].map(esc).join(', ')}</div>` : ''}` : ''}
+        ${state.phase === 'reveal' && (state.traps.A.length || state.traps.B.length) ? `
+          <div class="tq-trapreveal">🪤 함정 공개 · <span class="tq-A">${TEAM.A.name}: ${state.traps.A.map(esc).join(', ') || '없음'}</span> · <span class="tq-B">${TEAM.B.name}: ${state.traps.B.map(esc).join(', ') || '없음'}</span></div>` : ''}
+        ${state.phase === 'trap' && myTeam && !amDescriber ? `
+          <form class="tq-say tq-chatform" data-form="chat">
+            <input data-key="chat" maxlength="${MAX_CHAT}" placeholder="💬 채팅 (모두에게 보여요)" autocomplete="off">
+            <button class="btn">전송</button>
+          </form>` : ''}
         ${state.phase === 'play' && myTeam && !amDescriber ? `
           <form class="tq-say" data-form="answer">
             <input data-key="ans" maxlength="30" placeholder="${lockLeft ? '오답! 잠시 기다려요' : '정답 입력'}" autocomplete="off">
@@ -341,11 +395,27 @@ export default {
         e.preventDefault();
         const v = $sayInput.value.trim();
         if (!v || checkWord()) return;
+        if (trapIn(v, state.traps?.[other(myTeam)])) { $warn.textContent = '🪤 함정단어입니다'; $sayInput.classList.add('bad'); return; }
         drafts[`${key}:say`] = '';
         $sayInput.value = '';
         sendMove({ type: 'say', text: v });
       };
     }
+    const $trap = el.querySelector('[data-form="trap"]');
+    if ($trap) {
+      $trap.onsubmit = (e) => {
+        e.preventDefault();
+        const inp = $trap.querySelector('input');
+        const v = inp.value.trim();
+        if (!v) return;
+        drafts[`${key}:trap`] = '';
+        inp.value = '';
+        sendMove({ type: 'trap', word: v });
+      };
+    }
+    el.querySelectorAll('[data-untrap]').forEach((b) => (b.onclick = () => sendMove({ type: 'untrap', word: b.dataset.untrap })));
+    const $trapDone = el.querySelector('[data-trapdone]');
+    if ($trapDone) $trapDone.onclick = () => sendMove({ type: 'trapDone' });
     const $skip = el.querySelector('[data-skip]');
     if ($skip) $skip.onclick = () => { if (confirm('이 문제를 넘길까요? (무득점)')) sendMove({ type: 'skip' }); };
     const $chat = el.querySelector('[data-form="chat"]');
@@ -382,7 +452,10 @@ export default {
     const update = () => {
       if (!el.isConnected) return clearInterval(timer);
       const now = Date.now();
-      const due = state.phase === 'reveal' ? state.revealUntil : 0; // 설명 중에는 제한 시간 없음
+      // 설명 중에는 제한 시간 없음. 함정 설치(20초)와 정답 공개 때만 시간이 흘러요
+      const due = state.phase === 'reveal' ? state.revealUntil : state.phase === 'trap' ? state.trapUntil : 0;
+      const $timer = el.querySelector('[data-timer]');
+      if ($timer && state.phase === 'trap') { const l = Math.max(0, state.trapUntil - now); $timer.textContent = `🪤${Math.ceil(l / 1000)}`; $timer.classList.toggle('hurry', l <= 5000); }
       if (myTeam && $lock) {
         const l = Math.max(0, (state.lockUntil[myTeam] || 0) - now);
         $lock.textContent = l ? `🔒 우리 팀 오답! ${Math.ceil(l / 1000)}초 뒤에 다시 외칠 수 있어요` : '';
