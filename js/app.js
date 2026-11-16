@@ -94,6 +94,7 @@ function renderLogin(invited) {
           <input name="nick" maxlength="12" placeholder="닉네임 (최대 12자)" autocomplete="nickname">
           <button class="btn">게스트로 시작</button>
         </form>
+        <p class="version">v0.2</p>
       </div>
     </main>`;
   const nick = () => $app.querySelector('[name=nick]').value.trim();
