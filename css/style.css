@@ -239,6 +239,7 @@ a.cat-banner:active { transform: translateY(0); }
 .cat-desc { font-size: 13px; color: rgba(255, 255, 255, .85); text-shadow: 0 1px 4px #000; }
 .cat-count { justify-self: start; margin-top: 6px; font-family: var(--display); font-size: 13px; padding: 2px 10px; border-radius: 99px; background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 216, 77, .7); color: var(--gold); }
 .cat-genius .cat-name { color: #f3e2b0; }
+.cat-board .cat-name { color: #ffe9c2; }
 .cat-variety .cat-name { color: #fff; text-shadow: 0 0 10px rgba(255, 79, 154, .8), 0 2px 8px rgba(0, 0, 0, .6); }
 .cat-banner.small { height: 92px; box-shadow: none; }
 .cat-banner.small .cat-name { font-size: 24px; }
@@ -620,6 +621,57 @@ a.cat-banner:active { transform: translateY(0); }
 .sp-sum { font-family: var(--logo); font-size: 14px; }
 .sp-sum b { font-weight: 400; font-size: 17px; }
 .sp-sum.win b { color: var(--gold); }
+
+/* ───────── 언더독레이스 ───────── */
+.ud { display: grid; gap: 12px; }
+.ud-track { list-style: none; margin: 0; padding: 8px; display: grid; gap: 4px; border-radius: 16px; background: linear-gradient(90deg, #8a5a2b, #b5793f); box-shadow: inset 0 0 0 3px #5a3a17; }
+.ud-track li { display: grid; grid-template-columns: 34px 40px 1fr auto; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 10px; background: rgba(0, 0, 0, .25); transition: transform .3s; }
+.ud-track li.dh { box-shadow: inset 0 0 0 2px #ffd84d; }
+.ud-track li.mine { background: rgba(255, 79, 154, .3); }
+.ud-rank { font-family: var(--logo); font-size: 20px; text-align: center; }
+.ud-rank small { font-size: 11px; }
+.ud-ani { position: relative; display: inline-block; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: #fff; box-shadow: 0 0 0 2px var(--ac); flex: none; }
+.ud-ani svg { width: 100%; height: 100%; display: block; }
+.ud-ani b { position: absolute; right: -2px; bottom: -2px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--ac); color: #1a1033; font-size: 11px; display: grid; place-items: center; font-family: var(--logo); font-weight: 400; }
+.ud-ani.sm { width: 26px; height: 26px; }
+.ud-ani.sm b, .ud-ani.xs b { display: none; }
+.ud-ani.xs { width: 22px; height: 22px; }
+.ud-aname { font-weight: 800; font-size: 14px; }
+.ud-dh { font-style: normal; font-size: 11px; padding: 1px 6px; border-radius: 99px; background: #1d1640; color: var(--gold); }
+.ud-pts { font-size: 12px; color: #ffe9c2; font-weight: 700; }
+.ud-info { display: grid; gap: 6px; }
+.ud-token { padding: 8px 10px; border-radius: 12px; background: rgba(29, 22, 64, .8); border: 1px solid rgba(255, 216, 77, .4); font-size: 13.5px; }
+.ud-token b { color: var(--gold); }
+.ud-token small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.ud-last { font-size: 13px; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
+.ud-cardname { font-weight: 800; color: var(--cyan); }
+.ud-discards { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.ud-discards > span { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 2px; border-radius: 99px; background: rgba(255, 255, 255, .06); }
+.ud-discards small { font-size: 11px; color: var(--ink); }
+.ud-mine-title { font-family: var(--display); font-size: 14px; }
+.ud-mine-title small { font-family: Pretendard, sans-serif; font-size: 11.5px; color: var(--muted); margin-left: 4px; }
+.ud-tickets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ud-tickets.big { justify-content: center; }
+.ud-ticket { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px 4px 4px; border-radius: 99px; background: rgba(255, 79, 154, .18); font-size: 13px; font-weight: 700; color: var(--ink); border: 0; font-family: inherit; }
+.ud-ticket small { color: var(--gold); }
+.ud-ticket.dh { padding: 4px 10px; background: rgba(255, 216, 77, .18); }
+.btn-like { cursor: pointer; }
+.btn-like:hover { background: rgba(255, 79, 154, .35); }
+.ud-tokenbtn { border-color: rgba(255, 216, 77, .6); color: var(--gold); }
+.ud-took { text-align: center; font-size: 13px; color: var(--gold); }
+.ud-hand { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.ud-card { appearance: none; text-align: left; display: grid; gap: 3px; padding: 9px 10px; border-radius: 12px; cursor: pointer; font: inherit; color: #1a1033; background: #fff; border: 2px solid transparent; box-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+.ud-card b { font-family: var(--display); font-weight: 400; font-size: 15px; }
+.ud-card small { font-size: 11.5px; line-height: 1.35; color: #4a4466; }
+.ud-card.k-fall { background: #ffe0e5; }
+.ud-card.k-pair { background: #e0f4ff; }
+.ud-card.k-ticket { background: #fff3cc; }
+.ud-card.sel { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 79, 154, .5); transform: translateY(-2px); }
+.ud-card:disabled { cursor: default; opacity: .85; }
+.ud-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ud-opts.col { grid-template-columns: 1fr; padding: 10px; border-radius: 12px; background: rgba(255, 216, 77, .1); }
+.ud-opt-title { font-size: 13px; font-weight: 800; color: var(--gold); }
+.ud-break { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
 
 /* ───────── 프로필 편집 창 ───────── */
 .modal-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(5, 2, 15, .7); display: grid; place-items: center; padding: 16px; }

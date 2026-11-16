@@ -2,10 +2,30 @@
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
 import { HANDSOME, GOOFY } from './typing.js';
+import { charSvg } from '../avatars.js';
 
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 언더독레이스: 결승선을 향해 달리는 동물들 + 다크호스
+  underdog: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ud-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a8be0"/><stop offset=".55" stop-color="#9ad7ff"/><stop offset=".56" stop-color="#4caf50"/><stop offset="1" stop-color="#2e7d32"/></linearGradient>
+    <pattern id="ud-chk" width="16" height="16" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#111"/><rect x="8" y="8" width="8" height="8" fill="#111"/><rect x="8" width="8" height="8" fill="#fff"/><rect y="8" width="8" height="8" fill="#fff"/></pattern>
+  </defs>
+  <rect width="300" height="420" fill="url(#ud-sky)"/>
+  <g fill="#fff" opacity=".85"><ellipse cx="60" cy="70" rx="34" ry="12"/><ellipse cx="230" cy="54" rx="40" ry="13"/></g>
+  <path d="M0 250 Q150 225 300 250 L300 420 L0 420 Z" fill="#b5793f"/>
+  <path d="M0 300 Q150 278 300 300" stroke="#fff" stroke-width="3" stroke-dasharray="10 8" fill="none" opacity=".7"/>
+  <rect x="236" y="150" width="20" height="160" fill="url(#ud-chk)"/>
+  <rect x="234" y="140" width="24" height="14" rx="3" fill="#c81d38"/>
+  ${[['moonrabbit', 182, 196, 1], ['tiger', 120, 210, 1], ['frog', 60, 222, 1], ['panda', 150, 268, .95], ['penguin', 88, 280, .95], ['haetae', 26, 290, .95]].map(([c, x, y, s]) =>
+    charSvg(c).replace('<svg viewBox="0 0 100 100"', `<svg x="${x}" y="${y}" width="${56 * s}" height="${56 * s}" viewBox="0 0 100 100"`)).join('')}
+  ${charSvg('gumiho').replace('<svg viewBox="0 0 100 100"', '<svg x="196" y="250" width="66" height="66" viewBox="0 0 100 100"')}
+  <g transform="translate(250 252)"><circle r="15" fill="#1d1640" stroke="#ffd84d" stroke-width="2"/><text y="6" text-anchor="middle" font-size="16">🌑</text></g>
+</svg>`,
+
   // 시드포커: 검정·금색 테이블 위 숫자카드, 금빛 시드카드, 칩
   seedpoker: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -144,6 +164,29 @@ const gem = (x, y, r, rot = 0) => `
   </g>`;
 
 export const CATEGORY_ART = {
+  // 보드게임: 나무 테이블 위 보드판, 주사위, 말, 카드
+  board: `
+<svg viewBox="0 0 600 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cbd-wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a4a22"/><stop offset="1" stop-color="#3e2210"/></linearGradient>
+    <filter id="cbd-sh"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity=".5"/></filter>
+  </defs>
+  <rect width="600" height="200" fill="url(#cbd-wood)"/>
+  ${Array.from({ length: 9 }, (_, i) => `<path d="M0 ${12 + i * 24} q300 ${i % 2 ? 8 : -8} 600 0" stroke="#000" stroke-opacity=".12" stroke-width="2" fill="none"/>`).join('')}
+  <g transform="translate(330 30) rotate(-6)" filter="url(#cbd-sh)">
+    <rect width="190" height="130" rx="8" fill="#f3e2b0"/>
+    ${Array.from({ length: 8 }, (_, i) => `<rect x="${12 + i * 21}" y="12" width="18" height="18" rx="3" fill="${['#ff4f6e', '#ffd84d', '#3ee6ff', '#5fcf6a'][i % 4]}"/><rect x="${12 + i * 21}" y="100" width="18" height="18" rx="3" fill="${['#5fcf6a', '#ff4f6e', '#ffd84d', '#3ee6ff'][i % 4]}"/>`).join('')}
+    ${Array.from({ length: 3 }, (_, i) => `<rect x="12" y="${35 + i * 21}" width="18" height="18" rx="3" fill="${['#3ee6ff', '#5fcf6a', '#ff4f6e'][i]}"/><rect x="159" y="${35 + i * 21}" width="18" height="18" rx="3" fill="${['#ffd84d', '#3ee6ff', '#5fcf6a'][i]}"/>`).join('')}
+    <text x="95" y="76" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="26" fill="#7a4a22">START</text>
+  </g>
+  <g filter="url(#cbd-sh)">
+    <g transform="translate(540 120) rotate(14)"><rect x="-22" y="-22" width="44" height="44" rx="9" fill="#fff"/><circle cx="-10" cy="-10" r="4.5" fill="#c81d38"/><circle cx="10" cy="10" r="4.5" fill="#c81d38"/><circle cx="0" cy="0" r="4.5" fill="#c81d38"/></g>
+    <g transform="translate(290 150) rotate(-18)"><rect x="-18" y="-18" width="36" height="36" rx="8" fill="#fff"/><circle cx="-8" cy="-8" r="4" fill="#222"/><circle cx="8" cy="8" r="4" fill="#222"/><circle cx="8" cy="-8" r="4" fill="#222"/><circle cx="-8" cy="8" r="4" fill="#222"/></g>
+    ${[['#ff4f6e', 420, 120], ['#3d7bff', 455, 112], ['#ffd84d', 385, 105]].map(([c, x, y]) => `<g transform="translate(${x} ${y})"><circle cy="-22" r="9" fill="${c}"/><path d="M-9 0 q9 -26 18 0 z" fill="${c}"/><ellipse cy="2" rx="13" ry="5" fill="${c}"/></g>`).join('')}
+    <g transform="translate(560 40) rotate(10)"><rect x="-26" y="-36" width="52" height="72" rx="6" fill="#fff"/><rect x="-21" y="-31" width="42" height="62" rx="4" fill="#ff4f9a"/><text y="8" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="24" fill="#fff">O</text></g>
+  </g>
+</svg>`,
+
   mini: `
 <svg viewBox="0 0 600 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
   <defs>
