@@ -1,7 +1,31 @@
 // 게임 카드 일러스트 (직접 그린 SVG) — 게임을 추가하면 여기에 그림도 추가하세요.
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
+import { HANDSOME, GOOFY } from './typing.js';
+
+const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
+
 export const ART = {
+  // 타이핑 퀴즈: 스튜디오 조명 아래 잘생긴팀 vs 못생긴팀 캐릭터 + 말풍선 + 키보드
+  typing: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="tq-bg" cx="50%" cy="35%" r="80%"><stop offset="0" stop-color="#6b2fb8"/><stop offset=".6" stop-color="#2a0f52"/><stop offset="1" stop-color="#12062a"/></radialGradient>
+    <linearGradient id="tq-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2" stop-opacity=".45"/><stop offset="1" stop-color="#fff6c2" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="300" height="420" fill="url(#tq-bg)"/>
+  <path d="M60 0 L100 0 L150 300 L10 300 Z" fill="url(#tq-beam)"/>
+  <path d="M200 0 L240 0 L290 300 L150 300 Z" fill="url(#tq-beam)"/>
+  <rect x="22" y="228" width="116" height="60" rx="10" fill="#1d3f9e" stroke="#3ee6ff" stroke-width="3"/>
+  <rect x="162" y="228" width="116" height="60" rx="10" fill="#9e5a10" stroke="#ffb02e" stroke-width="3"/>
+  ${nest(HANDSOME, 30, 108, 100, 125)}
+  ${nest(GOOFY, 170, 108, 100, 125)}
+  <text x="150" y="196" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="34" fill="#ff4f9a" stroke="#fff" stroke-width="1.5">VS</text>
+  <g transform="translate(30 350)">
+    ${Array.from({ length: 2 }, (_, r) => Array.from({ length: 8 }, (_, c) => `<rect x="${c * 30 + r * 10}" y="${r * 26}" width="26" height="22" rx="5" fill="#ece6ff" stroke="#9b8fd0" stroke-width="2"/>`).join('')).join('')}
+  </g>
+</svg>`,
+
   // 결합 (데스매치): 붉은 경고 줄무늬 + 결합 타일 + 교차한 칼
   combo: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

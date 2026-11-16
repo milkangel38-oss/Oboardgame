@@ -12,6 +12,7 @@
 import numbers from './numbers.js';
 import mystery from './mystery.js';
 import combo from './combo.js';
+import typing from './typing.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -27,6 +28,7 @@ export const GAMES = [
   numbers,
   mystery,
   combo,
+  typing,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));
 
 export const getGame = (id) => GAMES.find((g) => g.id === id);
