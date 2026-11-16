@@ -36,9 +36,6 @@ export function summarize(stats) {
   return { ...r, points, tier, next, progress };
 }
 
-// 고를 수 있는 캐릭터 프로필 (사진 대신)
-export const AVATAR_PRESETS = [
-  'emoji:🐯:#ff8a3d', 'emoji:🐻:#a0673d', 'emoji:🦊:#ff6b4a', 'emoji:🐰:#f7a8d0',
-  'emoji:🐸:#5fcf6a', 'emoji:🐼:#8f9bb3', 'emoji:🐧:#3d7bff', 'emoji:🐙:#c45cff',
-  'emoji:👾:#7b5cff', 'emoji:🤖:#3ec7d6', 'emoji:🎲:#ff4f9a', 'emoji:🕹️:#ffd84d',
-];
+// 고를 수 있는 캐릭터 프로필 (avatars.js의 오리지널 캐릭터)
+import { CHARACTERS } from './avatars.js';
+export const AVATAR_PRESETS = CHARACTERS.map((c) => `char:${c.id}`);

@@ -3,6 +3,7 @@ import { GAMES, CATEGORIES, getGame } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS } from './profile.js';
+import { charSvg, charName } from './avatars.js';
 
 const $app = document.getElementById('app');
 let user = null;      // 로그인 정보 (구글/네이버)
@@ -35,6 +36,10 @@ const AVATAR_COLORS = ['#ff4f9a', '#ffb02e', '#3ddc84', '#3d7bff', '#9b5cff', '#
 function avatar(p, size = '') {
   const photo = p?.photo || '';
   const cls = `avatar ${size}`;
+  if (photo.startsWith('char:')) {
+    const svg = charSvg(photo.slice(5));
+    if (svg) return `<span class="${cls} char">${svg}</span>`;
+  }
   if (photo.startsWith('emoji:')) {
     const [, emo, color] = photo.split(':');
     const bg = /^#[0-9a-f]{6}$/i.test(color) ? color : '#555';
@@ -293,13 +298,13 @@ function openProfileEditor() {
     <div class="modal panel" role="dialog" aria-modal="true" aria-label="프로필 편집">
       <h3 class="section-title sm">프로필 편집</h3>
       <div class="pe-preview"></div>
-      <div class="row center">
+      <div class="row jc">
         <label class="btn sm">📷 사진 올리기<input type="file" accept="image/*" hidden></label>
         <button class="btn sm ghost" data-default>기본 사진</button>
       </div>
       <p class="label">캐릭터 고르기</p>
       <div class="preset-grid">
-        ${AVATAR_PRESETS.map((p) => `<button class="preset" data-preset="${esc(p)}">${avatar({ photo: p })}</button>`).join('')}
+        ${AVATAR_PRESETS.map((p) => `<button class="preset" data-preset="${esc(p)}">${avatar({ photo: p })}<span>${esc(charName(p.slice(5)))}</span></button>`).join('')}
       </div>
       <p class="label">닉네임</p>
       <input name="nick" maxlength="12" value="${esc(draft.name)}">
