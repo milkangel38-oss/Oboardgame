@@ -218,8 +218,11 @@ function raceTrack(state, me) {
   const slots = [6, 5, 4, 3, 2, 1, 0].map((i) => {
     const a = state.lineup[i];
     return `<div class="ud-slot ${a === state.darkHorse ? 'dh' : ''} ${mine.includes(a) ? 'mine' : ''}" data-ani="${a}" style="--c1:${NUM_COLOR[a]}">
-      ${a === state.darkHorse ? '<span class="ud-dhb">다크호스</span>' : ''}
-      ${mine.includes(a) ? '<span class="ud-myb">🎫</span>' : ''}
+      ${(() => {
+        const cnt = mine.filter((x) => x === a).length;
+        const tags = (a === state.darkHorse ? '<span class="ud-dhb">다크호스</span>' : '') + (cnt ? `<span class="ud-myt">내 티켓${cnt > 1 ? '×' + cnt : ''}</span>` : '');
+        return tags ? `<span class="ud-tags">${tags}</span>` : '';
+      })()}
       <span class="ud-stand">${animalSvg(a)}</span>
       <span class="ud-base"></span>
       <span class="ud-rk">${i + 1}<small>등</small></span>
@@ -228,7 +231,7 @@ function raceTrack(state, me) {
   return `<div class="ud-race"><div class="ud-lane">${slots}</div><div class="ud-finish"><span>FINISH</span></div></div>
     <div class="ud-score">
       <div class="ud-score-t">🏆 등수별 점수 <small>경주가 끝났을 때 내 티켓 동물의 등수로 점수를 받아요</small></div>
-      <div class="ud-score-row">${POINTS.map((p, i) => `<span class="${i < 3 ? 'top' : ''}"><b>${i + 1}등</b>${p}점</span>`).join('')}</div>
+      <div class="ud-score-row">${POINTS.map((p, i) => `<span class="${i < 3 ? 'hi' : ''}"><b>${i + 1}등</b>${p}점</span>`).join('')}</div>
       <div class="ud-score-dh">🌑 다크호스 토큰: 다크호스가 3등 안 <b class="up">+${DH_GOOD}점</b> · 4등 이하 <b class="dn">${DH_BAD}점</b></div>
     </div>`;
 }
