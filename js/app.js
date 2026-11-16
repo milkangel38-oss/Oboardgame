@@ -1,5 +1,5 @@
 import { backend } from './backend/index.js';
-import { GAMES, CATEGORIES, getGame } from './games/index.js';
+import { GAMES, getGame } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS } from './profile.js';
@@ -171,7 +171,6 @@ function renderLobby() {
       <section class="profile" id="profile"></section>
 
       <section class="game-list">
-        <h2 class="section-title">게임 고르기</h2>
         <div class="games">${GAMES.map(gameCard).join('')}</div>
       </section>
 
@@ -258,10 +257,8 @@ function drawProfile() {
 }
 
 function gameCard(g) {
-  const cat = CATEGORIES[g.category] || CATEGORIES.mini;
   return `
     <div class="gcard-wrap">
-      <div class="gcat">${cat.icon} ${esc(cat.name)}</div>
       <button class="gcard ${g.comingSoon ? 'soon' : ''}" data-game="${g.id}" aria-label="${esc(g.name)} ${g.comingSoon ? '(준비중)' : '방 만들기'}">
         <div class="gcard-art">${g.art}</div>
         <div class="ribbon"><span><i>◆</i>${esc(g.name)}<i>◆</i></span></div>
