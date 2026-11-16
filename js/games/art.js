@@ -2,7 +2,7 @@
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
 import { HANDSOME, GOOFY } from './typing.js';
-import { charSvg } from '../avatars.js';
+import { animalSvg } from './underdog-art.js';
 
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
@@ -20,10 +20,9 @@ export const ART = {
   <path d="M0 300 Q150 278 300 300" stroke="#fff" stroke-width="3" stroke-dasharray="10 8" fill="none" opacity=".7"/>
   <rect x="236" y="150" width="20" height="160" fill="url(#ud-chk)"/>
   <rect x="234" y="140" width="24" height="14" rx="3" fill="#c81d38"/>
-  ${[['moonrabbit', 182, 196, 1], ['tiger', 120, 210, 1], ['frog', 60, 222, 1], ['panda', 150, 268, .95], ['penguin', 88, 280, .95], ['haetae', 26, 290, .95]].map(([c, x, y, s]) =>
-    charSvg(c).replace('<svg viewBox="0 0 100 100"', `<svg x="${x}" y="${y}" width="${56 * s}" height="${56 * s}" viewBox="0 0 100 100"`)).join('')}
-  ${charSvg('gumiho').replace('<svg viewBox="0 0 100 100"', '<svg x="196" y="250" width="66" height="66" viewBox="0 0 100 100"')}
-  <g transform="translate(250 252)"><circle r="15" fill="#1d1640" stroke="#ffd84d" stroke-width="2"/><text y="6" text-anchor="middle" font-size="16">🌑</text></g>
+  ${[[7, 0, 300, 70], [5, 40, 292, 66], [3, 70, 300, 70], [6, 110, 284, 72], [4, 4, 214, 70], [1, 60, 206, 72], [2, 120, 200, 82]].map(([n, x, y, w]) =>
+    animalSvg(n, `x="${x}" y="${y}" width="${w}" height="${w * .75}"`)).join('')}
+  <g transform="translate(36 290)"><circle r="13" fill="#1d1640" stroke="#ffd84d" stroke-width="2"/><text y="5" text-anchor="middle" font-size="13">🌑</text></g>
 </svg>`,
 
   // 시드포커: 검정·금색 테이블 위 숫자카드, 금빛 시드카드, 칩
