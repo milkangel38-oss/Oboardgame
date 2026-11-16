@@ -425,10 +425,10 @@ function drawRoom($main, room, game) {
   let controls = '';
   if (room.status === 'waiting') {
     controls = isHost
-      ? `<button class="btn primary block" data-start ${check.ok ? '' : 'disabled'}>게임 시작</button>
-         <p class="hint">${check.ok ? '모두 준비됐어요!' : esc(check.reason)}</p>`
-      : `<button class="btn ${mine.ready ? 'ghost' : 'primary'} block" data-ready>${mine.ready ? '준비 취소' : '준비'}</button>
-         <p class="hint">${mine.ready ? '방장이 시작하길 기다리는 중…' : '준비를 누르면 방장이 시작할 수 있어요'}</p>`;
+      ? `<div class="controls"><button class="btn primary block big" data-start ${check.ok ? '' : 'disabled'}>게임 시작</button>
+         <p class="hint">${check.ok ? '모두 준비됐어요!' : esc(check.reason)}</p></div>`
+      : `<div class="controls"><button class="btn ${mine.ready ? 'ghost' : 'primary'} block big" data-ready>${mine.ready ? '준비 취소' : '준비'}</button>
+         <p class="hint">${mine.ready ? '방장이 시작하길 기다리는 중…' : '준비를 누르면 방장이 시작할 수 있어요'}</p></div>`;
   }
 
   let resultBanner = '';
@@ -449,6 +449,7 @@ function drawRoom($main, room, game) {
          <div class="ribbon static"><span><i>◆</i>${esc(game.name)}<i>◆</i></span></div>
          <p class="muted">${playerCount(game)} · ${esc(game.duration)}</p>
          ${game.rules ? `<ol class="rules">${game.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>` : ''}
+         ${controls}
        </div>`
     : `${resultBanner}<div class="game-area"></div>`;
 
@@ -464,23 +465,29 @@ function drawRoom($main, room, game) {
       </div>
     </div>
     <div class="room-body">
-      <aside class="players panel">
+      <section class="players panel">
         <h3>참가자 <span class="muted">${players.length}/${game.maxPlayers}</span></h3>
-        <ul>
-          ${players.map((p) => `
-            <li class="${p.uid === user.uid ? 'is-me' : ''}">
-              ${avatar(p)}<span class="pname">${esc(p.name)}${p.uid === user.uid ? ' <small>(나)</small>' : ''}</span>
-              ${p.uid === room.hostId ? '<span class="badge host">👑 방장</span>'
-                : room.status === 'waiting' ? (p.ready ? '<span class="badge ready">READY</span>' : '<span class="badge wait">대기</span>') : ''}
-            </li>`).join('')}
-          ${'<li class="empty">빈 자리 · 친구를 초대하세요</li>'.repeat(emptySeats)}
+        <ul class="seats">
+          ${players.map((p) => {
+            const host = p.uid === room.hostId;
+            const tag = host ? '방장' : room.status === 'waiting' ? (p.ready ? 'READY' : '대기') : '';
+            return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''}" title="${esc(p.name)}">
+              <span class="seat-av">${avatar(p)}${host ? '<span class="crown">👑</span>' : ''}</span>
+              <span class="seat-name">${esc(p.name)}</span>
+              ${tag ? `<span class="seat-tag">${tag}</span>` : ''}
+            </li>`;
+          }).join('')}
+          ${'<li class="seat empty"><span class="seat-av"><span class="avatar">?</span></span><span class="seat-name">빈 자리</span></li>'.repeat(emptySeats)}
+          ${room.status === 'waiting' && players.length >= game.minPlayers && players.length < game.maxPlayers
+            ? '<li class="seat add" data-invite-seat role="button" tabindex="0"><span class="seat-av"><span class="avatar">+</span></span><span class="seat-name">초대하기</span></li>' : ''}
         </ul>
-        ${controls}
-      </aside>
+      </section>
       <section class="stage panel">${stage}</section>
     </div>`;
 
   $main.querySelector('[data-invite]').onclick = () => invite(room, game);
+  const $seatInvite = $main.querySelector('[data-invite-seat]');
+  if ($seatInvite) $seatInvite.onclick = () => invite(room, game);
   $main.querySelector('[data-leave]').onclick = () => {
     if (room.status === 'playing' && !confirm('게임 중에 나가면 게임이 끝나요. 나갈까요?')) return;
     const uid = user.uid;
