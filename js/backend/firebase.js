@@ -6,7 +6,7 @@ import {
   signInAnonymously, signInWithCustomToken, updateProfile, signOut as fbSignOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  initializeFirestore, doc, onSnapshot, runTransaction,
+  initializeFirestore, doc, onSnapshot, runTransaction, setDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { randomCode } from './code.js';
 
@@ -85,6 +85,32 @@ export function createBackend(config) {
         const next = fn(structuredClone(snap.data()));
         if (next === null) t.delete(ref);
         else t.set(ref, next);
+      });
+    },
+
+    // 프로필 · 전적 (users/{uid})
+    watchProfile(uid, cb) {
+      return onSnapshot(
+        doc(db, 'users', uid),
+        (snap) => cb(snap.exists() ? snap.data() : null),
+        (err) => { console.warn('프로필을 불러오지 못했어요', err); cb(null); },
+      );
+    },
+
+    async saveProfile(uid, patch) {
+      await setDoc(doc(db, 'users', uid), { ...patch, updatedAt: Date.now() }, { merge: true });
+    },
+
+    async recordResult(uid, matchKey, gameId, outcome) {
+      const ref = doc(db, 'users', uid);
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(ref);
+        const p = snap.exists() ? snap.data() : {};
+        if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
+        const stats = p.stats || {};
+        const g = { w: 0, l: 0, d: 0, ...(stats[gameId] || {}) };
+        g[outcome] += 1;
+        t.set(ref, { stats: { ...stats, [gameId]: g }, lastMatch: matchKey }, { merge: true });
       });
     },
 

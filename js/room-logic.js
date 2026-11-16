@@ -6,7 +6,8 @@
 //   status: 'waiting' | 'playing' | 'finished',
 //   players: { [uid]: { uid, name, photo, ready, order, joinedAt } },
 //   game: 게임별 상태 | null,
-//   result: { message, winners: [uid] } | null,
+//   result: { message, winners: [uid], draw?, aborted? } | null,
+//   matchId: 몇 번째 판인지,
 //   createdAt
 // }
 
@@ -50,7 +51,7 @@ export function leave(room, uid) {
   if (room.hostId === uid) room.hostId = rest[0].uid;
   if (room.status === 'playing') {
     room.status = 'finished';
-    room.result = { message: `${leaving.name}님이 나가서 게임이 끝났어요`, winners: [] };
+    room.result = { message: `${leaving.name}님이 나가서 게임이 끝났어요`, winners: [], aborted: true };
   }
   return room;
 }
@@ -76,6 +77,7 @@ export function start(room, game, uid) {
   const check = canStart(room, game);
   if (!check.ok) throw new Error(check.reason);
   room.game = game.setup(sortedPlayers(room));
+  room.matchId = (room.matchId || 0) + 1; // 전적 중복 기록 방지용 판 번호
   room.status = 'playing';
   room.result = null;
   return room;

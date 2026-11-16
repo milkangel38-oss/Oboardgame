@@ -47,7 +47,7 @@ export default {
       return { state: next, result: { message: `${players[uid].name}님 승리! 🎉`, winners: [uid] } };
     }
     if (board.every(Boolean)) {
-      return { state: next, result: { message: '무승부예요! 🤝', winners: [] } };
+      return { state: next, result: { message: '무승부예요! 🤝', winners: [], draw: true } };
     }
     return { state: next };
   },

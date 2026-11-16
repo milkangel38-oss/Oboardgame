@@ -5,6 +5,7 @@
 import { randomCode } from './code.js';
 
 const ROOMS_KEY = 'mbg:rooms';
+const PROFILES_KEY = 'mbg:profiles';
 const USER_KEY = 'mbg:user';
 const PROVIDER_LABEL = { google: 'Google', naver: '네이버', guest: '게스트' };
 
@@ -14,7 +15,20 @@ function loadRooms() {
 
 const roomListeners = new Set();
 function notifyRooms() { roomListeners.forEach((fn) => fn()); }
-window.addEventListener('storage', (e) => { if (e.key === ROOMS_KEY) notifyRooms(); });
+window.addEventListener('storage', (e) => {
+  if (e.key === ROOMS_KEY) notifyRooms();
+  if (e.key === PROFILES_KEY) notifyProfiles();
+});
+
+function loadProfiles() {
+  try { return JSON.parse(localStorage.getItem(PROFILES_KEY)) || {}; } catch { return {}; }
+}
+const profileListeners = new Set();
+function notifyProfiles() { profileListeners.forEach((fn) => fn()); }
+function saveProfiles(all) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(all));
+  notifyProfiles();
+}
 
 function saveRooms(rooms) {
   localStorage.setItem(ROOMS_KEY, JSON.stringify(rooms));
@@ -71,6 +85,30 @@ export function createBackend() {
       if (next === null) delete rooms[code];
       else rooms[code] = next;
       saveRooms(rooms);
+    },
+
+    watchProfile(uid, cb) {
+      const emit = () => cb(loadProfiles()[uid] || null);
+      profileListeners.add(emit);
+      emit();
+      return () => profileListeners.delete(emit);
+    },
+
+    async saveProfile(uid, patch) {
+      const all = loadProfiles();
+      all[uid] = { ...(all[uid] || {}), ...patch, updatedAt: Date.now() };
+      saveProfiles(all);
+    },
+
+    async recordResult(uid, matchKey, gameId, outcome) {
+      const all = loadProfiles();
+      const p = all[uid] || {};
+      if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
+      const stats = p.stats || {};
+      const g = { w: 0, l: 0, d: 0, ...(stats[gameId] || {}) };
+      g[outcome] += 1;
+      all[uid] = { ...p, stats: { ...stats, [gameId]: g }, lastMatch: matchKey };
+      saveProfiles(all);
     },
 
     watchRoom(code, cb) {
