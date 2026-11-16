@@ -69,7 +69,8 @@ function nextBetter(state, now) {
   for (let i = state.turnIdx + 1; i < state.turnOrder.length; i++) {
     const u = state.turnOrder[i];
     if (state.bets[u] === undefined) {
-      if (state.chips[u] <= 0) { state = { ...state, bets: { ...state.bets, [u]: 'fold' } }; continue; } // 걸 칩이 없음
+      // 걸 칩이 없거나, 앞 사람만큼 걸 칩이 모자라면 자동 포기
+      if (state.chips[u] <= 0 || state.chips[u] < minBet(state)) { state = { ...state, bets: { ...state.bets, [u]: 'fold' } }; continue; }
       return { ...state, turnIdx: i, turnDeadline: now + BET_MS };
     }
   }
@@ -122,6 +123,9 @@ export function rank(order, chips) {
     });
 }
 
+// 앞서 베팅한 사람들 중 가장 큰 금액 이상으로만 걸 수 있어요
+export const minBet = (state) => Math.max(1, ...Object.values(state.bets || {}).filter((b) => typeof b === 'number'));
+
 const cardHtml = (n, cls = '') => `<span class="sp-card ${cls}">${n ?? '?'}</span>`;
 
 export default {
@@ -138,8 +142,10 @@ export default {
     `1~15 숫자카드로 진행하고, 모두 칩 ${START_CHIPS}개로 시작해요. 총 ${ROUNDS}라운드, 선은 라운드마다 돌아가요.`,
     '라운드가 시작되면 각자 카드 1장을 몰래 받고, 더미 맨 위 1장이 첫 번째 시드카드로 공개돼요.',
     '선부터 차례로 둘 중 하나를 골라요: [카드 받기] 1장 더 받고 둘 중 하나를 공개해서 버리기 / [시드 추가] 더미에서 1장을 뒤집어 시드에 추가.',
-    '시드카드는 가장 높은 3장만 남아요.',
-    `베팅: 모두 기본 1개를 내고, 선부터 차례로 [포기] 또는 [1~${MAX_BET}개 베팅]. 포기한 사람의 카드는 공개되지 않아요.`,
+    '시드카드는 가장 높은 3장만 남아요. 밀려난 시드는 휴지통으로 가요.',
+    `베팅: 모두 기본 1개를 내고, 선부터 차례로 [포기] 또는 [1~${MAX_BET}개 베팅]. 앞 사람이 건 것보다 적게 걸 수는 없어요(같거나 많게). 포기한 사람의 카드는 공개되지 않아요.`,
+    '버린 카드는 누가 버렸는지 함께 공개되고, 시드에서 밀려난 카드는 휴지통으로 가서 보이지 않아요.',
+    '참가자 목록은 매 라운드 끝날 때마다 칩이 많은 순서로 다시 정렬돼요. (①②③은 이번 라운드 차례 순서)',
     '승부: 베팅한 사람들의 카드를 공개하고, 가장 낮은 카드부터 가장 높은 시드를 차례로 더해요. 합이 가장 큰 사람이 판돈을 모두 가져가요.',
     '동점이면 판돈을 나누고 남는 칩은 다음 판돈으로 넘어가요. 모두 포기하면 기본 베팅을 돌려받아요.',
     `차례 제한 시간: 카드 ${ACTION_MS / 1000}초(넘기면 시드 추가) · 베팅 ${BET_MS / 1000}초(넘기면 포기)`,
@@ -184,6 +190,8 @@ export default {
       if (move.type === 'fold') return { state: nextBetter({ ...state, bets: { ...state.bets, [uid]: 'fold' } }, now) };
       const n = Number(move.n);
       if (!(n >= 1 && n <= MAX_BET && Number.isInteger(n))) throw new Error(`1~${MAX_BET}개까지 걸 수 있어요`);
+      const min = minBet(state);
+      if (n < min) throw new Error(`앞 사람보다 적게 걸 수 없어요 (최소 ${min}개)`);
       if (n > state.chips[uid]) throw new Error('칩이 부족해요');
       const chips = { ...state.chips, [uid]: state.chips[uid] - n };
       return { state: nextBetter({ ...state, chips, pot: state.pot + n, bets: { ...state.bets, [uid]: n } }, now) };
@@ -275,12 +283,16 @@ export default {
         ? '<span>모두 포기! 기본 베팅을 돌려받았어요</span>'
         : `<span><b>${last.winners.map(name).join(', ')}</b>님 승리! <span class="gold">🪙${last.share}${last.winners.length > 1 ? '씩' : ''}</span>${last.carry ? ` · 남은 ${last.carry}개는 다음 판돈으로` : ''}</span>`;
     } else if (state.phase === 'bet') {
-      banner = myTurn ? '<span><b>내 베팅 차례!</b> 포기하거나 칩을 거세요</span>' : `<span><b>${name(turnUid)}</b>님 베팅 차례</span>`;
+      const min = minBet(state);
+      banner = myTurn
+        ? `<span><b>내 베팅 차례!</b> 포기하거나 칩을 거세요 · 최소 <b>🪙${min}</b>${min > state.chips[me] ? ' (칩이 모자라 포기만 가능)' : ''}</span>`
+        : `<span><b>${name(turnUid)}</b>님 베팅 차례 · 현재 최소 🪙${min}</span>`;
     } else {
       banner = myTurn ? (pendingMine ? '<span><b>둘 중 남길 카드</b>를 고르세요. 다른 한 장은 공개돼요</span>' : '<span><b>내 차례!</b> 카드를 받거나 시드를 추가하세요</span>') : `<span><b>${name(turnUid)}</b>님 차례</span>`;
     }
 
-    const seen = state.table.filter((t) => t.kind !== 'seed' || !state.seeds.includes(t.card));
+    const discards = state.table.filter((t) => t.kind === 'discard');
+    const trash = state.table.filter((t) => t.kind === 'burned').length;
 
     el.innerHTML = `
       <div class="sp">
@@ -295,8 +307,9 @@ export default {
             <span class="sp-label">시드</span>
             ${state.seeds.map((n) => cardHtml(n, 'seed')).join('')}
           </div>
-          <div class="sp-pot">${state.phase === 'bet' ? `판돈 🪙<b>${state.pot}</b>` : state.carry ? `이월 🪙${state.carry}` : ''} <small>더미 ${state.deck.length}장</small></div>
-          ${seen.length ? `<div class="sp-seen"><span class="sp-label">공개된 카드</span>${seen.map((t) => cardHtml(t.card, t.kind === 'burned' ? 'burned' : 'open')).join('')}</div>` : ''}
+          <div class="sp-pot">${state.phase === 'bet' ? `판돈 🪙<b>${state.pot}</b>` : state.carry ? `이월 🪙${state.carry}` : ''} <small>더미 ${state.deck.length}장${trash ? ` · 🗑️ 휴지통 ${trash}장` : ''}</small></div>
+          ${discards.length ? `<div class="sp-seen"><span class="sp-label">버린 카드</span>${discards.map((t) => `
+            <span class="sp-dis"><small>${name(t.by)}</small>${cardHtml(t.card, 'open')}</span>`).join('')}</div>` : ''}
         </div>
 
         <div class="nb-banner">${banner}</div>
@@ -319,16 +332,19 @@ export default {
         ${myTurn && state.phase === 'bet' ? `
           <div class="sp-actions bet">
             <button class="btn ghost big" data-fold>포기</button>
-            ${[1, 2, 3].map((n) => `<button class="btn primary big" data-bet="${n}" ${n > state.chips[me] ? 'disabled' : ''}>🪙${n}</button>`).join('')}
+            ${[1, 2, 3].map((n) => `<button class="btn primary big" data-bet="${n}" ${n > state.chips[me] || n < minBet(state) ? 'disabled' : ''}>🪙${n}</button>`).join('')}
           </div>` : ''}
 
         <ul class="sp-players">
-          ${state.turnOrder.map((u, i) => `
+          ${[...state.turnOrder].sort((a, b) => state.chips[b] - state.chips[a] || state.turnOrder.indexOf(a) - state.turnOrder.indexOf(b)).map((u) => {
+            const i = state.turnOrder.indexOf(u);
+            return `
             <li class="${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${state.phase === 'reveal' && last?.winners?.includes(u) ? 'win' : ''}">
-              <span class="sp-pname">${i === 0 ? '<i class="sp-dealer">선</i>' : ''}${name(u)}</span>
+              <span class="sp-pname"><i class="sp-no">${'①②③④⑤⑥⑦'[i]}</i>${i === 0 ? '<i class="sp-dealer">선</i>' : ''}${name(u)}</span>
               <span class="sp-pstat">${statusOf(u)}</span>
               <span class="sp-pchips">🪙${state.chips[u]}</span>
-            </li>`).join('')}
+            </li>`;
+          }).join('')}
         </ul>
       </div>`;
 
