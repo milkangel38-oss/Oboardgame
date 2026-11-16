@@ -2,7 +2,7 @@ import { backend } from './backend/index.js';
 import { GAMES, CATEGORIES, getGame, getCategory } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
-import { summarize, gameRecord, AVATAR_PRESETS } from './profile.js';
+import { summarize, gameRecord, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
 
 const $app = document.getElementById('app');
@@ -245,7 +245,7 @@ function drawProfile() {
   const $p = document.getElementById('profile');
   if (!$p) return;
   const my = me();
-  const s = summarize(profile?.stats);
+  const s = summarize(profile);
   const collapsed = localStorage.getItem(COLLAPSE_KEY) === '1';
   const playable = GAMES.filter((g) => !g.comingSoon || profile?.stats?.[g.id]);
 
@@ -256,15 +256,16 @@ function drawProfile() {
       <button class="avatar-edit" data-edit title="프로필 사진 바꾸기">${avatar(my, 'lg')}<span class="pen">✎</span></button>
       <div class="profile-main">
         <div class="profile-name"><b>${esc(my.name)}</b><span class="tier-badge">${s.tier.icon} ${s.tier.name}</span></div>
-        <div class="profile-sum">${s.games ? `${s.games}전 ${s.w}승 ${s.l}패 ${s.d}무 · 승률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
+        <div class="profile-garnet">${GARNET}<b>${s.garnets}</b><span>가넷</span></div>
+        <div class="profile-sum">${s.plays ? `${s.plays}판 · 1등 ${s.wins}회 · 1등률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
       </div>
       <span class="chevron" aria-hidden="true">▾</span>
     </div>
     <div class="profile-body">
       <div class="tier-progress">
         <div class="tier-row">
-          <span>${s.tier.icon} ${s.tier.name} · <b>${s.points}점</b></span>
-          <span class="muted">${s.next ? `${s.next.icon} ${s.next.name}까지 ${s.next.min - s.points}점` : '최고 티어 달성!'}</span>
+          <span>${s.tier.icon} ${s.tier.name} · <b>가넷 ${s.garnets}개</b></span>
+          <span class="muted">${s.next ? `${s.next.icon} ${s.next.name}까지 ${s.next.min - s.garnets}개` : '최고 티어 달성!'}</span>
         </div>
         <div class="bar"><i style="width:${s.progress}%"></i></div>
       </div>
@@ -272,11 +273,11 @@ function drawProfile() {
         ${playable.map((g) => {
           const r = gameRecord(profile?.stats, g.id);
           return `<li><span class="rec-game">${g.emoji} ${esc(g.name)}</span>
-            <span class="rec-wl">${r.games ? `${r.w}승 ${r.l}패 ${r.d}무` : '기록 없음'}</span>
-            <span class="rec-rate">${r.games ? `${r.rate}%` : '-'}</span></li>`;
+            <span class="rec-wl">${r.plays ? `${r.plays}판 · 1등 ${r.wins}회` : '기록 없음'}</span>
+            <span class="rec-rate">${r.plays ? `${GARNET}${r.garnets}` : '-'}</span></li>`;
         }).join('')}
       </ul>
-      <p class="hint">승리 3점 · 무승부 1점으로 티어가 올라가요</p>
+      <p class="hint">게임 순위에 따라 가넷을 받고, 보유 가넷 수로 티어가 정해져요</p>
     </div>`;
 
   const toggle = () => {
@@ -307,9 +308,11 @@ function gameCard(g) {
 
 function recordLine(id) {
   const r = gameRecord(profile?.stats, id);
-  return r.games
-    ? `<span>${r.w}승 ${r.l}패</span><span class="gold">승률 ${r.rate}%</span>`
-    : `<span>첫 도전!</span><span class="gold">NEW</span>`;
+  const g = getGame(id);
+  const top = g?.rewards?.[0];
+  return r.plays
+    ? `<span>${r.plays}판 · 1등 ${r.wins}</span><span class="gold">${GARNET}${r.garnets}</span>`
+    : `<span>첫 도전!</span><span class="gold">${top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
   $app.querySelectorAll('[data-rec]').forEach((el) => { el.innerHTML = recordLine(el.dataset.rec); });
@@ -438,8 +441,10 @@ function recordIfFinished(room) {
   const key = `${room.code}:${room.matchId}`;
   if (recordedMatches.has(key)) return;
   recordedMatches.add(key);
-  const outcome = room.result.draw ? 'd' : (room.result.winners || []).includes(user.uid) ? 'w' : 'l';
-  backend.recordResult(user.uid, key, room.gameId, outcome).catch((e) => console.warn('전적 저장 실패', e));
+  const mine = (room.result.ranking || []).find((r) => r.uid === user.uid);
+  const place = mine?.place || ((room.result.winners || []).includes(user.uid) ? 1 : 0);
+  const garnets = room.result.rewards?.[user.uid] || 0;
+  backend.recordResult(user.uid, key, room.gameId, { place, garnets }).catch((e) => console.warn('전적 저장 실패', e));
 }
 
 function drawRoom($main, room, game) {
@@ -447,7 +452,7 @@ function drawRoom($main, room, game) {
   const isHost = room.hostId === user.uid;
   const mine = room.players[user.uid];
   const check = R.canStart(room, game);
-  const act = (fn) => backend.mutateRoom(room.code, fn).catch((e) => toast(e.message));
+  const act = (fn, silent) => backend.mutateRoom(room.code, fn).catch((e) => { if (!silent) toast(e.message); });
 
   const emptySeats = Math.max(0, game.minPlayers - players.length);
 
@@ -463,7 +468,11 @@ function drawRoom($main, room, game) {
   let resultBanner = '';
   if (room.status === 'finished') {
     const r = room.result || {};
-    const tag = r.aborted ? '' : r.draw ? '<span class="res-tag draw">DRAW</span>'
+    const mineRank = (r.ranking || []).find((x) => x.uid === user.uid);
+    const reward = r.rewards?.[user.uid] || 0;
+    const tag = r.aborted ? ''
+      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${mineRank.place}등</span>${reward ? `<span class="res-garnet">${GARNET}+${reward}</span>` : ''}`
+      : r.draw ? '<span class="res-tag draw">DRAW</span>'
       : (r.winners || []).includes(user.uid) ? '<span class="res-tag win">WIN</span>' : '<span class="res-tag lose">LOSE</span>';
     resultBanner = `
       <div class="result">
@@ -536,7 +545,8 @@ function drawRoom($main, room, game) {
       me: user.uid,
       players: room.players,
       finished: room.status === 'finished',
-      sendMove: (move) => act((r) => R.applyMove(r, game, user.uid, move)),
+      room,
+      sendMove: (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent),
     });
   }
 }

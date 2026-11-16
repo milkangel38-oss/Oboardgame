@@ -101,16 +101,18 @@ export function createBackend(config) {
       await setDoc(doc(db, 'users', uid), { ...patch, updatedAt: Date.now() }, { merge: true });
     },
 
-    async recordResult(uid, matchKey, gameId, outcome) {
+    async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {
       const ref = doc(db, 'users', uid);
       await runTransaction(db, async (t) => {
         const snap = await t.get(ref);
         const p = snap.exists() ? snap.data() : {};
         if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
         const stats = p.stats || {};
-        const g = { w: 0, l: 0, d: 0, ...(stats[gameId] || {}) };
-        g[outcome] += 1;
-        t.set(ref, { stats: { ...stats, [gameId]: g }, lastMatch: matchKey }, { merge: true });
+        const g = { plays: 0, wins: 0, garnets: 0, ...(stats[gameId] || {}) };
+        g.plays += 1;
+        if (place === 1) g.wins += 1;
+        g.garnets += garnets;
+        t.set(ref, { stats: { ...stats, [gameId]: g }, garnets: (p.garnets || 0) + garnets, lastMatch: matchKey }, { merge: true });
       });
     },
 

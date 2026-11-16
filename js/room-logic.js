@@ -6,7 +6,7 @@
 //   status: 'waiting' | 'playing' | 'finished',
 //   players: { [uid]: { uid, name, photo, ready, order, joinedAt } },
 //   game: 게임별 상태 | null,
-//   result: { message, winners: [uid], draw?, aborted? } | null,
+//   result: { message, winners: [uid], ranking?: [{uid, score, place, garnets}], rewards?: {uid: 가넷}, aborted? } | null,
 //   matchId: 몇 번째 판인지,
 //   createdAt
 // }
@@ -76,7 +76,7 @@ export function start(room, game, uid) {
   if (room.hostId !== uid) throw new Error('방장만 시작할 수 있어요');
   const check = canStart(room, game);
   if (!check.ok) throw new Error(check.reason);
-  room.game = game.setup(sortedPlayers(room));
+  room.game = game.setup(sortedPlayers(room), room);
   room.matchId = (room.matchId || 0) + 1; // 전적 중복 기록 방지용 판 번호
   room.status = 'playing';
   room.result = null;

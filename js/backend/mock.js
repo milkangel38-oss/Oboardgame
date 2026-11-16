@@ -5,7 +5,7 @@
 import { randomCode } from './code.js';
 
 const ROOMS_KEY = 'mbg:rooms';
-const PROFILES_KEY = 'mbg:profiles';
+const PROFILE_PREFIX = 'mbg:profile:'; // 사람마다 따로 저장 (여러 탭이 동시에 저장해도 덮어쓰지 않게)
 const USER_KEY = 'mbg:user';
 const PROVIDER_LABEL = { google: 'Google', naver: '네이버', guest: '게스트' };
 
@@ -17,16 +17,16 @@ const roomListeners = new Set();
 function notifyRooms() { roomListeners.forEach((fn) => fn()); }
 window.addEventListener('storage', (e) => {
   if (e.key === ROOMS_KEY) notifyRooms();
-  if (e.key === PROFILES_KEY) notifyProfiles();
+  if (e.key?.startsWith(PROFILE_PREFIX)) notifyProfiles();
 });
 
-function loadProfiles() {
-  try { return JSON.parse(localStorage.getItem(PROFILES_KEY)) || {}; } catch { return {}; }
+function loadProfile(uid) {
+  try { return JSON.parse(localStorage.getItem(PROFILE_PREFIX + uid)); } catch { return null; }
 }
 const profileListeners = new Set();
 function notifyProfiles() { profileListeners.forEach((fn) => fn()); }
-function saveProfiles(all) {
-  localStorage.setItem(PROFILES_KEY, JSON.stringify(all));
+function saveProfile(uid, p) {
+  localStorage.setItem(PROFILE_PREFIX + uid, JSON.stringify(p));
   notifyProfiles();
 }
 
@@ -88,27 +88,25 @@ export function createBackend() {
     },
 
     watchProfile(uid, cb) {
-      const emit = () => cb(loadProfiles()[uid] || null);
+      const emit = () => cb(loadProfile(uid));
       profileListeners.add(emit);
       emit();
       return () => profileListeners.delete(emit);
     },
 
     async saveProfile(uid, patch) {
-      const all = loadProfiles();
-      all[uid] = { ...(all[uid] || {}), ...patch, updatedAt: Date.now() };
-      saveProfiles(all);
+      saveProfile(uid, { ...(loadProfile(uid) || {}), ...patch, updatedAt: Date.now() });
     },
 
-    async recordResult(uid, matchKey, gameId, outcome) {
-      const all = loadProfiles();
-      const p = all[uid] || {};
+    async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {
+      const p = loadProfile(uid) || {};
       if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
       const stats = p.stats || {};
-      const g = { w: 0, l: 0, d: 0, ...(stats[gameId] || {}) };
-      g[outcome] += 1;
-      all[uid] = { ...p, stats: { ...stats, [gameId]: g }, lastMatch: matchKey };
-      saveProfiles(all);
+      const g = { plays: 0, wins: 0, garnets: 0, ...(stats[gameId] || {}) };
+      g.plays += 1;
+      if (place === 1) g.wins += 1;
+      g.garnets += garnets;
+      saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: (p.garnets || 0) + garnets, lastMatch: matchKey });
     },
 
     watchRoom(code, cb) {
