@@ -117,11 +117,10 @@ function renderLogin(invited) {
     <main class="login">
       <div class="login-card">
         ${logo('lg')}
-        <p class="tagline">친구들과 한 판! 미니 보드게임 아케이드</p>
 
         <div class="marquee">
           <div class="marquee-inner">
-            <p class="marquee-kicker">${invited ? '★ 초대장이 도착했어요 ★' : '★ PLAYER 1 ★'}</p>
+            ${invited ? '<p class="marquee-kicker">★ 초대장이 도착했어요 ★</p>' : ''}
             <p class="marquee-text">${invited ? '친구가 초대한<br>' : ''}<em>O게임</em>에<br>참여하시겠습니까?</p>
           </div>
         </div>
