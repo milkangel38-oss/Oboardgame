@@ -973,6 +973,26 @@ a.cat-banner:active { transform: translateY(0); }
 .dm-tt { display: grid; font-size: 13px; line-height: 1.35; min-width: 0; }
 .dm-tt b { font-size: 12.5px; color: #ff8fb8; }
 
+/* ───────── 렉시오 ───────── */
+.lx { display: grid; gap: 10px; }
+.lx-floor { display: grid; justify-items: center; gap: 6px; padding: 12px 8px; border-radius: 16px; background: radial-gradient(ellipse at center, #1f6b45, #0f3a26); box-shadow: inset 0 0 0 3px #3a2412, inset 0 0 0 6px #6a4422; min-height: 96px; align-content: center; }
+.lx-floor-tiles { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.lx-floor-tiles.cleared { opacity: .45; }
+.lx-tile { position: relative; display: inline-grid; justify-items: center; align-content: center; gap: 1px; width: 44px; aspect-ratio: 3 / 4; border-radius: 8px; background: linear-gradient(180deg, #fffdf6, #efe6d2); color: var(--lc); box-shadow: 0 3px 0 #b8a37a, 0 4px 6px rgba(0, 0, 0, .35); border: 1px solid #d8c9a6; }
+.lx-tile b { font-family: var(--logo); font-weight: 400; font-size: 20px; line-height: 1; }
+.lx-tile svg { width: 15px; height: 15px; }
+.lx-tile.xs { width: 24px; border-radius: 5px; box-shadow: 0 2px 0 #b8a37a; }
+.lx-tile.xs b { font-size: 11px; } .lx-tile.xs svg { width: 9px; height: 9px; }
+.lx-hand { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+@media (min-width: 560px) { .lx-hand { grid-template-columns: repeat(13, 1fr); } }
+.lx-btn { appearance: none; border: 0; padding: 0; background: none; cursor: pointer; transition: transform .12s; }
+.lx-btn .lx-tile { width: 100%; }
+.lx-btn.sel { transform: translateY(-8px); }
+.lx-btn.sel .lx-tile { box-shadow: 0 0 0 3px #ff4f9a, 0 4px 10px rgba(255, 79, 154, .5); }
+.lx-lines { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: center; font-size: 12.5px; padding: 8px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
+.lx-lines b { color: var(--gold); }
+.lx-lines small { color: var(--muted); }
+
 /* ───────── 게임 중 초상화 + 말풍선 ───────── */
 .players.ingame .seats { padding-top: 34px; gap: 30px 6px; }
 .players.ingame .seat { position: relative; }

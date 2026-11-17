@@ -7,6 +7,16 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 렉시오: 나무 탁자 위 숫자 타일들
+  lexio: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="lxA-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6b3f1d"/><stop offset="1" stop-color="#2e1a0b"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#lxA-w)"/>
+  <ellipse cx="150" cy="250" rx="140" ry="110" fill="#1f6b45" stroke="#0f3a26" stroke-width="6"/>
+  ${[['2', '#e0452e', -24, 90, 170], ['1', '#2f9e5b', -8, 130, 160], ['15', '#e0a11a', 8, 170, 160], ['3', '#2f5fb8', 22, 210, 172]].map(([n, c, r, x, y]) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-26" y="-38" width="52" height="76" rx="9" fill="#fffaf0" stroke="#c9b48a" stroke-width="2"/><text y="2" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="30" fill="${c}">${n}</text><circle cy="24" r="6" fill="${c}"/></g>`).join('')}
+  ${[['#e0452e', 80, 300], ['#2f9e5b', 120, 310], ['#e0a11a', 160, 312], ['#2f5fb8', 200, 304]].map(([c, x, y]) => `<g transform="translate(${x} ${y})"><circle r="13" fill="${c}"/><circle r="8" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/></g>`).join('')}
+</svg>`,
+
   // 초성퀴즈: 칠판 위 초성 타일
   chosung: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
