@@ -4,6 +4,7 @@
 // 보석은 10개까지 · 귀족 조건을 채우면 +3점 · 누가 15점에 닿으면 그 바퀴까지만 하고 끝
 import { GARNET } from '../profile.js';
 import { showAlert } from '../alert.js';
+import { bigFlash } from './turn-alert.js';
 import { SPL_DEFS, gemSvg, tokenSvg, sceneSvg, portraitSvg } from './splendor-art.js';
 
 export const COLORS = ['w', 'u', 'g', 'r', 'k'];
@@ -135,17 +136,8 @@ function findMarket(state, id) {
 let ui = { key: '', pick: [], card: null };
 const seen = { room: '', action: null, turn: '' };
 
-// 화면 가운데 잠깐 띄우기
-function flash(html, ms = 2200, cls = '') {
-  document.querySelector('.spl-flash')?.remove();
-  const $f = document.createElement('div');
-  $f.className = `spl-flash ${cls}`;
-  $f.innerHTML = html;
-  document.body.appendChild($f);
-  $f.onclick = () => $f.remove();
-  setTimeout(() => $f.remove(), ms);
-}
-const bigTurn = () => flash('<div class="spl-myturn">내 차례!</div>', 1500, 'turn');
+const flash = bigFlash;
+const bigTurn = () => bigFlash('<div class="spl-myturn">내 차례!</div>', 1500, 'turn');
 
 export default {
   id: 'splendor',

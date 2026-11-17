@@ -3,6 +3,7 @@
 // 숫자 순서: 3 < 4 < … < 최대 숫자 < 1 < 2 (2가 가장 강함) · 무늬 순서: ☀해 > 🌙달 > ⭐별 > ☁구름
 // 족보: 싱글 · 페어 · 트리플 · 5장(스트레이트 < 플러시 < 풀하우스 < 포카드 < 스트레이트 플러시)
 // 누가 다 털면 라운드 끝: 남은 타일 수 차이만큼 칩을 주고받아요 (2를 들고 있으면 2개마다 2배)
+import { turnAlert } from './turn-alert.js';
 import { GARNET } from '../profile.js';
 
 export const SUITS = ['cloud', 'star', 'moon', 'sun']; // 약한 → 강한
@@ -221,6 +222,7 @@ export default {
     const N = state.N;
     const turnUid = state.turn >= 0 ? state.order[state.turn] : null;
     const myTurn = state.phase === 'play' && turnUid === me;
+    turnAlert(room?.code, `lx:${state.round}:${Object.values(state.hands).map((h) => h.length).join()}:${state.passes}:${state.turn}`, myTurn && !finished);
     const key = `${room?.code}:${state.round}:${(state.hands[me] || []).length}:${state.last}:${state.passes}`;
     if (ui.key !== key) ui = { key, sel: [] };
 

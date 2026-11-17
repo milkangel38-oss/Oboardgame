@@ -3,6 +3,7 @@
 // 8장 받고 그랜드 티츄 → 6장 더 받고 카드 교환(3장) → 참새를 가진 사람이 선
 // 같은 조합으로 더 높게 내거나 패스. 나머지가 모두 패스하면 마지막으로 낸 사람이 트릭을 가져가요.
 // 점수: 5=5점, 10·K=10점, 용 +25, 주작 −25 / 티츄 ±100, 그랜드 티츄 ±200 / 원투(같은 팀 1·2등) 200점
+import { turnAlert } from './turn-alert.js';
 import { GARNET } from '../profile.js';
 
 const SUITS = { s: { sym: '♠', color: '#23232b' }, h: { sym: '♥', color: '#d23a3a' }, d: { sym: '♦', color: '#2f6fd6' }, c: { sym: '♣', color: '#2f9e5b' } };
@@ -379,6 +380,7 @@ export default {
     const hand = sortHand(state.hands[me] || []);
     const turnUid = state.turn >= 0 ? state.order[state.turn] : null;
     const myTurn = state.phase === 'play' && !state.dragon && turnUid === me;
+    turnAlert(room?.code, `tc:${state.handNo}:${Object.values(state.hands).map((h) => h.length).join()}:${state.trick.plays.length}:${state.trick.passes.length}:${state.turn}`, myTurn && !finished);
     const key = `${room?.code}:${state.handNo}:${state.phase}:${(state.hands[me] || []).join()}:${state.trick.plays.length}`;
     if (ui.key !== key) ui = { key, sel: [], slots: ui.key.split(':').slice(0, 3).join() === key.split(':').slice(0, 3).join() ? ui.slots : [null, null, null], wish: false };
 

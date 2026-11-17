@@ -6,6 +6,7 @@
 // - 베팅: 모두 기본 1개, 선부터 차례로 포기 또는 1~3개 베팅
 // - 승부: 베팅한 사람 카드 공개 → 가장 낮은 카드부터 가장 높은 시드를 차례로 더함 → 합이 가장 큰 사람이 판돈 획득
 // - 10라운드 후 칩 순위로 가넷 1등 3, 2등 2, 3등 1
+import { turnAlert } from './turn-alert.js';
 import { GARNET } from '../profile.js';
 
 const START_CHIPS = 20;
@@ -254,6 +255,7 @@ export default {
 
     const turnUid = state.turnIdx >= 0 ? state.turnOrder[state.turnIdx] : null;
     const myTurn = turnUid === me;
+    turnAlert(room?.code, `sp:${state.round}:${state.phase}:${state.turnIdx}:${JSON.stringify(state.actions || {})}:${JSON.stringify(state.bets || {})}`, myTurn && !finished && ['action', 'bet'].includes(state.phase));
     const myCard = state.hands?.[me];
     const pendingMine = state.pending && state.pending.uid === me;
     const last = state.last;

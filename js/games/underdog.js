@@ -5,6 +5,7 @@
 // - 다크호스 토큰: 2~4명 2개, 5~6명 3개 (1인 1개)
 // - 내 차례: ① 다크호스 토큰 가져오기(선택) ② 액션카드 1장 공개해서 효과 실행 (시간 제한 없음)
 // - 모두 액션카드를 다 쓰면 경주 끝: 티켓 동물 순위 점수(10·8·6·4·3·2·1) + 다크호스 토큰(+5 / −3)
+import { turnAlert } from './turn-alert.js';
 import { GARNET } from '../profile.js';
 import { animalSvg, NUM_COLOR } from './underdog-art.js';
 
@@ -366,6 +367,7 @@ export default {
     const isPlayer = state.order.includes(me);
     const turnUid = state.turnIdx >= 0 ? state.order[state.turnIdx] : null;
     const myTurn = turnUid === me && !state.exchange && state.phase === 'play';
+    turnAlert(room?.code, `ud:${state.played.length}:${state.turnIdx}`, myTurn && !finished);
     const key = `${room?.code}:${state.played.length}`;
     if (ui.key !== key) ui = { key, card: null };
 
