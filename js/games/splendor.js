@@ -3,6 +3,8 @@
 // 내 차례에 하나: ① 다른 색 보석 3개 ② 같은 색 2개(그 색이 4개 이상 남았을 때) ③ 카드 예약 + 황금 1개 ④ 카드 구매
 // 보석은 10개까지 · 귀족 조건을 채우면 +3점 · 누가 15점에 닿으면 그 바퀴까지만 하고 끝
 import { GARNET } from '../profile.js';
+import { showAlert } from '../alert.js';
+import { SPL_DEFS, gemSvg, tokenSvg, sceneSvg, portraitSvg } from './splendor-art.js';
 
 export const COLORS = ['w', 'u', 'g', 'r', 'k'];
 export const GEM = {
@@ -68,7 +70,7 @@ export function payFor(p, card) {
   return pay.gold <= p.tokens.gold ? pay : null;
 }
 
-const emptyPlayer = () => ({ tokens: { w: 0, u: 0, g: 0, r: 0, k: 0, gold: 0 }, cards: [], reserved: [], nobles: [] });
+const emptyPlayer = () => ({ tokens: { w: 0, u: 0, g: 0, r: 0, k: 0, gold: 0 }, cards: [], reserved: [], hidden: [], nobles: [] });
 
 function result(state, players) {
   const rewards = rewardsFor(state.order.length);
@@ -109,6 +111,7 @@ function takeNoble(state, uid, n) {
   };
 }
 function nextTurn(state, uid, players) {
+  state = { ...state, logs: [...(state.logs || []), { uid, text: state.log, t: Date.now() }].slice(-6) };
   const finalRound = state.finalRound || pointsOf(state.ps[uid]) >= WIN_POINTS;
   const next = (state.turn + 1) % state.order.length;
   const s = { ...state, phase: 'play', need: 0, nobleChoices: null, finalRound, turn: next };
@@ -197,11 +200,11 @@ export default {
     }
 
     if (state.phase !== 'play') throw new Error('지금은 할 수 없어요');
-    if (!myTurn) throw new Error('내 차례가 아니에요');
+    if (!myTurn) throw new Error(`지금은 ${players[state.order[state.turn]]?.name || '다른 사람'}님 차례예요.`);
 
     if (move.type === 'take') {
       const cs = move.colors || [];
-      if (!cs.every((c) => COLORS.includes(c))) throw new Error('보석을 골라 주세요');
+      if (!cs.length || !cs.every((c) => COLORS.includes(c))) throw new Error('가져올 보석을 + 버튼으로 골라 주세요. (황금은 카드를 예약할 때만 받아요)');
       const bank = { ...state.bank }, tokens = { ...p.tokens };
       if (cs.length === 2 && cs[0] === cs[1]) {
         if (bank[cs[0]] < 4) throw new Error('같은 색 2개는 그 색이 4개 이상 남았을 때만 가져올 수 있어요');
@@ -217,7 +220,7 @@ export default {
     }
 
     if (move.type === 'reserve') {
-      if (p.reserved.length >= MAX_RESERVED) throw new Error('예약은 3장까지만 할 수 있어요');
+      if (p.reserved.length >= MAX_RESERVED) throw new Error('예약은 3장까지만 할 수 있어요. 예약한 카드를 먼저 사세요.');
       let s = state, id;
       if (move.deck) {
         const lv = Number(move.deck);
@@ -232,7 +235,7 @@ export default {
       }
       const tokens = { ...p.tokens }, bank = { ...s.bank };
       if (bank.gold > 0) { bank.gold--; tokens.gold++; }
-      s = { ...setP(s, { ...p, tokens, reserved: [...p.reserved, id] }), bank, log: `${name}님이 ${move.deck ? `${move.deck}단계 덱 카드를` : '카드를'} 예약했어요${tokens.gold > p.tokens.gold ? ' (+황금)' : ''}` };
+      s = { ...setP(s, { ...p, tokens, reserved: [...p.reserved, id], hidden: move.deck ? [...(p.hidden || []), id] : (p.hidden || []) }), bank, log: `${name}님이 ${move.deck ? `${move.deck}단계 덱 카드를` : '카드를'} 예약했어요${tokens.gold > p.tokens.gold ? ' (+황금)' : ''}` };
       return finishTurn(s, uid, players);
     }
 
@@ -242,10 +245,15 @@ export default {
       const at = fromRes ? null : findMarket(state, id);
       if (!fromRes && !at) throw new Error('살 수 있는 카드가 아니에요');
       const pay = payFor(p, CARDS[id]);
-      if (!pay) throw new Error('보석이 모자라요');
+      if (!pay) {
+        const b = bonusOf(p), card = CARDS[id];
+        const short = COLORS.map((c) => [c, Math.max(0, (card.cost[c] || 0) - b[c] - p.tokens[c])]).filter(([, v]) => v);
+        const need = short.reduce((a, [, v]) => a + v, 0) - p.tokens.gold;
+        throw new Error(`보석이 모자라요. ${short.map(([c, v]) => `${GEM[c].name} ${v}개`).join(', ')}가 부족한데 황금이 ${p.tokens.gold}개뿐이라 ${need}개가 모자라요.`);
+      }
       const tokens = { ...p.tokens }, bank = { ...state.bank };
       for (const [c, v] of Object.entries(pay)) { tokens[c] -= v; bank[c] += v; }
-      let s = { ...setP(state, { ...p, tokens, cards: [...p.cards, id], reserved: p.reserved.filter((x) => x !== id) }), bank };
+      let s = { ...setP(state, { ...p, tokens, cards: [...p.cards, id], reserved: p.reserved.filter((x) => x !== id), hidden: (p.hidden || []).filter((x) => x !== id) }), bank };
       if (at) s = refill(s, at[0], at[1]);
       const c = CARDS[id];
       s.log = `${name}님이 ${GEM[c.bonus].name} 카드${c.pts ? ` (${c.pts}점)` : ''}를 샀어요`;
@@ -266,7 +274,7 @@ export default {
 
     if (finished) {
       const ranking = room?.result?.ranking || result(state, players).ranking;
-      el.innerHTML = `<div class="spl">
+      el.innerHTML = `<div class="spl">${SPL_DEFS}
         <div class="dm-title" style="color:var(--gold)">💎 최종 순위</div>
         <ol class="nb-final">${ranking.map((r) => `<li class="${r.uid === me ? 'me' : ''}">
           <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
@@ -278,101 +286,136 @@ export default {
     }
 
     const myBonus = mp ? bonusOf(mp) : null;
-    const nobleHtml = (n) => `<div class="spl-noble"><b>3</b><div>${Object.entries(NOBLES[n].req).map(([c, v]) => `<span class="spl-req" style="--gc:${GEM[c].fill};--gt:${GEM[c].text}">${v}</span>`).join('')}</div></div>`;
-    const cardHtml = (id, opts = '') => {
+    const nobleIdx = (n) => Object.keys(NOBLES).indexOf(n);
+    const nobleHtml = (n) => `<div class="spl-noble">${portraitSvg(nobleIdx(n))}<b>3</b><div class="spl-nreq">${Object.entries(NOBLES[n].req).map(([c, v]) => `<span class="spl-req">${gemSvg(c)}<i>${v}</i></span>`).join('')}</div></div>`;
+    const cardIdx = (id) => [...id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    const cardHtml = (id, { sm = false, back = false } = {}) => {
       const c = CARDS[id];
-      const can = mp && payFor(mp, c);
-      return `<button class="spl-card lv${c.lv} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" data-card="${id}" ${opts} style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
-        <span class="spl-ch"><b>${c.pts || ''}</b>${gemIcon(c.bonus)}</span>
-        <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i style="--gc:${GEM[x].fill};--gt:${GEM[x].text}" class="${myBonus && myBonus[x] ? 'has' : ''}">${c.cost[x]}</i>`).join('')}</span>
-      </button>`;
+      if (back) return `<span class="spl-card back lv${c.lv} sm"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
+      const can = !sm && mp && payFor(mp, c);
+      return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
+        ${sceneSvg(cardIdx(id))}
+        <span class="spl-ch"><b>${c.pts || ''}</b>${gemSvg(c.bonus)}</span>
+        <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i class="spl-cg ${!sm && myBonus && myBonus[x] ? 'has' : ''}">${gemSvg(x)}<b>${c.cost[x]}</b></i>`).join('')}</span>
+      </${sm ? 'span' : 'button'}>`;
     };
 
-    // 보석 은행
+    // ── 보석 은행: 남은 개수 + / − ──
     const pickCount = (c) => ui.pick.filter((x) => x === c).length;
+    const canAct = myTurn && state.phase === 'play';
     const bank = `<div class="spl-bank">${[...COLORS, 'gold'].map((c) => `
-      <button class="spl-token ${pickCount(c) ? 'picked' : ''}" data-tok="${c}" ${c === 'gold' || !myTurn || state.phase !== 'play' ? 'disabled' : ''} style="--gc:${GEM[c].fill};--gd:${GEM[c].dark};--gt:${GEM[c].text}">
-        ${gemIcon(c)}<b>${state.bank[c] - pickCount(c)}</b>${pickCount(c) ? `<i>+${pickCount(c)}</i>` : ''}
-      </button>`).join('')}</div>`;
+      <div class="spl-bcol ${pickCount(c) ? 'picked' : ''}">
+        <div class="spl-tokwrap">${tokenSvg(c)}${pickCount(c) ? `<i class="spl-pickn">+${pickCount(c)}</i>` : ''}</div>
+        <b class="spl-left">${state.bank[c] - pickCount(c)}</b>
+        ${c === 'gold' ? '<small class="spl-goldtip">예약 시</small>' : `<div class="spl-pm"><button data-minus="${c}" aria-label="${GEM[c].name} 빼기">−</button><button data-plus="${c}" aria-label="${GEM[c].name} 더하기">+</button></div>`}
+      </div>`).join('')}</div>`;
 
-    // 선택한 카드 / 보석에 대한 행동
+    // ── 행동 칸 ──
     let action = '';
     if (state.phase === 'discard' && myTurn) {
       const give = ui.pick.reduce((o, c) => ({ ...o, [c]: (o[c] || 0) + 1 }), {});
-      action = `<div class="spl-act warn"><b>보석이 10개를 넘었어요!</b> ${state.need}개를 골라 반납하세요
-        <div class="spl-mytok">${[...COLORS, 'gold'].map((c) => `<button class="spl-token sm" data-give="${c}" ${mp.tokens[c] - (give[c] || 0) > 0 && ui.pick.length < state.need ? '' : 'disabled'} style="--gc:${GEM[c].fill};--gd:${GEM[c].dark};--gt:${GEM[c].text}">${gemIcon(c)}<b>${mp.tokens[c] - (give[c] || 0)}</b></button>`).join('')}</div>
-        <div class="spl-row"><span>반납: ${ui.pick.map((c) => GEM[c].name).join(', ') || '-'}</span><button class="btn sm ghost" data-clear>다시</button><button class="btn sm primary" data-discard ${ui.pick.length === state.need ? '' : 'disabled'}>반납</button></div></div>`;
+      action = `<div class="spl-act warn"><b>보석이 10개를 넘었어요!</b> ${state.need}개를 골라 반납하세요 (보석을 누르면 반납 목록에 들어가요)
+        <div class="spl-mytok">${[...COLORS, 'gold'].map((c) => `<button class="spl-mtok" data-give="${c}">${tokenSvg(c)}<b>${mp.tokens[c] - (give[c] || 0)}</b></button>`).join('')}</div>
+        <div class="spl-row"><span>반납: ${ui.pick.map((c) => GEM[c].name).join(', ') || '-'}</span><button class="btn sm ghost" data-clear>다시</button><button class="btn sm primary" data-discard>반납</button></div></div>`;
     } else if (state.phase === 'noble' && myTurn) {
       action = `<div class="spl-act"><b>👑 귀족 여러 명이 찾아왔어요!</b> 한 명을 고르세요<div class="spl-nobles">${state.nobleChoices.map((n) => `<button class="spl-nbtn" data-noble="${n}">${nobleHtml(n)}</button>`).join('')}</div></div>`;
     } else if (myTurn && ui.card) {
       const c = CARDS[ui.card];
       const pay = payFor(mp, c);
       const inRes = mp.reserved.includes(ui.card);
-      action = `<div class="spl-act"><b>${GEM[c.bonus].name} 카드${c.pts ? ` · ${c.pts}점` : ''}</b> ${pay ? `→ 내는 보석: ${[...COLORS, 'gold'].filter((x) => pay[x]).map((x) => `${GEM[x].name} ${pay[x]}`).join(', ') || '없음 (보너스로 공짜!)'}` : '<span class="dn">보석이 모자라요</span>'}
-        <div class="spl-row"><button class="btn sm primary" data-buy ${pay ? '' : 'disabled'}>💎 사기</button>${inRes ? '' : `<button class="btn sm" data-reserve ${mp.reserved.length < MAX_RESERVED ? '' : 'disabled'}>📌 예약 (+황금)</button>`}<button class="btn sm ghost" data-clear>취소</button></div></div>`;
+      action = `<div class="spl-act"><b>${GEM[c.bonus].name} 카드${c.pts ? ` · ${c.pts}점` : ''}</b> ${pay ? `→ 내는 보석: ${[...COLORS, 'gold'].filter((x) => pay[x]).map((x) => `${GEM[x].name} ${pay[x]}`).join(', ') || '없음 (보너스로 공짜!)'}` : '<span class="dn">지금은 보석이 모자라요</span>'}
+        <div class="spl-row"><button class="btn sm primary" data-buy>💎 사기</button>${inRes ? '' : '<button class="btn sm" data-reserve>📌 예약 (+황금)</button>'}<button class="btn sm ghost" data-clear>취소</button></div></div>`;
     } else if (myTurn && ui.pick.length) {
-      const avail = COLORS.filter((c) => state.bank[c] > 0).length;
-      const two = ui.pick.length === 2 && ui.pick[0] === ui.pick[1];
-      const ok = two ? state.bank[ui.pick[0]] >= 4 : ui.pick.length === Math.min(3, avail) && new Set(ui.pick).size === ui.pick.length;
       action = `<div class="spl-act">가져올 보석: <b>${ui.pick.map((c) => GEM[c].name).join(' · ')}</b>
-        <small>${two ? '같은 색 2개' : `다른 색 ${Math.min(3, avail)}개를 골라요 (같은 색 2개는 4개 이상 남은 색만)`}</small>
-        <div class="spl-row"><button class="btn sm primary" data-take ${ok ? '' : 'disabled'}>가져오기</button><button class="btn sm ghost" data-clear>다시</button></div></div>`;
+        <small>서로 다른 색 3개, 또는 같은 색 2개 (그 색이 4개 이상 남았을 때)</small>
+        <div class="spl-row"><button class="btn sm primary" data-take>가져오기</button><button class="btn sm ghost" data-clear>다시</button></div></div>`;
     }
 
-    const banner = state.phase === 'play' || state.phase === 'discard' || state.phase === 'noble'
-      ? (myTurn ? '<span><b>내 차례!</b> 보석을 누르거나 카드를 눌러 사기·예약</span>' : `<span><b>${name(turnUid)}</b>님 차례</span>`)
-      : '';
+    const banner = myTurn ? '<span><b>내 차례!</b> 보석 아래 + 로 고르거나, 카드를 눌러 사기·예약</span>' : `<span><b>${name(turnUid)}</b>님 차례</span>`;
 
-    const others = state.order.map((u) => {
+    // 내 보석: 보석 토큰 그림 + 개수 + 카드 보너스
+    const myGems = mp ? `<div class="spl-gems">${[...COLORS, 'gold'].map((c) => `
+      <div class="spl-gem">${tokenSvg(c)}<b>${mp.tokens[c]}</b>${c === 'gold' ? '<small>&nbsp;</small>' : `<small class="${myBonus[c] ? 'on' : ''}">카드 +${myBonus[c]}</small>`}</div>`).join('')}</div>` : '';
+
+    // 다른 사람: 보석, 산 카드(색별), 예약 카드
+    const others = state.order.filter((u) => u !== me).map((u) => {
       const p = state.ps[u], b = bonusOf(p);
-      return `<div class="spl-op ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}">
-        <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}</b><span class="spl-pts">${pointsOf(p)}점</span><small>보석 ${sum(p.tokens)} · 예약 ${p.reserved.length}${p.nobles.length ? ` · 👑${p.nobles.length}` : ''}</small></div>
-        <div class="spl-op-g">${[...COLORS, 'gold'].map((c) => `<span class="spl-mini" style="--gc:${GEM[c].fill};--gt:${GEM[c].text}"><i>${c === 'gold' || !b[c] ? '' : b[c]}</i>${p.tokens[c]}</span>`).join('')}</div>
+      const byColor = COLORS.map((c) => {
+        const cs = p.cards.filter((id) => CARDS[id].bonus === c);
+        return cs.length ? `<span class="spl-owned" style="--gc:${GEM[c].fill};--gt:${GEM[c].text}">${gemSvg(c)}<b>${cs.length}장</b>${cs.reduce((a, id) => a + CARDS[id].pts, 0) ? `<i>${cs.reduce((a, id) => a + CARDS[id].pts, 0)}점</i>` : ''}</span>` : '';
+      }).join('');
+      return `<div class="spl-op ${u === turnUid ? 'turn' : ''}">
+        <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}</b><span class="spl-pts">${pointsOf(p)}점</span>${p.nobles.length ? `<small>👑 귀족 ${p.nobles.length}</small>` : ''}</div>
+        <div class="spl-op-row"><span class="spl-op-t">보석</span><div class="spl-gems sm">${[...COLORS, 'gold'].map((c) => `<div class="spl-gem">${tokenSvg(c)}<b>${p.tokens[c]}</b></div>`).join('')}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">산 카드</span><div class="spl-owneds">${byColor || '<span class="muted">아직 없음</span>'}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">예약</span><div class="spl-res sm">${p.reserved.length ? p.reserved.map((id) => cardHtml(id, { sm: true, back: (p.hidden || []).includes(id) })).join('') : '<span class="muted">없음</span>'}</div></div>
       </div>`;
     }).join('');
 
     el.innerHTML = `
       <div class="spl">
+        ${SPL_DEFS}
         ${state.finalRound ? '<div class="spl-final">🏁 누군가 15점에 닿았어요! 이번 바퀴가 마지막이에요</div>' : ''}
-        <div class="spl-nobles">${state.nobles.map(nobleHtml).join('')}</div>
+        <div class="spl-nobles-wrap"><div class="spl-ntitle">👑 귀족 카드<small>보너스 조건을 채우면 +3점</small></div><div class="spl-nobles">${state.nobles.map(nobleHtml).join('')}</div></div>
         <div class="spl-market">${[3, 2, 1].map((lv) => `
           <div class="spl-lv">
-            <button class="spl-deck lv${lv}" data-deck="${lv}" ${myTurn && state.phase === 'play' && state.decks[lv].length && mp.reserved.length < MAX_RESERVED ? '' : 'disabled'} title="덱 맨 위 카드 예약"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[lv - 1]}</b><small>${state.decks[lv].length}</small></button>
+            <button class="spl-deck lv${lv}" data-deck="${lv}" title="덱 맨 위 카드 예약"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[lv - 1]}</b><small>${state.decks[lv].length}</small></button>
             ${state.market[lv].map((id) => (id ? cardHtml(id) : '<span class="spl-card empty"></span>')).join('')}
           </div>`).join('')}</div>
-        ${state.log ? `<div class="spl-log">${esc(state.log)}</div>` : ''}
+        ${state.logs?.length ? `<ul class="spl-logs">${state.logs.slice().reverse().map((l, i) => `<li class="${i ? '' : 'new'}">${esc(l.text)}</li>`).join('')}</ul>` : ''}
         <div class="nb-banner">${banner}</div>
         ${bank}
         ${action}
         ${isPlayer ? `<div class="spl-me">
-          <div class="spl-me-h">내 보석 · 보너스 <span class="spl-pts">${pointsOf(mp)}점</span></div>
-          <div class="spl-op-g big">${[...COLORS, 'gold'].map((c) => `<span class="spl-mini" style="--gc:${GEM[c].fill};--gt:${GEM[c].text}"><i>${c === 'gold' || !myBonus[c] ? '' : myBonus[c]}</i>${mp.tokens[c]}</span>`).join('')}</div>
-          <small class="muted">동그라미 = 보석 개수 · 위 작은 숫자 = 카드 보너스(영구 할인)</small>
-          ${mp.reserved.length ? `<div class="spl-me-h">📌 예약한 카드</div><div class="spl-res">${mp.reserved.map((id) => cardHtml(id)).join('')}</div>` : ''}
+          <div class="spl-me-h">💰 내 보석 <span class="spl-pts">${pointsOf(mp)}점</span></div>
+          ${myGems}
+          ${mp.reserved.length ? `<div class="spl-me-h">📌 예약한 카드 <small class="muted">눌러서 사기</small></div><div class="spl-res">${mp.reserved.map((id) => cardHtml(id)).join('')}</div>` : ''}
         </div>` : ''}
         <div class="spl-ops">${others}</div>
         ${guide()}
       </div>`;
 
     const rerender = () => { const y = window.scrollY; this.render(el, ctx); window.scrollTo(0, y); };
-    el.querySelectorAll('[data-tok]').forEach((b) => (b.onclick = () => {
-      const c = b.dataset.tok;
-      ui.card = null;
-      if (pickCount(c) === 1 && ui.pick.length === 1) ui.pick = [c, c]; // 같은 색 두 번 → 2개
-      else if (pickCount(c)) ui.pick = ui.pick.filter((x) => x !== c);
-      else if (ui.pick.length < 3 && !(ui.pick.length === 2 && ui.pick[0] === ui.pick[1])) ui.pick = [...ui.pick, c];
-      ui.key = key; rerender();
+    const notTurn = () => showAlert(state.phase === 'discard' || state.phase === 'noble' ? '먼저 보석 반납이나 귀족 선택을 마쳐 주세요.' : `지금은 ${name(turnUid)}님 차례예요. 내 차례가 오면 할 수 있어요.`);
+    el.querySelectorAll('[data-plus]').forEach((b) => (b.onclick = () => {
+      if (!canAct) return notTurn();
+      const c = b.dataset.plus, n = pickCount(c);
+      if (state.bank[c] - n <= 0) return showAlert(`${GEM[c].name}가 더 남아 있지 않아요.`);
+      if (n === 1) {
+        if (ui.pick.length > 1) return showAlert('같은 색 2개는 다른 보석 없이 그 색만 가져올 때 할 수 있어요. 다른 색을 먼저 빼 주세요.');
+        if (state.bank[c] < 4) return showAlert(`같은 색 2개는 그 색이 4개 이상 남았을 때만 가져올 수 있어요. ${GEM[c].name}는 지금 ${state.bank[c]}개 남았어요.`);
+      }
+      if (n >= 2) return showAlert('같은 색은 한 번에 2개까지만 가져올 수 있어요.');
+      if (ui.pick.length >= 3) return showAlert('보석은 한 번에 3개까지만 가져올 수 있어요.');
+      if (ui.pick.length === 2 && ui.pick[0] === ui.pick[1]) return showAlert('같은 색 2개를 골랐을 때는 다른 보석을 더 가져올 수 없어요.');
+      ui.card = null; ui.pick = [...ui.pick, c]; ui.key = key; rerender();
+    }));
+    el.querySelectorAll('[data-minus]').forEach((b) => (b.onclick = () => {
+      if (!canAct) return notTurn();
+      const c = b.dataset.minus, i = ui.pick.lastIndexOf(c);
+      if (i < 0) return showAlert(`${GEM[c].name}는 아직 고르지 않았어요.`);
+      ui.pick = ui.pick.filter((_, j) => j !== i); ui.key = key; rerender();
     }));
     el.querySelectorAll('[data-card]').forEach((b) => (b.onclick = () => {
-      if (!myTurn || state.phase !== 'play') return;
+      if (!canAct) return notTurn();
       ui.card = ui.card === b.dataset.card ? null : b.dataset.card; ui.pick = []; ui.key = key; rerender();
     }));
-    el.querySelectorAll('[data-give]').forEach((b) => (b.onclick = () => { ui.pick = [...ui.pick, b.dataset.give]; ui.key = key; rerender(); }));
+    el.querySelectorAll('[data-give]').forEach((b) => (b.onclick = () => {
+      const c = b.dataset.give;
+      if (ui.pick.length >= state.need) return showAlert(`반납할 보석은 ${state.need}개예요. '다시'를 눌러 고쳐 주세요.`);
+      if (mp.tokens[c] - pickCount(c) <= 0) return showAlert(`${GEM[c].name}가 더 없어요.`);
+      ui.pick = [...ui.pick, c]; ui.key = key; rerender();
+    }));
     el.querySelector('[data-clear]')?.addEventListener('click', () => { ui.pick = []; ui.card = null; rerender(); });
     el.querySelector('[data-take]')?.addEventListener('click', () => sendMove({ type: 'take', colors: ui.pick }));
     el.querySelector('[data-buy]')?.addEventListener('click', () => sendMove({ type: 'buy', card: ui.card }));
     el.querySelector('[data-reserve]')?.addEventListener('click', () => sendMove({ type: 'reserve', card: ui.card }));
-    el.querySelectorAll('[data-deck]').forEach((b) => (b.onclick = () => { if (confirm(`${b.dataset.deck}단계 덱 맨 위 카드를 예약할까요?`)) sendMove({ type: 'reserve', deck: Number(b.dataset.deck) }); }));
+    el.querySelectorAll('[data-deck]').forEach((b) => (b.onclick = () => {
+      if (!canAct) return notTurn();
+      if (mp.reserved.length >= MAX_RESERVED) return showAlert('예약은 3장까지만 할 수 있어요. 예약한 카드를 먼저 사세요.');
+      if (!state.decks[b.dataset.deck].length) return showAlert('이 단계 덱은 다 떨어졌어요.');
+      if (confirm(`${b.dataset.deck}단계 덱 맨 위 카드를 예약할까요? (황금 1개를 받아요)`)) sendMove({ type: 'reserve', deck: Number(b.dataset.deck) });
+    }));
     el.querySelector('[data-discard]')?.addEventListener('click', () => sendMove({ type: 'discard', tokens: ui.pick.reduce((o, c) => ({ ...o, [c]: (o[c] || 0) + 1 }), {}) }));
     el.querySelectorAll('[data-noble]').forEach((b) => (b.onclick = () => sendMove({ type: 'noble', noble: b.dataset.noble })));
     const $g = el.querySelector('.tc-guide');
@@ -380,19 +423,15 @@ export default {
   },
 };
 
-// 보석 그림 (직접 그림)
-export function gemIcon(c) {
-  if (c === 'gold') return '<svg viewBox="0 0 24 24" class="gem"><circle cx="12" cy="12" r="8" fill="#ffe27a" stroke="#a87a10" stroke-width="1.5"/><path d="M12 7l1.5 3.2 3.5.4-2.6 2.4.7 3.4L12 14.7 8.9 16.4l.7-3.4L7 10.6l3.5-.4z" fill="#c99412"/></svg>';
-  const g = GEM[c];
-  return `<svg viewBox="0 0 24 24" class="gem"><path d="M6 4h12l4 6-10 11L2 10z" fill="${g.fill}" stroke="${g.dark}" stroke-width="1.3" stroke-linejoin="round"/><path d="M2 10h20M6 4l3 6 3 11 3-11 3-6M9 10l3-6 3 6" fill="none" stroke="${g.dark}" stroke-width=".9" opacity=".7"/><path d="M7 5.5l1.6 3" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".7"/></svg>`;
-}
+// 보석 그림은 splendor-art.js
+export const gemIcon = (c) => gemSvg(c);
 
 let guideOpen = false;
 function guide() {
   return `<details class="tc-guide" ${guideOpen ? 'open' : ''}><summary>📜 규칙 한눈에 보기</summary>
     <div class="tc-gsec"><div class="tc-gt">내 차례에 하나만</div><div class="tc-gnote">
       ① 서로 다른 색 보석 3개 · ② 같은 색 2개 (그 색이 4개 이상 남았을 때) · ③ 카드 예약 + 황금 1개 (3장까지, 덱 맨 위도 가능) · ④ 카드 사기</div></div>
-    <div class="tc-gsec"><div class="tc-gt">카드 보는 법</div><div class="tc-gnote">위쪽 숫자 = 점수 · 오른쪽 위 보석 = 사면 얻는 보너스(그 색 영구 할인) · 아래 동그라미 = 가격. 테두리가 반짝이는 카드는 지금 살 수 있어요.</div></div>
+    <div class="tc-gsec"><div class="tc-gt">카드 보는 법</div><div class="tc-gnote">위쪽 숫자 = 점수 · 오른쪽 위 보석 = 사면 얻는 보너스(그 색 영구 할인) · 아래 보석과 숫자 = 가격. 테두리가 반짝이는 카드는 지금 살 수 있어요.</div></div>
     <div class="tc-gsec"><div class="tc-gt">기타</div><div class="tc-gnote">보석은 10개까지 · 황금은 아무 색으로 쓸 수 있어요 · 귀족 조건(보너스 개수)을 채우면 +3점 · 15점에 닿으면 그 바퀴까지만 하고 끝 · 동점이면 산 카드가 적은 사람이 이겨요</div></div>
   </details>`;
 }

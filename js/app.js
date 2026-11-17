@@ -5,6 +5,7 @@ import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, tierOf, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
+import { showAlert } from './alert.js';
 import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange } from './sound.js';
 
 const $app = document.getElementById('app');
@@ -1117,7 +1118,7 @@ function drawRoom($main, room, game) {
   const isHost = room.hostId === user.uid;
   const mine = room.players[user.uid];
   const check = R.canStart(room, game);
-  const act = (fn, silent) => backend.mutateRoom(room.code, fn).catch((e) => { if (!silent) toast(e.message); });
+  const act = (fn, silent) => backend.mutateRoom(room.code, fn).catch((e) => { if (silent) return; if (room.status === 'playing') showAlert(e.message); else toast(e.message); });
 
   const emptySeats = Math.max(0, game.minPlayers - players.length);
   const playing = room.status === 'playing';
