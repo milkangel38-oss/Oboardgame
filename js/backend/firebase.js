@@ -4,9 +4,10 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
   signInAnonymously, signInWithCustomToken, updateProfile, signOut as fbSignOut,
+  setPersistence, browserSessionPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  initializeFirestore, doc, onSnapshot, runTransaction, setDoc,
+  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { randomCode } from './code.js';
 
@@ -14,6 +15,8 @@ export function createBackend(config) {
   const app = initializeApp(config);
   const auth = getAuth(app);
   const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+  // 로그인은 이 창(탭)이 열려 있는 동안만 유지 → 창을 닫았다 다시 열면 다시 로그인
+  const persistReady = setPersistence(auth, browserSessionPersistence).catch((e) => console.warn('로그인 유지 설정 실패', e));
 
   const toUser = (u) => u && {
     uid: u.uid,
@@ -33,6 +36,7 @@ export function createBackend(config) {
     },
 
     async signIn(provider, { name } = {}) {
+      await persistReady;
       if (provider === 'google') {
         await signInWithPopup(auth, new GoogleAuthProvider());
       } else if (provider === 'guest') {
@@ -50,6 +54,7 @@ export function createBackend(config) {
 
     // 네이버 로그인 마지막 단계: 서버가 준 토큰으로 Firebase 로그인
     async signInWithNaverToken(token, { name, photo } = {}) {
+      await persistReady;
       const cred = await signInWithCustomToken(auth, token);
       const u = cred.user;
       if ((name && u.displayName !== name) || (photo && u.photoURL !== photo)) {
@@ -99,6 +104,11 @@ export function createBackend(config) {
 
     async saveProfile(uid, patch) {
       await setDoc(doc(db, 'users', uid), { ...patch, updatedAt: Date.now() }, { merge: true });
+    },
+
+    // 친구 추가(data) / 삭제(null)
+    async setFriend(uid, friendUid, data) {
+      await setDoc(doc(db, 'users', uid), { friends: { [friendUid]: data || deleteField() } }, { merge: true });
     },
 
     async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {

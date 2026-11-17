@@ -44,7 +44,7 @@ export function createBackend() {
 
     onAuth(cb) {
       authCb = cb;
-      cb(readUser());
+      setTimeout(() => cb(readUser()), 0); // 앱 코드가 다 준비된 뒤 알림 (실제 Firebase처럼 비동기)
       return () => { authCb = null; };
     },
 
@@ -96,6 +96,13 @@ export function createBackend() {
 
     async saveProfile(uid, patch) {
       saveProfile(uid, { ...(loadProfile(uid) || {}), ...patch, updatedAt: Date.now() });
+    },
+
+    async setFriend(uid, friendUid, data) {
+      const p = loadProfile(uid) || {};
+      const friends = { ...(p.friends || {}) };
+      if (data) friends[friendUid] = data; else delete friends[friendUid];
+      saveProfile(uid, { ...p, friends });
     },
 
     async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {

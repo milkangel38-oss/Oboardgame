@@ -76,6 +76,27 @@ if (naverReturn) {
   }
 }
 
+// ───────── 접속 상태 (친구에게 보여 주기) ─────────
+// users/{uid}.presence = { at: 마지막 신호(0이면 오프라인), last: 마지막 접속, state: lobby|waiting|playing, room, game }
+const ONLINE_MS = 75000;
+let presenceState = { state: 'lobby', room: null, game: null };
+function pushPresence(offline = false) {
+  if (!user) return;
+  const now = Date.now();
+  backend.saveProfile(user.uid, {
+    presence: { ...presenceState, at: offline ? 0 : now, last: now },
+    authName: user.name, authPhoto: user.photo || '',
+  }).catch(() => {});
+}
+function setPresence(next) {
+  const changed = ['state', 'room', 'game'].some((k) => (next[k] ?? null) !== (presenceState[k] ?? null));
+  presenceState = { state: next.state, room: next.room ?? null, game: next.game ?? null };
+  if (changed) pushPresence();
+}
+setInterval(() => pushPresence(), 30000);
+window.addEventListener('pagehide', () => pushPresence(true));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pushPresence(); });
+
 backend.onAuth((u) => {
   const changed = u?.uid !== user?.uid;
   user = u;
@@ -83,10 +104,19 @@ backend.onAuth((u) => {
   if (changed) {
     profileUnsub?.();
     profile = null;
-    profileUnsub = u ? backend.watchProfile(u.uid, (p) => { profile = p; profileListeners.forEach((fn) => fn()); }) : null;
+    let lastSig = '';
+    profileUnsub = u ? backend.watchProfile(u.uid, (p) => {
+      profile = p;
+      const sig = JSON.stringify(p, (k, v) => (k === 'presence' || k === 'updatedAt' ? undefined : v));
+      if (sig === lastSig) return; // 접속 신호만 바뀐 경우
+      lastSig = sig;
+      profileListeners.forEach((fn) => fn());
+    }) : null;
+    if (u) pushPresence();
   }
   route();
 });
+
 window.addEventListener('hashchange', route);
 
 // #/            로그인 또는 로비
@@ -115,9 +145,10 @@ function route() {
     if (after !== hash) { location.hash = after; return; }
   }
   const cat = hash.match(/^\/cat\/([a-z]+)$/);
+  if (!m) setPresence({ state: 'lobby' });
   if (m) cleanup = renderRoom(m[1].toUpperCase());
   else if (cat && getCategory(cat[1])) renderCategory(getCategory(cat[1]));
-  else renderLobby();
+  else cleanup = renderLobby();
 }
 
 // ───────── 로그인 ─────────
@@ -183,6 +214,7 @@ function header() {
 function bindHeader() {
   $app.querySelector('[data-logout]').onclick = async () => {
     location.hash = '#/';
+    pushPresence(true);
     await backend.signOut();
   };
 }
@@ -194,6 +226,7 @@ function renderLobby() {
   $app.innerHTML = `${header()}
     <main class="wrap lobby">
       <section class="profile" id="profile"></section>
+      <section class="panel friends" id="friends"></section>
 
       <nav class="cat-banners" aria-label="게임 분류">
         ${CATEGORIES.map((c) => {
@@ -219,7 +252,8 @@ function renderLobby() {
     </main>`;
   bindHeader();
   drawProfile();
-  profileListeners.add(() => { drawProfile(); refreshGameRecords(); });
+  const friends = watchFriends();
+  profileListeners.add(() => { drawProfile(); refreshGameRecords(); friends.sync(); });
 
   $app.querySelector('form.join').onsubmit = (e) => {
     e.preventDefault();
@@ -227,7 +261,113 @@ function renderLobby() {
     if (!/^[A-Z0-9]{6}$/.test(code)) return toast('6자리 코드를 입력해 주세요');
     location.hash = `#/room/${code}`;
   };
+  return friends.stop;
 }
+
+// ───────── 친구 ─────────
+const friendProfiles = {};
+function friendView(uid) {
+  const p = friendProfiles[uid];
+  const saved = profile?.friends?.[uid] || {};
+  return { uid, name: p?.name || p?.authName || saved.name || '친구', photo: p?.photo || p?.authPhoto || saved.photo || '' };
+}
+const ago = (t) => {
+  const m = Math.floor((Date.now() - t) / 60000);
+  return m < 1 ? '방금 전' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.floor(m / 60)}시간 전` : `${Math.floor(m / 1440)}일 전`;
+};
+function friendStatus(p) {
+  const pr = p?.presence;
+  const online = pr && pr.at && Date.now() - pr.at < ONLINE_MS;
+  const gname = getGame(pr?.game)?.name || '';
+  if (!online) return { key: 'off', label: pr?.last ? `오프라인 · ${ago(pr.last)} 접속` : '오프라인', order: 3 };
+  if (pr.state === 'playing') return { key: 'play', label: `게임 중${gname ? ` · ${gname}` : ''}`, order: 1 };
+  if (pr.state === 'waiting') return { key: 'wait', label: `대기 중${gname ? ` · ${gname}` : ''}`, room: pr.room, order: 0 };
+  return { key: 'on', label: '온라인 · 로비', order: 0 };
+}
+
+function watchFriends() {
+  const subs = {};
+  const sync = () => {
+    const ids = Object.keys(profile?.friends || {});
+    ids.forEach((id) => {
+      if (!subs[id]) subs[id] = backend.watchProfile(id, (p) => { friendProfiles[id] = p; drawFriends(); });
+    });
+    Object.keys(subs).forEach((id) => { if (!ids.includes(id)) { subs[id](); delete subs[id]; } });
+    drawFriends();
+  };
+  const tick = setInterval(drawFriends, 20000); // 접속 끊김 반영
+  sync();
+  return { sync, stop: () => { clearInterval(tick); Object.values(subs).forEach((u) => u()); } };
+}
+
+function drawFriends() {
+  const $f = document.getElementById('friends');
+  if (!$f) return;
+  const list = Object.keys(profile?.friends || {})
+    .map((uid) => ({ ...friendView(uid), st: friendStatus(friendProfiles[uid]) }))
+    .sort((a, b) => a.st.order - b.st.order || a.name.localeCompare(b.name));
+  const on = list.filter((f) => f.st.key !== 'off').length;
+  $f.innerHTML = `
+    <h2 class="section-title sm">👥 친구 <span class="muted">${on}/${list.length} 접속 중</span></h2>
+    ${list.length ? `<ul class="fr-list">${list.map((f) => `
+      <li class="fr-item st-${f.st.key}" data-person="${esc(f.uid)}" data-pname="${esc(f.name)}" data-pphoto="${esc(f.photo)}">
+        <span class="fr-av">${avatar(f)}<i class="fr-dot"></i></span>
+        <span class="fr-main"><b>${esc(f.name)}</b><small>${esc(f.st.label)}</small></span>
+        ${f.st.key === 'wait' && f.st.room ? `<a class="btn sm primary" href="#/room/${esc(f.st.room)}">참가</a>` : ''}
+      </li>`).join('')}</ul>`
+      : '<p class="muted fr-empty">아직 친구가 없어요.</p>'}
+    <p class="hint">게임 방에서 참가자 프로필을 <b>우클릭</b>(휴대폰은 <b>길게 누르기</b>)하면 친구로 추가할 수 있어요</p>`;
+}
+
+// 프로필 우클릭 / 길게 누르기 → 친구 메뉴
+function openPersonMenu(el, x, y) {
+  document.querySelector('.ctx-menu')?.remove();
+  const uid = el.dataset.person;
+  if (!uid || uid === user?.uid) return;
+  const person = { uid, name: el.dataset.pname || '?', photo: el.dataset.pphoto || '' };
+  const isFriend = !!profile?.friends?.[uid];
+  const st = friendStatus(friendProfiles[uid]);
+  const $m = document.createElement('div');
+  $m.className = 'ctx-menu';
+  $m.innerHTML = `
+    <div class="ctx-head">${avatar(person, 'sm')}<b>${esc(person.name)}</b></div>
+    ${isFriend
+      ? `${st.key === 'wait' && st.room ? '<button data-act="join">🎮 친구 방에 참가</button>' : ''}<button data-act="remove" class="danger">친구 삭제</button>`
+      : '<button data-act="add">➕ 친구 추가</button>'}`;
+  document.body.appendChild($m);
+  const r = $m.getBoundingClientRect();
+  $m.style.left = `${Math.max(8, Math.min(x, innerWidth - r.width - 8))}px`;
+  $m.style.top = `${Math.max(8, Math.min(y, innerHeight - r.height - 8))}px`;
+  const close = () => { $m.remove(); document.removeEventListener('pointerdown', outside, true); };
+  const outside = (e) => { if (!$m.contains(e.target)) close(); };
+  setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+  $m.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => {
+    close();
+    try {
+      if (b.dataset.act === 'add') { await backend.setFriend(user.uid, uid, { at: Date.now(), name: person.name, photo: person.photo }); toast(`${person.name}님을 친구로 추가했어요`); }
+      if (b.dataset.act === 'remove') { await backend.setFriend(user.uid, uid, null); toast(`${person.name}님을 친구에서 삭제했어요`); }
+      if (b.dataset.act === 'join') location.hash = `#/room/${st.room}`;
+    } catch (e) { toast('처리하지 못했어요: ' + e.message); }
+  }));
+}
+$app.addEventListener('contextmenu', (e) => {
+  const el = e.target.closest('[data-person]');
+  if (!el) return;
+  e.preventDefault();
+  openPersonMenu(el, e.clientX, e.clientY);
+});
+let pressTimer = null;
+$app.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return;
+  const el = e.target.closest('[data-person]');
+  if (!el) return;
+  const { clientX: x, clientY: y } = e;
+  pressTimer = setTimeout(() => { pressTimer = null; openPersonMenu(el, x, y); }, 550);
+});
+['pointerup', 'pointercancel', 'pointermove'].forEach((t) => $app.addEventListener(t, (e) => {
+  if (t === 'pointermove' && pressTimer && Math.abs(e.movementX) + Math.abs(e.movementY) < 4) return;
+  clearTimeout(pressTimer); pressTimer = null;
+}));
 
 // ───────── 분류별 게임 목록 ─────────
 function renderCategory(c) {
@@ -472,6 +612,7 @@ function renderRoom(code) {
       return;
     }
     recordIfFinished(room);
+    setPresence({ state: room.status === 'playing' ? 'playing' : 'waiting', room: room.code, game: room.gameId });
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
     const sig = JSON.stringify(room, (k, v) => (k === 'seen' ? undefined : v));
     if (sig === lastSig && $main.querySelector('.room-head')) return;
@@ -563,9 +704,9 @@ function drawRoom($main, room, game) {
           ${players.map((p) => {
             const host = p.uid === room.hostId;
             const tag = host ? '방장' : room.status === 'waiting' ? (p.ready ? 'READY' : '대기') : '';
-            return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''}" title="${esc(p.name)}">
+            return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''} ${profile?.friends?.[p.uid] ? 'friend' : ''}" title="${esc(p.name)}${p.uid === user.uid ? '' : ' · 우클릭(길게 누르기)으로 친구 추가'}" data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo || '')}">
               <span class="seat-av">${avatar(p)}${host ? '<span class="crown">👑</span>' : ''}</span>
-              <span class="seat-name">${esc(p.name)}</span>
+              <span class="seat-name">${profile?.friends?.[p.uid] ? '<i class="fr-mark">♥</i>' : ''}${esc(p.name)}</span>
               ${tag ? `<span class="seat-tag">${tag}</span>` : ''}
             </li>`;
           }).join('')}
