@@ -98,11 +98,24 @@ export function createBackend() {
       saveProfile(uid, { ...(loadProfile(uid) || {}), ...patch, updatedAt: Date.now() });
     },
 
-    async setFriend(uid, friendUid, data) {
-      const p = loadProfile(uid) || {};
-      const friends = { ...(p.friends || {}) };
-      if (data) friends[friendUid] = data; else delete friends[friendUid];
-      saveProfile(uid, { ...p, friends });
+    async updateProfile(uid, fn) {
+      saveProfile(uid, { ...fn(structuredClone(loadProfile(uid) || {})), updatedAt: Date.now() });
+    },
+
+    watchIncoming(uid, cb) {
+      const emit = () => {
+        const list = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k.startsWith(PROFILE_PREFIX)) continue;
+          const p = loadProfile(k.slice(PROFILE_PREFIX.length));
+          if (p?.reqOut?.includes(uid)) list.push({ ...p, uid: k.slice(PROFILE_PREFIX.length) });
+        }
+        cb(list);
+      };
+      profileListeners.add(emit);
+      emit();
+      return () => profileListeners.delete(emit);
     },
 
     async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {

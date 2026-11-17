@@ -7,7 +7,7 @@ import {
   setPersistence, browserSessionPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField,
+  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField, collection, query, where,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { randomCode } from './code.js';
 
@@ -106,9 +106,23 @@ export function createBackend(config) {
       await setDoc(doc(db, 'users', uid), { ...patch, updatedAt: Date.now() }, { merge: true });
     },
 
-    // 친구 추가(data) / 삭제(null)
-    async setFriend(uid, friendUid, data) {
-      await setDoc(doc(db, 'users', uid), { friends: { [friendUid]: data || deleteField() } }, { merge: true });
+    // 내 프로필 문서를 읽고 고쳐서 통째로 저장 (친구 목록 등)
+    async updateProfile(uid, fn) {
+      const ref = doc(db, 'users', uid);
+      await runTransaction(db, async (t) => {
+        const snap = await t.get(ref);
+        const next = fn(structuredClone(snap.exists() ? snap.data() : {}));
+        t.set(ref, { ...next, updatedAt: Date.now() });
+      });
+    },
+
+    // 나에게 친구 요청을 보낸 사람들 (그 사람의 reqOut에 내가 있음)
+    watchIncoming(uid, cb) {
+      return onSnapshot(
+        query(collection(db, 'users'), where('reqOut', 'array-contains', uid)),
+        (snap) => cb(snap.docs.map((d) => ({ ...d.data(), uid: d.id }))),
+        (err) => { console.warn('친구 요청을 불러오지 못했어요', err); cb([]); },
+      );
     },
 
     async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {

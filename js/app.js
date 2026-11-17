@@ -110,9 +110,11 @@ backend.onAuth((u) => {
       const sig = JSON.stringify(p, (k, v) => (k === 'presence' || k === 'updatedAt' ? undefined : v));
       if (sig === lastSig) return; // 접속 신호만 바뀐 경우
       lastSig = sig;
+      syncFriendSubs();
       profileListeners.forEach((fn) => fn());
     }) : null;
-    if (u) pushPresence();
+    stopFriends();
+    if (u) { pushPresence(); startFriends(); }
   }
   route();
 });
@@ -208,10 +210,11 @@ function header() {
   return `
     <header class="top">
       <a href="#/" class="brand">${logo('sm')}${backend.mode === 'mock' ? '<span class="test-chip">TEST</span>' : ''}</a>
-      <button class="btn ghost sm" data-logout>로그아웃</button>
+      <span class="row"><a class="fr-badge" data-frbadge href="#/" hidden></a><button class="btn ghost sm" data-logout>로그아웃</button></span>
     </header>`;
 }
 function bindHeader() {
+  updateFriendBadge();
   $app.querySelector('[data-logout]').onclick = async () => {
     location.hash = '#/';
     pushPresence(true);
@@ -252,8 +255,10 @@ function renderLobby() {
     </main>`;
   bindHeader();
   drawProfile();
-  const friends = watchFriends();
-  profileListeners.add(() => { drawProfile(); refreshGameRecords(); friends.sync(); });
+  drawFriends();
+  friendListeners.add(drawFriends);
+  const tick = setInterval(drawFriends, 20000); // 접속 끊김 반영
+  profileListeners.add(() => { drawProfile(); refreshGameRecords(); });
 
   $app.querySelector('form.join').onsubmit = (e) => {
     e.preventDefault();
@@ -261,15 +266,129 @@ function renderLobby() {
     if (!/^[A-Z0-9]{6}$/.test(code)) return toast('6자리 코드를 입력해 주세요');
     location.hash = `#/room/${code}`;
   };
-  return friends.stop;
+  return () => { clearInterval(tick); friendListeners.delete(drawFriends); };
 }
 
-// ───────── 친구 ─────────
-const friendProfiles = {};
+// ───────── 친구 (요청 → 수락) ─────────
+// 내 문서(users/{나})에만 기록해요:
+//   friends{uid: {at,name,photo}} 친구 · reqOut[uid] 보낸 요청 · reqMeta{uid:{at,...}} 요청 보낸 시각
+//   declined{uid: at} 거절한 요청 · unfriended{uid: at} 내가 삭제한 친구
+// 상대는 내 문서를 보고 수락/거절/삭제를 자기 쪽에 반영해요.
+const fdocs = {};          // 친구·요청 상대 프로필
+let incoming = [];         // 나에게 온 요청 (보낸 사람 프로필)
+let incomingInit = false;
+let friendSubs = {};
+let incomingUnsub = null;
+const friendListeners = new Set();
+const notifyFriends = () => { friendListeners.forEach((fn) => fn()); updateFriendBadge(); };
+const nameOf = (p, fb = '친구') => p?.name || p?.authName || fb;
+const photoOf = (p) => p?.photo || p?.authPhoto || '';
+
+function visibleIncoming() {
+  return incoming.filter((p) => {
+    if (profile?.friends?.[p.uid]) return false;
+    const dec = profile?.declined?.[p.uid];
+    return !(dec && dec >= (p.reqMeta?.[user.uid]?.at || 0));
+  });
+}
+function startFriends() {
+  incomingUnsub = backend.watchIncoming(user.uid, (list) => {
+    const before = new Set(visibleIncoming().map((p) => p.uid));
+    incoming = list;
+    if (incomingInit) visibleIncoming().forEach((p) => { if (!before.has(p.uid)) toast(`🔔 ${nameOf(p)}님이 친구 요청을 보냈어요`); });
+    incomingInit = true;
+    notifyFriends();
+  });
+  syncFriendSubs();
+}
+function stopFriends() {
+  incomingUnsub?.(); incomingUnsub = null;
+  Object.values(friendSubs).forEach((u) => u()); friendSubs = {};
+  incoming = []; incomingInit = false;
+}
+function syncFriendSubs() {
+  if (!user) return;
+  const ids = new Set([...Object.keys(profile?.friends || {}), ...(profile?.reqOut || [])]);
+  ids.forEach((id) => { if (!friendSubs[id]) friendSubs[id] = backend.watchProfile(id, (p) => { fdocs[id] = p; reconcile(); notifyFriends(); }); });
+  Object.keys(friendSubs).forEach((id) => { if (!ids.has(id)) { friendSubs[id](); delete friendSubs[id]; } });
+  reconcile();
+  notifyFriends();
+}
+
+// 상대가 수락/거절/삭제한 것을 내 쪽에 반영
+let reconciling = false;
+function reconcile() {
+  if (!user || !profile || reconciling) return;
+  const me = user.uid, accepted = [], dropped = [], gone = [];
+  (profile.reqOut || []).forEach((id) => {
+    const p = fdocs[id];
+    if (!p) return;
+    const dec = p.declined?.[me];
+    if (p.friends?.[me]) accepted.push(id);
+    else if (dec && dec >= (profile.reqMeta?.[id]?.at || 0)) dropped.push(id);
+  });
+  Object.entries(profile.friends || {}).forEach(([id, f]) => {
+    const p = fdocs[id];
+    const u = p?.unfriended?.[me];
+    if (u && u > (f.at || 0) && !p.friends?.[me]) gone.push(id);
+  });
+  if (!accepted.length && !dropped.length && !gone.length) return;
+  reconciling = true;
+  editFriends((d) => {
+    accepted.forEach((id) => (d.friends[id] = { at: Date.now(), name: nameOf(fdocs[id]), photo: photoOf(fdocs[id]) }));
+    [...accepted, ...dropped].forEach((id) => { d.reqOut = d.reqOut.filter((x) => x !== id); delete d.reqMeta[id]; });
+    gone.forEach((id) => delete d.friends[id]);
+  })
+    .then(() => accepted.forEach((id) => toast(`🎉 ${nameOf(fdocs[id])}님이 친구 요청을 수락했어요`)))
+    .catch(() => {})
+    .finally(() => { reconciling = false; });
+}
+function editFriends(fn) {
+  return backend.updateProfile(user.uid, (d) => {
+    d.friends = { ...(d.friends || {}) }; d.reqOut = [...(d.reqOut || [])]; d.reqMeta = { ...(d.reqMeta || {}) };
+    d.declined = { ...(d.declined || {}) }; d.unfriended = { ...(d.unfriended || {}) };
+    fn(d);
+    return d;
+  });
+}
+async function friendAction(act, person) {
+  const id = person.uid, now = Date.now();
+  if (act === 'request' && visibleIncoming().some((p) => p.uid === id)) act = 'accept'; // 서로 요청하면 바로 친구
+  if (act === 'request') {
+    await editFriends((d) => { if (!d.reqOut.includes(id)) d.reqOut.push(id); d.reqMeta[id] = { at: now, name: person.name, photo: person.photo }; delete d.unfriended[id]; });
+    toast(`${person.name}님에게 친구 요청을 보냈어요`);
+  } else if (act === 'accept') {
+    await editFriends((d) => { d.friends[id] = { at: now, name: person.name, photo: person.photo }; delete d.declined[id]; delete d.unfriended[id]; d.reqOut = d.reqOut.filter((x) => x !== id); });
+    toast(`${person.name}님과 친구가 됐어요!`);
+  } else if (act === 'decline') {
+    await editFriends((d) => { d.declined[id] = now; });
+    toast('친구 요청을 거절했어요');
+  } else if (act === 'cancel') {
+    await editFriends((d) => { d.reqOut = d.reqOut.filter((x) => x !== id); delete d.reqMeta[id]; });
+    toast('친구 요청을 취소했어요');
+  } else if (act === 'remove') {
+    await editFriends((d) => { delete d.friends[id]; d.unfriended[id] = now; d.reqOut = d.reqOut.filter((x) => x !== id); });
+    toast(`${person.name}님을 친구에서 삭제했어요`);
+  }
+}
+function relationOf(uid) {
+  if (profile?.friends?.[uid]) return 'friend';
+  if (visibleIncoming().some((p) => p.uid === uid)) return 'incoming';
+  if ((profile?.reqOut || []).includes(uid)) return 'outgoing';
+  return 'none';
+}
+function updateFriendBadge() {
+  const $b = document.querySelector('[data-frbadge]');
+  if (!$b) return;
+  const n = user ? visibleIncoming().length : 0;
+  $b.hidden = !n;
+  $b.textContent = `🔔 친구 요청 ${n}`;
+}
+
 function friendView(uid) {
-  const p = friendProfiles[uid];
-  const saved = profile?.friends?.[uid] || {};
-  return { uid, name: p?.name || p?.authName || saved.name || '친구', photo: p?.photo || p?.authPhoto || saved.photo || '' };
+  const p = fdocs[uid];
+  const saved = profile?.friends?.[uid] || profile?.reqMeta?.[uid] || {};
+  return { uid, name: nameOf(p, saved.name || '친구'), photo: photoOf(p) || saved.photo || '' };
 }
 const ago = (t) => {
   const m = Math.floor((Date.now() - t) / 60000);
@@ -284,39 +403,45 @@ function friendStatus(p) {
   if (pr.state === 'waiting') return { key: 'wait', label: `대기 중${gname ? ` · ${gname}` : ''}`, room: pr.room, order: 0 };
   return { key: 'on', label: '온라인 · 로비', order: 0 };
 }
-
-function watchFriends() {
-  const subs = {};
-  const sync = () => {
-    const ids = Object.keys(profile?.friends || {});
-    ids.forEach((id) => {
-      if (!subs[id]) subs[id] = backend.watchProfile(id, (p) => { friendProfiles[id] = p; drawFriends(); });
-    });
-    Object.keys(subs).forEach((id) => { if (!ids.includes(id)) { subs[id](); delete subs[id]; } });
-    drawFriends();
-  };
-  const tick = setInterval(drawFriends, 20000); // 접속 끊김 반영
-  sync();
-  return { sync, stop: () => { clearInterval(tick); Object.values(subs).forEach((u) => u()); } };
-}
+const personAttrs = (p) => `data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo)}"`;
 
 function drawFriends() {
   const $f = document.getElementById('friends');
   if (!$f) return;
   const list = Object.keys(profile?.friends || {})
-    .map((uid) => ({ ...friendView(uid), st: friendStatus(friendProfiles[uid]) }))
+    .map((uid) => ({ ...friendView(uid), st: friendStatus(fdocs[uid]) }))
     .sort((a, b) => a.st.order - b.st.order || a.name.localeCompare(b.name));
+  const inc = visibleIncoming().map((p) => ({ uid: p.uid, name: nameOf(p), photo: photoOf(p) }));
+  const out = (profile?.reqOut || []).map(friendView);
   const on = list.filter((f) => f.st.key !== 'off').length;
   $f.innerHTML = `
     <h2 class="section-title sm">👥 친구 <span class="muted">${on}/${list.length} 접속 중</span></h2>
+    ${inc.length ? `<div class="fr-sec"><div class="fr-sec-t">🔔 받은 친구 요청</div><ul class="fr-list">${inc.map((p) => `
+      <li class="fr-item req" ${personAttrs(p)}>
+        <span class="fr-av">${avatar(p)}</span>
+        <span class="fr-main"><b>${esc(p.name)}</b><small>친구가 되고 싶어 해요</small></span>
+        <button class="btn sm primary" data-fr="accept" data-id="${esc(p.uid)}">수락</button>
+        <button class="btn sm ghost" data-fr="decline" data-id="${esc(p.uid)}">거절</button>
+      </li>`).join('')}</ul></div>` : ''}
     ${list.length ? `<ul class="fr-list">${list.map((f) => `
-      <li class="fr-item st-${f.st.key}" data-person="${esc(f.uid)}" data-pname="${esc(f.name)}" data-pphoto="${esc(f.photo)}">
+      <li class="fr-item st-${f.st.key}" ${personAttrs(f)}>
         <span class="fr-av">${avatar(f)}<i class="fr-dot"></i></span>
         <span class="fr-main"><b>${esc(f.name)}</b><small>${esc(f.st.label)}</small></span>
         ${f.st.key === 'wait' && f.st.room ? `<a class="btn sm primary" href="#/room/${esc(f.st.room)}">참가</a>` : ''}
       </li>`).join('')}</ul>`
       : '<p class="muted fr-empty">아직 친구가 없어요.</p>'}
-    <p class="hint">게임 방에서 참가자 프로필을 <b>우클릭</b>(휴대폰은 <b>길게 누르기</b>)하면 친구로 추가할 수 있어요</p>`;
+    ${out.length ? `<div class="fr-sec"><div class="fr-sec-t">📨 보낸 요청 <small>상대가 수락하면 친구가 돼요</small></div><ul class="fr-list">${out.map((p) => `
+      <li class="fr-item out" ${personAttrs(p)}>
+        <span class="fr-av">${avatar(p)}</span>
+        <span class="fr-main"><b>${esc(p.name)}</b><small>수락 기다리는 중</small></span>
+        <button class="btn sm ghost" data-fr="cancel" data-id="${esc(p.uid)}">취소</button>
+      </li>`).join('')}</ul></div>` : ''}
+    <p class="hint">게임 방에서 참가자 프로필을 <b>우클릭</b>(휴대폰은 <b>길게 누르기</b>)하면 친구 요청을 보낼 수 있어요</p>`;
+  $f.querySelectorAll('[data-fr]').forEach((b) => (b.onclick = () => {
+    const li = b.closest('[data-person]');
+    b.disabled = true;
+    friendAction(b.dataset.fr, { uid: b.dataset.id, name: li.dataset.pname, photo: li.dataset.pphoto }).catch((e) => { toast('처리하지 못했어요: ' + e.message); b.disabled = false; });
+  }));
 }
 
 // 프로필 우클릭 / 길게 누르기 → 친구 메뉴
@@ -325,15 +450,17 @@ function openPersonMenu(el, x, y) {
   const uid = el.dataset.person;
   if (!uid || uid === user?.uid) return;
   const person = { uid, name: el.dataset.pname || '?', photo: el.dataset.pphoto || '' };
-  const isFriend = !!profile?.friends?.[uid];
-  const st = friendStatus(friendProfiles[uid]);
+  const rel = relationOf(uid);
+  const st = friendStatus(fdocs[uid]);
+  const items = {
+    friend: `${st.key === 'wait' && st.room ? '<button data-act="join">🎮 친구 방에 참가</button>' : ''}<div class="ctx-note">✓ 친구 · ${esc(st.label)}</div><button data-act="remove" class="danger">친구 삭제</button>`,
+    incoming: '<div class="ctx-note">나에게 친구 요청을 보냈어요</div><button data-act="accept">✓ 요청 수락</button><button data-act="decline" class="danger">거절</button>',
+    outgoing: '<div class="ctx-note">친구 요청을 보냈어요 (수락 대기 중)</div><button data-act="cancel" class="danger">요청 취소</button>',
+    none: '<button data-act="request">➕ 친구 요청 보내기</button>',
+  }[rel];
   const $m = document.createElement('div');
   $m.className = 'ctx-menu';
-  $m.innerHTML = `
-    <div class="ctx-head">${avatar(person, 'sm')}<b>${esc(person.name)}</b></div>
-    ${isFriend
-      ? `${st.key === 'wait' && st.room ? '<button data-act="join">🎮 친구 방에 참가</button>' : ''}<button data-act="remove" class="danger">친구 삭제</button>`
-      : '<button data-act="add">➕ 친구 추가</button>'}`;
+  $m.innerHTML = `<div class="ctx-head">${avatar(person, 'sm')}<b>${esc(person.name)}</b></div>${items}`;
   document.body.appendChild($m);
   const r = $m.getBoundingClientRect();
   $m.style.left = `${Math.max(8, Math.min(x, innerWidth - r.width - 8))}px`;
@@ -343,11 +470,8 @@ function openPersonMenu(el, x, y) {
   setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
   $m.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => {
     close();
-    try {
-      if (b.dataset.act === 'add') { await backend.setFriend(user.uid, uid, { at: Date.now(), name: person.name, photo: person.photo }); toast(`${person.name}님을 친구로 추가했어요`); }
-      if (b.dataset.act === 'remove') { await backend.setFriend(user.uid, uid, null); toast(`${person.name}님을 친구에서 삭제했어요`); }
-      if (b.dataset.act === 'join') location.hash = `#/room/${st.room}`;
-    } catch (e) { toast('처리하지 못했어요: ' + e.message); }
+    if (b.dataset.act === 'join') { location.hash = `#/room/${st.room}`; return; }
+    try { await friendAction(b.dataset.act, person); } catch (e) { toast('처리하지 못했어요: ' + e.message); }
   }));
 }
 $app.addEventListener('contextmenu', (e) => {
@@ -418,7 +542,9 @@ function drawProfile() {
     <div class="profile-head" data-toggle role="button" tabindex="0" aria-expanded="${!collapsed}">
       <button class="avatar-edit" data-edit title="프로필 사진 바꾸기">${avatar(my, 'lg')}<span class="pen">✎</span></button>
       <div class="profile-main">
-        <div class="profile-name"><b>${esc(my.name)}</b><span class="tier-badge">${s.tier.icon} ${s.tier.name}</span></div>
+        <div class="profile-name">${nickEdit !== null
+          ? `<span class="nick-form" data-nickform><input maxlength="12" value="${esc(nickEdit)}" aria-label="새 닉네임"><button class="btn sm primary" data-nicksave>저장</button><button class="btn sm ghost" data-nickcancel>취소</button></span>`
+          : `<b>${esc(my.name)}</b><button class="nick-btn" data-nick title="닉네임 변경">✎ 변경</button><span class="tier-badge">${s.tier.icon} ${s.tier.name}</span>`}</div>
         <div class="profile-garnet">${GARNET}<b>${s.garnets}</b><span>가넷</span></div>
         <div class="profile-sum">${s.plays ? `${s.plays}판 · 1등 ${s.wins}회 · 1등률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
       </div>
@@ -450,7 +576,27 @@ function drawProfile() {
   $p.querySelector('[data-toggle]').onclick = toggle;
   $p.querySelector('[data-toggle]').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
   $p.querySelector('[data-edit]').onclick = (e) => { e.stopPropagation(); openProfileEditor(); };
+  // 닉네임 바로 변경
+  $p.querySelector('[data-nick]')?.addEventListener('click', (e) => { e.stopPropagation(); nickEdit = my.name; drawProfile(); const $i = $p.querySelector('[data-nickform] input'); $i.focus(); $i.select(); });
+  const $form = $p.querySelector('[data-nickform]');
+  if ($form) {
+    const $i = $form.querySelector('input');
+    $form.onclick = (e) => e.stopPropagation();
+    $i.oninput = () => (nickEdit = $i.value);
+    const save = async () => {
+      const name = $i.value.trim();
+      if (!name) return toast('닉네임을 입력해 주세요');
+      if (name === my.name) { nickEdit = null; return drawProfile(); }
+      $form.querySelectorAll('button').forEach((b) => (b.disabled = true));
+      try { await backend.saveProfile(user.uid, { name }); nickEdit = null; drawProfile(); toast(`닉네임을 '${name}'(으)로 바꿨어요`); }
+      catch (e) { toast('저장하지 못했어요: ' + e.message); $form.querySelectorAll('button').forEach((b) => (b.disabled = false)); }
+    };
+    $form.querySelector('[data-nicksave]').onclick = save;
+    $form.querySelector('[data-nickcancel]').onclick = () => { nickEdit = null; drawProfile(); };
+    $i.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') save(); if (e.key === 'Escape') { nickEdit = null; drawProfile(); } };
+  }
 }
+let nickEdit = null; // 닉네임 수정 중인 값 (null이면 수정 안 함)
 
 function gameCard(g) {
   return `
@@ -704,7 +850,7 @@ function drawRoom($main, room, game) {
           ${players.map((p) => {
             const host = p.uid === room.hostId;
             const tag = host ? '방장' : room.status === 'waiting' ? (p.ready ? 'READY' : '대기') : '';
-            return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''} ${profile?.friends?.[p.uid] ? 'friend' : ''}" title="${esc(p.name)}${p.uid === user.uid ? '' : ' · 우클릭(길게 누르기)으로 친구 추가'}" data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo || '')}">
+            return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''} ${profile?.friends?.[p.uid] ? 'friend' : ''}" title="${esc(p.name)}${p.uid === user.uid ? '' : ' · 우클릭(길게 누르기)으로 친구 요청'}" data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo || '')}">
               <span class="seat-av">${avatar(p)}${host ? '<span class="crown">👑</span>' : ''}</span>
               <span class="seat-name">${profile?.friends?.[p.uid] ? '<i class="fr-mark">♥</i>' : ''}${esc(p.name)}</span>
               ${tag ? `<span class="seat-tag">${tag}</span>` : ''}
