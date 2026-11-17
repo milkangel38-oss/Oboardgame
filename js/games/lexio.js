@@ -15,7 +15,7 @@ const SUIT = {
 const START_CHIPS = 100;
 const handSize = (n) => (n === 4 ? 13 : 12);
 export const maxNum = (n) => (n === 3 ? 9 : n === 4 ? 13 : 15);
-export const rewardsFor = (n) => (n <= 4 ? [2, 1] : [3, 2, 1]);
+export const rewardsFor = (n) => (n <= 3 ? [2, 1] : n === 4 ? [3, 2, 1] : [4, 3, 2, 1]);
 
 export const tileOf = (id) => { const [s, num] = id.split('-'); return { id, suit: s, num: Number(num) }; };
 export const deckFor = (n) => SUITS.flatMap((s) => Array.from({ length: maxNum(n) }, (_, i) => `${s}-${i + 1}`));
@@ -140,10 +140,10 @@ export default {
   minPlayers: 3,
   maxPlayers: 5,
   duration: '20~40분',
-  rewards: [3, 2, 1],
-  rewardLabel: '1등 최대 +3',
+  rewards: [4, 3, 2, 1],
+  rewardLabel: '1등 최대 +4',
   description: '숫자 타일 클라이밍! 먼저 다 털어라',
-  options: [{ key: 'rounds', label: '라운드 수', choices: [3, 5, 7], default: 5 }],
+  options: [{ key: 'rounds', label: '라운드 수', choices: [1, 2, 3, 4, 5], default: 3 }],
   rules: [
     '타일: ☀해 · 🌙달 · ⭐별 · ☁구름 4가지 무늬 × 숫자. 3명은 1~9(12개씩), 4명은 1~13(13개씩), 5명은 1~15(12개씩) 받아요.',
     '숫자 순서: 3이 가장 약하고 4, 5 … 최대 숫자, 그다음 1, 그리고 2가 가장 강해요. 숫자가 같으면 ☀해 > 🌙달 > ⭐별 > ☁구름.',
@@ -153,13 +153,13 @@ export default {
     '스트레이트는 가장 큰 숫자로 비교해요. 단, 1·2·3·4·5가 가장 강하고 그다음이 2·3·4·5·6, 그다음이 (최대 숫자까지 이어진 4장)+1이에요.',
     '패스해도 다음 바퀴에 다시 낼 수 있어요. 나머지 모두가 이어서 패스하면 마지막으로 낸 사람이 새로 선이 돼요.',
     '누군가 타일을 다 내면 라운드 끝! 모든 사람이 서로 남은 타일 수 차이만큼 칩을 주고받아요. 2를 들고 있으면 2 한 개마다 2배씩 더 줘야 해요.',
-    `모두 칩 ${START_CHIPS}개로 시작해요. 정한 라운드가 끝나거나 누군가 칩이 0 이하가 되면 게임 끝, 칩이 많은 순서로 순위를 정해요.`,
-    '가넷: 3~4명 → 1등 2개, 2등 1개 / 5명 → 1등 3개, 2등 2개, 3등 1개',
+    `모두 칩 ${START_CHIPS}개로 시작해요. 방장이 고른 라운드(1~5)를 모두 진행한 뒤 칩이 많은 순서로 순위를 정해요.`,
+    '가넷: 3명 → 1등 2 · 2등 1 / 4명 → 1등 3 · 2등 2 · 3등 1 / 5명 → 1등 4 · 2등 3 · 3등 2 · 4등 1',
   ],
 
   setup(players, room) {
     const order = shuffle(players.map((p) => p.uid));
-    const rounds = [3, 5, 7].includes(Number(room?.options?.rounds)) ? Number(room.options.rounds) : 5;
+    const rounds = [1, 2, 3, 4, 5].includes(Number(room?.options?.rounds)) ? Number(room.options.rounds) : 3;
     return deal({ order, N: maxNum(order.length), rounds, round: 1, chips: Object.fromEntries(order.map((u) => [u, START_CHIPS])), history: [] });
   },
 
@@ -186,7 +186,7 @@ export default {
         const chips = Object.fromEntries(s.order.map((u) => [u, s.chips[u] + pay[u]]));
         const log = { round: s.round, winner: uid, left: Object.fromEntries(s.order.map((u) => [u, hands[u].length])), twos: Object.fromEntries(s.order.map((u) => [u, hands[u].filter((c) => tileOf(c).num === 2).length])), pay, lines };
         s = { ...s, chips, history: [...s.history, log], roundLog: log, phase: 'roundEnd', turn: -1 };
-        if (s.round >= s.rounds || Object.values(chips).some((c) => c <= 0)) {
+        if (s.round >= s.rounds) { // 정한 라운드를 모두 마치면 끝
           const done = { ...s, phase: 'done' };
           return { state: done, result: finalResult(done, players) };
         }
