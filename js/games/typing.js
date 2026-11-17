@@ -139,6 +139,7 @@ export default {
   name: '타이핑 퀴즈',
   emoji: '⌨️',
   category: 'variety',
+  teamGame: true,
   minPlayers: 6,
   maxPlayers: 10,
   duration: '15~25분',

@@ -310,7 +310,7 @@ function stopFriends() {
 function syncFriendSubs() {
   if (!user) return;
   const ids = new Set([...Object.keys(profile?.friends || {}), ...(profile?.reqOut || [])]);
-  ids.forEach((id) => { if (!friendSubs[id]) friendSubs[id] = backend.watchProfile(id, (p) => { fdocs[id] = p; reconcile(); notifyFriends(); checkInvites(id); }); });
+  ids.forEach((id) => { if (!friendSubs[id]) friendSubs[id] = backend.watchProfile(id, (p) => { fdocs[id] = p; reconcile(); notifyFriends(); checkInvites(id); checkDm(id); }); });
   Object.keys(friendSubs).forEach((id) => { if (!ids.has(id)) { friendSubs[id](); delete friendSubs[id]; } });
   reconcile();
   notifyFriends();
@@ -439,7 +439,8 @@ function drawFriends() {
     ${list.length ? `<ul class="fr-list">${list.map((f) => `
       <li class="fr-item st-${f.st.key}" ${personAttrs(f)}>
         <span class="fr-av">${avatar(f)}<i class="fr-dot"></i></span>
-        <span class="fr-main"><b>${esc(f.name)}</b><small>${esc(f.st.label)}</small>${friendRecord(f.uid)}</span>
+        <span class="fr-main"><b>${esc(f.name)}${unreadCount(f.uid) ? `<i class="dm-unread">${unreadCount(f.uid)}</i>` : ''}</b><small>${esc(f.st.label)}</small>${friendRecord(f.uid)}</span>
+        <button class="btn sm ghost fr-chatbtn" data-dm="${esc(f.uid)}" title="대화하기">💬</button>
         ${f.st.key === 'wait' && f.st.room ? `<a class="btn sm primary" href="#/room/${esc(f.st.room)}">참가</a>` : ''}
       </li>`).join('')}</ul>`
       : '<p class="muted fr-empty">아직 친구가 없어요.</p>'}
@@ -455,12 +456,107 @@ function drawFriends() {
   const fold = () => { localStorage.setItem(FR_FOLD_KEY, folded ? '0' : '1'); drawFriends(); };
   $fold.onclick = fold;
   $fold.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fold(); } };
+  $f.querySelectorAll('[data-dm]').forEach((b) => (b.onclick = () => openDm(b.dataset.dm)));
   $f.querySelectorAll('[data-fr]').forEach((b) => (b.onclick = () => {
     const li = b.closest('[data-person]');
     b.disabled = true;
     friendAction(b.dataset.fr, { uid: b.dataset.id, name: li.dataset.pname, photo: li.dataset.pphoto }).catch((e) => { toast('처리하지 못했어요: ' + e.message); b.disabled = false; });
   }));
 }
+
+// ───────── 친구와 대화 (DM) ─────────
+// 보낸 메시지는 내 문서 dm{친구uid: [{t, text}]} 에 최근 40개만 저장 → 두 사람 문서를 합쳐서 대화로 보여 줘요.
+const DM_MAX = 40;
+const dmReadKey = (fid) => `og:dmread:${user?.uid}:${fid}`;
+const lastRead = (fid) => Number(localStorage.getItem(dmReadKey(fid))) || 0;
+function dmThread(fid) {
+  const mine = (profile?.dm?.[fid] || []).map((m) => ({ ...m, me: true }));
+  const theirs = (fdocs[fid]?.dm?.[user.uid] || []).map((m) => ({ ...m, me: false }));
+  return [...mine, ...theirs].sort((a, b) => a.t - b.t);
+}
+function unreadCount(fid) {
+  if (!profile?.friends?.[fid] || dmOpen === fid) return 0;
+  const r = lastRead(fid);
+  return (fdocs[fid]?.dm?.[user.uid] || []).filter((m) => m.t > r).length;
+}
+const dmToasted = new Set();
+function checkDm(fid) {
+  if (!user || !profile?.friends?.[fid]) return;
+  const msgs = fdocs[fid]?.dm?.[user.uid] || [];
+  const last = msgs[msgs.length - 1];
+  if (!last) return;
+  if (dmOpen === fid) { localStorage.setItem(dmReadKey(fid), String(last.t)); drawDm(); return; }
+  const k = `${fid}:${last.t}`;
+  if (last.t > lastRead(fid) && !dmToasted.has(k) && Date.now() - last.t < 60000) {
+    dmToasted.add(k);
+    showDmToast(fid, last.text);
+  }
+}
+function showDmToast(fid, text) {
+  let $box = document.querySelector('.invite-stack');
+  if (!$box) { $box = document.createElement('div'); $box.className = 'invite-stack'; document.body.appendChild($box); }
+  const f = friendView(fid);
+  const $c = document.createElement('button');
+  $c.className = 'dm-toast';
+  $c.innerHTML = `${avatar(f, 'sm')}<span class="dm-tt"><b>💬 ${esc(f.name)}</b>${esc(text)}</span>`;
+  $box.appendChild($c);
+  const close = () => { $c.remove(); if (!$box.children.length) $box.remove(); };
+  $c.onclick = () => { close(); openDm(fid); };
+  setTimeout(close, 10000);
+}
+
+let dmOpen = null;
+let dmDraft = '';
+function openDm(fid) {
+  dmOpen = fid;
+  dmDraft = '';
+  document.querySelector('.dm')?.remove();
+  const $d = document.createElement('div');
+  $d.className = 'dm';
+  document.body.appendChild($d);
+  drawDm(true);
+  notifyFriends();
+}
+function closeDm() { dmOpen = null; document.querySelector('.dm')?.remove(); notifyFriends(); }
+function drawDm(focus = false) {
+  const $d = document.querySelector('.dm');
+  if (!$d || !dmOpen) return;
+  const fid = dmOpen;
+  if (!profile?.friends?.[fid]) { closeDm(); return; }
+  const f = friendView(fid), st = friendStatus(fdocs[fid]);
+  const msgs = dmThread(fid);
+  if (msgs.length) localStorage.setItem(dmReadKey(fid), String(Math.max(lastRead(fid), ...msgs.filter((m) => !m.me).map((m) => m.t), 0)));
+  const hadFocus = document.activeElement?.closest?.('.dm');
+  $d.innerHTML = `
+    <div class="dm-head">${avatar(f, 'sm')}<span class="dm-who"><b>${esc(f.name)}</b><small class="st-${st.key}">${esc(st.label)}</small></span><button class="dm-x" data-dmx aria-label="닫기">✕</button></div>
+    <div class="dm-msgs">${msgs.length ? msgs.map((m, i) => {
+      const day = new Date(m.t);
+      const time = `${day.getHours()}:${String(day.getMinutes()).padStart(2, '0')}`;
+      return `<div class="dm-msg ${m.me ? 'me' : ''}"><span>${esc(m.text)}</span><small>${time}</small></div>`;
+    }).join('') : '<p class="muted dm-empty">첫 메시지를 보내 보세요!</p>'}</div>
+    <form class="dm-form"><input maxlength="200" placeholder="메시지 입력" autocomplete="off" value="${esc(dmDraft)}"><button class="btn primary sm">보내기</button></form>`;
+  const $list = $d.querySelector('.dm-msgs');
+  $list.scrollTop = $list.scrollHeight;
+  const $in = $d.querySelector('input');
+  $in.oninput = () => (dmDraft = $in.value);
+  if (focus || hadFocus) { $in.focus(); $in.setSelectionRange($in.value.length, $in.value.length); }
+  $d.querySelector('[data-dmx]').onclick = closeDm;
+  $d.querySelector('form').onsubmit = async (e) => {
+    e.preventDefault();
+    const text = $in.value.trim();
+    if (!text) return;
+    dmDraft = '';
+    $in.value = '';
+    try {
+      await backend.updateProfile(user.uid, (d) => {
+        const dm = { ...(d.dm || {}) };
+        dm[fid] = [...(dm[fid] || []), { t: Date.now(), text }].slice(-DM_MAX);
+        return { ...d, dm };
+      });
+    } catch (err) { toast('보내지 못했어요: ' + err.message); dmDraft = text; drawDm(true); }
+  };
+}
+friendListeners.add(() => drawDm());
 
 // ───────── 친구 게임 초대 ─────────
 // 초대한 사람 문서에 invites{친구uid: {room, game, at}} 를 남기면, 친구 쪽 화면에 초대 알림이 떠요.
@@ -566,7 +662,7 @@ function openPersonMenu(el, x, y) {
   const rel = relationOf(uid);
   const st = friendStatus(fdocs[uid]);
   const items = {
-    friend: `${st.key === 'wait' && st.room ? '<button data-act="join">🎮 친구 방에 참가</button>' : ''}<div class="ctx-note">✓ 친구 · ${esc(st.label)}</div><button data-act="remove" class="danger">친구 삭제</button>`,
+    friend: `<div class="ctx-note">✓ 친구 · ${esc(st.label)}</div><button data-act="chat">💬 대화하기</button>${st.key === 'wait' && st.room ? '<button data-act="join">🎮 친구 방에 참가</button>' : ''}<button data-act="remove" class="danger">친구 삭제</button>`,
     incoming: '<div class="ctx-note">나에게 친구 요청을 보냈어요</div><button data-act="accept">✓ 요청 수락</button><button data-act="decline" class="danger">거절</button>',
     outgoing: '<div class="ctx-note">친구 요청을 보냈어요 (수락 대기 중)</div><button data-act="cancel" class="danger">요청 취소</button>',
     none: '<button data-act="request">➕ 친구 요청 보내기</button>',
@@ -584,6 +680,7 @@ function openPersonMenu(el, x, y) {
   $m.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => {
     close();
     if (b.dataset.act === 'join') { location.hash = `#/room/${st.room}`; return; }
+    if (b.dataset.act === 'chat') { openDm(uid); return; }
     try { await friendAction(b.dataset.act, person); } catch (e) { toast('처리하지 못했어요: ' + e.message); }
   }));
 }
@@ -714,11 +811,12 @@ let nickEdit = null; // 닉네임 수정 중인 값 (null이면 수정 안 함)
 function gameCard(g) {
   return `
     <div class="gcard-wrap">
-      <button class="gcard ${g.comingSoon ? 'soon' : ''} ${g.deathmatch ? 'deathmatch' : ''}" data-game="${g.id}" aria-label="${esc(g.name)} ${g.comingSoon ? '(준비중)' : '방 만들기'}">
+      <button class="gcard ${g.comingSoon ? 'soon' : ''} ${g.deathmatch ? 'deathmatch' : ''} ${g.teamGame ? 'teamgame' : ''}" data-game="${g.id}" aria-label="${esc(g.name)} ${g.comingSoon ? '(준비중)' : '방 만들기'}">
         <div class="gcard-art">${g.art}</div>
         <div class="ribbon"><span><i>◆</i>${esc(g.name)}<i>◆</i></span></div>
         <div class="gcard-top" data-rec="${g.id}">${recordLine(g.id)}</div>
         ${g.deathmatch ? '<div class="dm-stamp">DEATH<br>MATCH</div>' : ''}
+        ${g.teamGame ? '<div class="tg-stamp">팀게임</div>' : ''}
         ${g.comingSoon ? '<div class="stamp">준비중</div>' : ''}
         <div class="gcard-bottom">
           <p class="gdesc">${esc(g.description)}</p>
@@ -735,7 +833,7 @@ function recordLine(id) {
   const top = g?.rewards?.[0];
   return r.plays
     ? `<span>${r.plays}전 ${r.wins}승 ${r.losses}패</span><span class="gold">승률 ${r.rate}%</span>`
-    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : (g?.id === 'typing' || g?.teamGame) ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
+    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.teamGame ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
   $app.querySelectorAll('[data-rec]').forEach((el) => { el.innerHTML = recordLine(el.dataset.rec); });
@@ -952,7 +1050,7 @@ function drawRoom($main, room, game) {
     const reward = r.rewards?.[user.uid] || 0;
     const tag = r.aborted ? ''
       : r.draw && mineRank ? '<span class="res-tag draw">DRAW</span>'
-      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.id === 'typing' || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
+      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
       : r.draw ? '<span class="res-tag draw">DRAW</span>'
       : (r.winners || []).includes(user.uid) ? '<span class="res-tag win">WIN</span>' : '<span class="res-tag lose">LOSE</span>';
     resultBanner = `
@@ -981,7 +1079,7 @@ function drawRoom($main, room, game) {
   $main.innerHTML = `
     <div class="room-head">
       <div>
-        <div class="eyebrow">${game.deathmatch ? '<span class="dm-chip">⚔ DEATH MATCH</span> ' : ''}${game.emoji} ${esc(game.name)} · ${room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '게임 중' : '게임 종료'}</div>
+        <div class="eyebrow">${game.deathmatch ? '<span class="dm-chip">⚔ DEATH MATCH</span> ' : ''}${game.teamGame ? '<span class="tg-chip">👥 팀게임</span> ' : ''}${game.emoji} ${esc(game.name)} · ${room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '게임 중' : '게임 종료'}</div>
         <h2 class="room-code">방 코드 <span class="code">${esc(room.code)}</span></h2>
       </div>
       <div class="row">

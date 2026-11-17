@@ -7,6 +7,17 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 초성퀴즈: 칠판 위 초성 타일
+  chosung: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" fill="#1f4a3a"/>
+  <rect x="14" y="100" width="272" height="230" rx="10" fill="#24563f" stroke="#8a5a2b" stroke-width="10"/>
+  <g font-family="'Black Han Sans', sans-serif" text-anchor="middle">
+    ${[['ㅊ', 70, 190, '#ffd84d'], ['ㅅ', 150, 190, '#ff8fb8'], ['ㅋ', 230, 190, '#7cc4ff'], ['ㅈ', 110, 280, '#9ef0a8'], ['?', 190, 280, '#fff']].map(([t, x, y, c]) => `<g transform="translate(${x} ${y})"><rect x="-34" y="-50" width="68" height="68" rx="12" fill="#fffdf6" stroke="${c}" stroke-width="5"/><text y="4" font-size="46" fill="#24302a">${t}</text></g>`).join('')}
+  </g>
+  <g transform="translate(150 376)"><circle r="34" fill="#ffd84d"/><text y="14" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="38" fill="#3a2400">!</text></g>
+</svg>`,
+
   // 티츄: 붉은 하늘 아래 용 + 펼친 카드
   tichu: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

@@ -7,7 +7,7 @@ let ctx = null, master = null, musicBus = null, sfxBus = null;
 let timer = null, step = 0, nextTime = 0;
 const listeners = new Set();
 
-export function getVolume() { const v = Number(localStorage.getItem(VOL_KEY)); return Number.isFinite(v) && localStorage.getItem(VOL_KEY) !== null ? v : 0.5; }
+export function getVolume() { if (typeof localStorage === 'undefined') return 0.5; const v = Number(localStorage.getItem(VOL_KEY)); return Number.isFinite(v) && localStorage.getItem(VOL_KEY) !== null ? v : 0.5; }
 export function isMuted() { return localStorage.getItem(MUTE_KEY) === '1'; }
 export function setVolume(v) { try { localStorage.setItem(VOL_KEY, String(v)); if (v > 0) localStorage.setItem(MUTE_KEY, '0'); } catch {} apply(); }
 export function setMuted(m) { try { localStorage.setItem(MUTE_KEY, m ? '1' : '0'); } catch {} apply(); }
@@ -31,8 +31,10 @@ function apply() {
 }
 // 브라우저 정책: 화면을 한 번이라도 누른 뒤에 소리가 나요
 const resume = () => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); };
-window.addEventListener('pointerdown', resume, { capture: true });
-window.addEventListener('keydown', resume, { capture: true });
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', resume, { capture: true });
+  window.addEventListener('keydown', resume, { capture: true });
+}
 
 // ── 게임 BGM: 차분하고 고민하는 분위기 (느린 단조, 부드러운 패드 + 잔잔한 아르페지오 + 시계 똑딱) ──
 // 코드 진행 Am(add9) → Fmaj7 → Dm7 → E7, 코드마다 2마디, 64 BPM

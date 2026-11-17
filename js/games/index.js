@@ -17,6 +17,7 @@ import seedpoker from './seedpoker.js';
 import underdog from './underdog.js';
 // import skullking from './skullking.js'; // 스컬킹: 보류 중
 import tichu from './tichu.js';
+import chosung from './chosung.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -37,6 +38,7 @@ export const GAMES = [
   typing,
   underdog,
   tichu,
+  chosung,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));
 
 export const getGame = (id) => GAMES.find((g) => g.id === id);
