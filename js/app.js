@@ -2,7 +2,7 @@ import { backend } from './backend/index.js';
 import { GAMES, CATEGORIES, getGame, getCategory } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
-import { summarize, gameRecord, AVATAR_PRESETS, GARNET } from './profile.js';
+import { summarize, gameRecord, tierOf, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange } from './sound.js';
@@ -406,6 +406,15 @@ function friendStatus(p) {
 }
 const personAttrs = (p) => `data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo)}"`;
 
+const FR_FOLD_KEY = 'og:friendsFolded';
+// 친구 전적: 티어 · 보유 가넷 · N전 N승 N패 · 승률
+function friendRecord(uid) {
+  const p = fdocs[uid];
+  if (!p) return '';
+  const s = summarize(p);
+  return `<span class="fr-rec"><i class="fr-tier" style="--tier:${s.tier.color}">${s.tier.icon} ${s.tier.name}</i><i class="fr-gar">${GARNET}${s.garnets}</i><i>${s.plays ? `${s.plays}전 ${s.wins}승 ${s.losses}패 · ${s.rate}%` : '전적 없음'}</i></span>`;
+}
+
 function drawFriends() {
   const $f = document.getElementById('friends');
   if (!$f) return;
@@ -415,8 +424,11 @@ function drawFriends() {
   const inc = visibleIncoming().map((p) => ({ uid: p.uid, name: nameOf(p), photo: photoOf(p) }));
   const out = (profile?.reqOut || []).map(friendView);
   const on = list.filter((f) => f.st.key !== 'off').length;
+  const folded = localStorage.getItem(FR_FOLD_KEY) === '1';
+  $f.classList.toggle('folded', folded);
   $f.innerHTML = `
-    <h2 class="section-title sm">👥 친구 <span class="muted">${on}/${list.length} 접속 중</span></h2>
+    <h2 class="section-title sm fr-head" data-frfold role="button" tabindex="0" aria-expanded="${!folded}">👥 친구 <span class="muted">${on}/${list.length} 접속 중</span>${inc.length ? `<span class="fr-newreq">요청 ${inc.length}</span>` : ''}<span class="chevron" aria-hidden="true">▾</span></h2>
+    <div class="fr-body">
     ${inc.length ? `<div class="fr-sec"><div class="fr-sec-t">🔔 받은 친구 요청</div><ul class="fr-list">${inc.map((p) => `
       <li class="fr-item req" ${personAttrs(p)}>
         <span class="fr-av">${avatar(p)}</span>
@@ -427,7 +439,7 @@ function drawFriends() {
     ${list.length ? `<ul class="fr-list">${list.map((f) => `
       <li class="fr-item st-${f.st.key}" ${personAttrs(f)}>
         <span class="fr-av">${avatar(f)}<i class="fr-dot"></i></span>
-        <span class="fr-main"><b>${esc(f.name)}</b><small>${esc(f.st.label)}</small></span>
+        <span class="fr-main"><b>${esc(f.name)}</b><small>${esc(f.st.label)}</small>${friendRecord(f.uid)}</span>
         ${f.st.key === 'wait' && f.st.room ? `<a class="btn sm primary" href="#/room/${esc(f.st.room)}">참가</a>` : ''}
       </li>`).join('')}</ul>`
       : '<p class="muted fr-empty">아직 친구가 없어요.</p>'}
@@ -437,7 +449,12 @@ function drawFriends() {
         <span class="fr-main"><b>${esc(p.name)}</b><small>수락 기다리는 중</small></span>
         <button class="btn sm ghost" data-fr="cancel" data-id="${esc(p.uid)}">취소</button>
       </li>`).join('')}</ul></div>` : ''}
-    <p class="hint">게임 방에서 참가자 프로필을 <b>우클릭</b>(휴대폰은 <b>길게 누르기</b>)하면 친구 요청을 보낼 수 있어요</p>`;
+    <p class="hint">게임 방에서 참가자 프로필을 <b>우클릭</b>(휴대폰은 <b>길게 누르기</b>)하면 친구 요청을 보낼 수 있어요</p>
+    </div>`;
+  const $fold = $f.querySelector('[data-frfold]');
+  const fold = () => { localStorage.setItem(FR_FOLD_KEY, folded ? '0' : '1'); drawFriends(); };
+  $fold.onclick = fold;
+  $fold.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fold(); } };
   $f.querySelectorAll('[data-fr]').forEach((b) => (b.onclick = () => {
     const li = b.closest('[data-person]');
     b.disabled = true;

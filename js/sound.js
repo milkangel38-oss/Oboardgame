@@ -20,7 +20,7 @@ function ensure() {
   ctx = new AC();
   master = ctx.createGain();
   master.connect(ctx.destination);
-  musicBus = ctx.createGain(); musicBus.gain.value = 0.55; musicBus.connect(master);
+  musicBus = ctx.createGain(); musicBus.gain.value = 1; musicBus.connect(master);
   sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
   apply();
   return ctx;
@@ -34,58 +34,93 @@ const resume = () => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(
 window.addEventListener('pointerdown', resume, { capture: true });
 window.addEventListener('keydown', resume, { capture: true });
 
-// ── 게임 BGM: 경쾌한 8비트 풍 루프 (C – Am – F – G) ──
-const BPM = 116;
-const S16 = 60 / BPM / 4; // 16분음표 길이
+// ── 게임 BGM: 차분하고 고민하는 분위기 (느린 단조, 부드러운 패드 + 잔잔한 아르페지오 + 시계 똑딱) ──
+// 코드 진행 Am(add9) → Fmaj7 → Dm7 → E7, 코드마다 2마디, 64 BPM
+const BPM = 64;
+const S8 = 60 / BPM / 2; // 8분음표 길이
 const f = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
-const CHORDS = [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]]; // C Am F G
-const BASS = [36, 33, 29, 31];
-const LEAD = [ // 마디마다 16칸 (null = 쉼표)
-  [72, null, 76, null, 79, null, 76, 74, 72, null, null, 67, 69, null, 72, null],
-  [69, null, 72, null, 76, null, 74, 72, 69, null, null, 64, 67, null, 69, null],
-  [65, null, 69, null, 72, null, 74, 72, 69, null, 67, null, 65, null, 67, 69],
-  [67, null, 71, null, 74, null, 72, 71, 67, null, 74, null, 71, null, null, null],
+const CHORDS = [[57, 60, 64, 71], [53, 57, 60, 64], [50, 53, 57, 60], [52, 56, 59, 62]];
+const BASS = [33, 29, 26, 28];
+const ARP = [0, null, 2, 1, null, 3, 2, null, 1, null, 3, null, 2, 1, null, null]; // 2마디(8분음표 16칸)
+const MELODY = [ // 두 번째 바퀴부터 아주 드문드문
+  [76, null, null, null, 74, null, 72, null, 71, null, null, null, null, null, null, null],
+  [72, null, null, null, 69, null, null, null, 72, null, 71, null, 69, null, null, null],
+  [74, null, null, null, 72, null, 69, null, 65, null, null, null, 64, null, null, null],
+  [68, null, null, null, 71, null, null, null, 74, null, 72, null, 71, null, null, null],
 ];
-
-function tone(time, freq, dur, type, vol, bus = musicBus) {
+let echo = null;
+function ensureEcho() {
+  if (echo) return echo;
+  echo = ctx.createDelay(2);
+  echo.delayTime.value = S8 * 3;
+  const fb = ctx.createGain(); fb.gain.value = 0.35;
+  const wet = ctx.createGain(); wet.gain.value = 0.4;
+  echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(musicBus);
+  return echo;
+}
+function tone(time, freq, dur, type, vol, bus = musicBus, attack = 0.01) {
   const o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(0.0001, time);
-  g.gain.exponentialRampToValueAtTime(vol, time + 0.01);
+  g.gain.exponentialRampToValueAtTime(vol, time + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
   o.connect(g); g.connect(bus);
-  o.start(time); o.stop(time + dur + 0.02);
+  o.start(time); o.stop(time + dur + 0.05);
+  return g;
+}
+// 부드러운 패드: 살짝 어긋난 두 톱니파를 저역 필터로 감싸서 천천히 커졌다 작아짐
+function pad(time, notes, dur) {
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass'; lp.frequency.value = 700; lp.Q.value = 0.3;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, time);
+  g.gain.linearRampToValueAtTime(0.05, time + dur * 0.35);
+  g.gain.linearRampToValueAtTime(0.035, time + dur * 0.8);
+  g.gain.linearRampToValueAtTime(0.0001, time + dur + 0.6);
+  lp.connect(g); g.connect(musicBus);
+  notes.forEach((n) => [-4, 4].forEach((cent) => {
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth'; o.frequency.value = f(n); o.detune.value = cent;
+    o.connect(lp); o.start(time); o.stop(time + dur + 0.7);
+  }));
+}
+// 오르골 같은 맑은 소리 (사인 + 배음)
+function pluck(time, midi, vol) {
+  const g = tone(time, f(midi), 1.8, 'sine', vol, musicBus, 0.006);
+  g.connect(ensureEcho());
+  tone(time, f(midi) * 2, 0.6, 'sine', vol * 0.18, musicBus, 0.004);
 }
 let noiseBuf = null;
-function hat(time, vol) {
+function tick(time, hi) { // 시계 똑딱
   if (!noiseBuf) {
-    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   }
-  const s = ctx.createBufferSource(), g = ctx.createGain(), hp = ctx.createBiquadFilter();
-  hp.type = 'highpass'; hp.frequency.value = 6000;
-  s.buffer = noiseBuf;
-  g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.045);
-  s.connect(hp); hp.connect(g); g.connect(musicBus);
-  s.start(time);
-}
-function kick(time) {
-  const o = ctx.createOscillator(), g = ctx.createGain();
-  o.frequency.setValueAtTime(140, time); o.frequency.exponentialRampToValueAtTime(45, time + 0.12);
-  g.gain.setValueAtTime(0.5, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.15);
-  o.connect(g); g.connect(musicBus); o.start(time); o.stop(time + 0.16);
+  const src = ctx.createBufferSource(), g = ctx.createGain(), bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = hi ? 3200 : 2300; bp.Q.value = 8;
+  src.buffer = noiseBuf;
+  g.gain.setValueAtTime(0.09, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.03);
+  src.connect(bp); bp.connect(g); g.connect(musicBus);
+  src.start(time);
 }
 function schedule() {
-  while (nextTime < ctx.currentTime + 0.25) {
-    const bar = Math.floor(step / 16) % 4, i = step % 16;
-    if (i % 4 === 0) kick(nextTime);
-    if (i % 2 === 1) hat(nextTime, 0.06);
-    if (i % 4 === 0 || i % 4 === 3) tone(nextTime, f(BASS[bar]), S16 * 1.8, 'triangle', 0.32);
-    if (i % 2 === 0) tone(nextTime, f(CHORDS[bar][(i / 2) % 3] + 12), S16 * 0.9, 'square', 0.035);
-    const n = LEAD[bar][i];
-    if (n && Math.floor(step / 64) % 2 === 1) tone(nextTime, f(n), S16 * 1.6, 'square', 0.06); // 두 번째 바퀴부터 멜로디
-    nextTime += S16;
+  while (nextTime < ctx.currentTime + 0.3) {
+    const i = step % 16;                       // 2마디 안에서의 위치
+    const c = Math.floor(step / 16) % 4;       // 지금 코드
+    const loop = Math.floor(step / 64);        // 몇 바퀴째
+    const chord = CHORDS[c];
+    if (i === 0) {
+      pad(nextTime, chord, S8 * 16);
+      tone(nextTime, f(BASS[c]), S8 * 7, 'sine', 0.22, musicBus, 0.08);
+    }
+    if (i === 8) tone(nextTime, f(BASS[c] + 7), S8 * 6, 'sine', 0.12, musicBus, 0.08);
+    if (i % 2 === 0) tick(nextTime, i % 4 === 0);
+    const a = ARP[i];
+    if (a !== null) pluck(nextTime, chord[a] + 12, 0.05);
+    const m = MELODY[c][i];
+    if (loop % 2 === 1 && m) pluck(nextTime, m, 0.07);
+    nextTime += S8;
     step++;
   }
 }
@@ -96,8 +131,8 @@ export function startGameBgm() {
   nextTime = ctx.currentTime + 0.1;
   musicBus.gain.cancelScheduledValues(ctx.currentTime);
   musicBus.gain.setValueAtTime(0.0001, ctx.currentTime);
-  musicBus.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 1.5);
-  timer = setInterval(schedule, 80);
+  musicBus.gain.linearRampToValueAtTime(1, ctx.currentTime + 3);
+  timer = setInterval(schedule, 100);
   schedule();
 }
 export function stopGameBgm() {

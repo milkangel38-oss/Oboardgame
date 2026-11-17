@@ -901,6 +901,16 @@ a.cat-banner:active { transform: translateY(0); }
 
 /* ───────── 친구 ───────── */
 .friends .section-title .muted { font-size: 12px; font-family: Pretendard, sans-serif; margin-left: 4px; }
+.fr-head { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; margin: 0; }
+.fr-head .chevron { margin-left: auto; transition: transform .2s; }
+.friends.folded .fr-head .chevron { transform: rotate(-90deg); }
+.friends.folded .fr-body { display: none; }
+.fr-newreq { font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 99px; background: #ffd84d; color: #2a1a00; font-family: Pretendard, sans-serif; }
+.fr-rec { display: flex; flex-wrap: wrap; gap: 3px 8px; margin-top: 2px; font-size: 11px; color: #cfc8ea; }
+.fr-rec i { font-style: normal; white-space: nowrap; }
+.fr-tier { color: var(--tier); font-weight: 700; }
+.fr-gar { display: inline-flex; align-items: center; gap: 2px; color: #ff9aa8; font-weight: 800; }
+.fr-gar .garnet { width: 12px; height: 12px; }
 .fr-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .fr-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); cursor: context-menu; -webkit-touch-callout: none; user-select: none; }
 .fr-av { position: relative; flex: none; }
