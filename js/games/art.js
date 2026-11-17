@@ -7,6 +7,14 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 기억포커: 남색 카드 뒷면 격자 + 뒤집힌 카드 한 장
+  memorypoker: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" fill="#0f1a3a"/>
+  ${'ABCDEFGHIJKLMNOP'.split('').map((l, i) => `<g transform="translate(${18 + (i % 4) * 68} ${60 + Math.floor(i / 4) * 86})"><rect width="58" height="78" rx="6" fill="#16264f" stroke="#c9a85a" stroke-width="1.5" opacity=".9"/><text x="29" y="50" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#c9a85a">${l}</text></g>`).join('')}
+  <g transform="translate(150 220) rotate(-8)"><rect x="-44" y="-62" width="88" height="124" rx="8" fill="#fffdf6" stroke="#d8cfb8" stroke-width="2"/><text x="-32" y="-34" font-family="'Black Han Sans', sans-serif" font-size="26" fill="#d23a3a">A</text><text y="22" text-anchor="middle" font-size="58" fill="#d23a3a">♥</text></g>
+</svg>`,
+
   // 스플렌더: 빛나는 보석 더미
   splendor: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
