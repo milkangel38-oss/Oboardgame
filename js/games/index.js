@@ -19,6 +19,7 @@ import underdog from './underdog.js';
 import tichu from './tichu.js';
 import chosung from './chosung.js';
 import lexio from './lexio.js';
+import splendor from './splendor.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -41,6 +42,7 @@ export const GAMES = [
   tichu,
   chosung,
   lexio,
+  splendor,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));
 
 export const getGame = (id) => GAMES.find((g) => g.id === id);

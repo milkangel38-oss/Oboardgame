@@ -7,6 +7,16 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 스플렌더: 빛나는 보석 더미
+  splendor: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="spA-bg" cx=".5" cy=".55" r=".75"><stop offset="0" stop-color="#5a2a7a"/><stop offset="1" stop-color="#140a24"/></radialGradient></defs>
+  <rect width="300" height="420" fill="url(#spA-bg)"/>
+  ${[['#2f6fd6', '#173a7a', 95, 220, 1.4], ['#d6334a', '#7a1222', 200, 215, 1.5], ['#2f9e5b', '#175c33', 150, 290, 1.7], ['#f4f6fb', '#9aa6bd', 70, 310, 1.1], ['#3a3340', '#120e16', 235, 305, 1.2]].map(([f, d, x, y, k]) => `<g transform="translate(${x} ${y}) scale(${k * 2.2})"><path d="M-12 -8h24l8 12-20 22-20-22z" fill="${f}" stroke="${d}" stroke-width="1.4" stroke-linejoin="round"/><path d="M-20 4h40M-12 -8l6 12 6 22 6-22 6-12M-6 4l6-12 6 12" fill="none" stroke="${d}" stroke-width=".8" opacity=".7"/><path d="M-9 -5l3 5" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".75"/></g>`).join('')}
+  <g transform="translate(150 150)"><circle r="26" fill="#ffe27a" stroke="#a87a10" stroke-width="3"/><path d="M0 -12l3.6 7.5 8.2 1-6 5.6 1.6 8.1L0 6.2-7.4 10.2-5.8 2.1-11.8-3.5-3.6-4.5z" fill="#c99412"/></g>
+  ${[[60, 120], [240, 110], [120, 80], [200, 160], [40, 230], [260, 250]].map(([x, y]) => `<path d="M${x} ${y - 6}l1.5 4.5 4.5 1.5-4.5 1.5-1.5 4.5-1.5-4.5-4.5-1.5 4.5-1.5z" fill="#fff" opacity=".8"/>`).join('')}
+</svg>`,
+
   // 렉시오: 나무 탁자 위 숫자 타일들
   lexio: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

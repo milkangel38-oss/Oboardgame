@@ -993,6 +993,62 @@ a.cat-banner:active { transform: translateY(0); }
 .lx-lines b { color: var(--gold); }
 .lx-lines small { color: var(--muted); }
 
+/* ───────── 스플렌더 ───────── */
+.spl { display: grid; gap: 10px; }
+.spl .gem { width: 18px; height: 18px; display: block; }
+.spl-final { text-align: center; font-weight: 800; color: #ff7a90; padding: 6px; border-radius: 10px; background: rgba(255, 79, 110, .12); }
+.spl-nobles { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.spl-noble { display: grid; grid-template-columns: auto 1fr; gap: 4px; align-items: center; width: 62px; height: 62px; padding: 5px; border-radius: 8px; background: linear-gradient(135deg, #f3e2b0, #d8b874); box-shadow: 0 3px 0 rgba(0, 0, 0, .35); color: #3a2400; }
+.spl-noble > b { font-family: var(--logo); font-weight: 400; font-size: 20px; align-self: start; }
+.spl-noble > div { display: grid; gap: 2px; justify-items: end; }
+.spl-req { display: grid; place-items: center; width: 17px; height: 15px; border-radius: 3px; background: var(--gc); color: var(--gt); font-size: 10.5px; font-weight: 900; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); }
+.spl-nbtn { appearance: none; border: 0; padding: 0; background: none; cursor: pointer; }
+.spl-market { display: grid; gap: 6px; padding: 8px; border-radius: 14px; background: rgba(0, 0, 0, .25); }
+.spl-lv { display: grid; grid-template-columns: 34px repeat(4, 1fr); gap: 5px; }
+.spl-deck { appearance: none; display: grid; place-items: center; align-content: center; border-radius: 8px; border: 0; cursor: pointer; color: #fff; font: inherit; }
+.spl-deck b { font-family: var(--logo); font-weight: 400; font-size: 16px; } .spl-deck small { font-size: 10px; opacity: .85; }
+.spl-deck.lv1 { background: linear-gradient(160deg, #2f9e5b, #175c33); } .spl-deck.lv2 { background: linear-gradient(160deg, #e0a11a, #8a5a0a); } .spl-deck.lv3 { background: linear-gradient(160deg, #2f6fd6, #173a7a); }
+.spl-deck:disabled { cursor: default; filter: saturate(.7); }
+.spl-card { appearance: none; position: relative; display: grid; grid-template-rows: auto 1fr; aspect-ratio: 5 / 7; padding: 0; border: 0; border-radius: 8px; overflow: hidden; cursor: pointer; font: inherit; text-align: left;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gc) 22%, #fffaf0), #fffaf0 70%); box-shadow: 0 2px 0 rgba(0, 0, 0, .35), inset 0 0 0 2px color-mix(in srgb, var(--gd) 50%, transparent); }
+.spl-card.empty { background: rgba(255, 255, 255, .05); box-shadow: none; }
+.spl-ch { display: flex; justify-content: space-between; align-items: center; padding: 3px 4px; background: linear-gradient(180deg, var(--gc), var(--gd)); }
+.spl-ch b { font-family: var(--logo); font-weight: 400; font-size: 18px; color: var(--gt); text-shadow: 0 1px 2px rgba(0, 0, 0, .35); min-width: 10px; }
+.spl-cost { display: grid; grid-template-columns: repeat(2, 17px); align-content: end; gap: 2px; padding: 3px; }
+.spl-cost i { font-style: normal; display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--gc); color: var(--gt); font-size: 11px; font-weight: 900; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
+.spl-cost i.has { box-shadow: 0 0 0 2px #3ddc84; }
+.spl-card.can { box-shadow: 0 0 0 2px #ffd84d, 0 0 10px rgba(255, 216, 77, .6); }
+.spl-card.sel { transform: translateY(-4px); box-shadow: 0 0 0 3px #ff4f9a, 0 6px 12px rgba(255, 79, 154, .5); }
+.spl-log { text-align: center; font-size: 12.5px; color: #cfc8ea; }
+.spl-bank { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.spl-token { appearance: none; position: relative; display: grid; justify-items: center; gap: 1px; padding: 6px 0 4px; border-radius: 50%; aspect-ratio: 1; border: 3px solid var(--gd); background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--gc) 60%, #fff), var(--gc)); color: var(--gt); cursor: pointer; font: inherit; align-content: center; box-shadow: 0 3px 0 rgba(0, 0, 0, .4); }
+.spl-token b { font-size: 13px; font-weight: 900; line-height: 1; }
+.spl-token i { position: absolute; top: -6px; right: -6px; font-style: normal; font-size: 11px; font-weight: 900; padding: 1px 5px; border-radius: 99px; background: #ff4f9a; color: #fff; }
+.spl-token.picked { box-shadow: 0 0 0 3px #ff4f9a; }
+.spl-token:disabled { cursor: default; }
+.spl-token.sm { width: 44px; padding: 3px 0; }
+.spl-act { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 79, 154, .1); border: 1px solid rgba(255, 79, 154, .4); font-size: 13px; line-height: 1.5; }
+.spl-act.warn { background: rgba(255, 216, 77, .12); border-color: rgba(255, 216, 77, .5); }
+.spl-act small { color: var(--muted); }
+.spl-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.spl-row > span { flex: 1; }
+.spl-mytok { display: flex; gap: 6px; flex-wrap: wrap; }
+.spl-me { display: grid; gap: 6px; padding: 10px; border-radius: 14px; background: rgba(255, 79, 154, .08); border: 1px solid rgba(255, 79, 154, .3); }
+.spl-me-h { display: flex; justify-content: space-between; font-weight: 800; font-size: 13.5px; }
+.spl-pts { font-family: var(--logo); font-weight: 400; color: var(--gold); font-size: 17px; }
+.spl-res { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-width: 280px; }
+.spl-ops { display: grid; gap: 6px; }
+.spl-op { padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); }
+.spl-op.turn { box-shadow: inset 3px 0 0 var(--gold); }
+.spl-op.me { display: none; }
+.spl-op-h { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+.spl-op-h small { margin-left: auto; color: var(--muted); font-size: 11px; }
+.spl-op-g { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.spl-mini { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--gc); color: var(--gt); font-weight: 900; font-size: 12.5px; box-shadow: 0 0 0 2px rgba(0, 0, 0, .35); margin-top: 6px; }
+.spl-mini i { position: absolute; top: -9px; right: -6px; font-style: normal; font-size: 10px; min-width: 15px; padding: 0 3px; border-radius: 4px; background: #fffaf0; color: #1a1033; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); }
+.spl-mini i:empty { display: none; }
+.spl-op-g.big .spl-mini { width: 38px; height: 38px; font-size: 15px; }
+
 /* ───────── 게임 중 초상화 + 말풍선 ───────── */
 .players.ingame .seats { padding-top: 34px; gap: 30px 6px; }
 .players.ingame .seat { position: relative; }
