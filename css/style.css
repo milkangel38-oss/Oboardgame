@@ -1147,6 +1147,11 @@ a.cat-banner:active { transform: translateY(0); }
 .mp-back > b { font-family: Georgia, 'Times New Roman', serif; font-size: 32px; line-height: 1; font-weight: 700; }
 .mp-back > small { position: absolute; bottom: 4px; font-size: 6px; letter-spacing: 1px; opacity: .6; }
 .mp-face { display: grid; gap: 2px; }
+/* 웹(넓은 화면)에서도 한 화면에 다 보이도록: 화면 높이에 맞춰 격자 크기 제한 */
+.mp-grid { width: 100%; max-width: max(240px, min(440px, calc((100vh - 330px) / 1.5))); margin-inline: auto; box-sizing: border-box; }
+.mp-go, .mp-bar, .mp-results { width: 100%; max-width: 520px; margin-inline: auto; box-sizing: border-box; }
+.mp-shared .tcard { width: clamp(48px, 9vh, 64px); }
+@media (min-height: 0) and (max-height: 820px) { .mp { gap: 6px; } .mp-timer { font-size: 18px; } .mp-timer b { font-size: 24px; } .mp-go { padding: 10px; } }
 .mp-face > i { text-align: center; font-style: normal; font-size: 10px; font-weight: 800; color: #c9a85a; }
 .mp-back > small { white-space: nowrap; transform: scale(.85); }
 .mp-shared { display: flex; justify-content: center; gap: 8px; }
