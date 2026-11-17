@@ -4,6 +4,7 @@
 // - "결": 남은 합이 없을 때 외치면 +3점, 라운드 종료 / 틀리면 -1점
 // - 합이든 결이든 틀리면 10초 동안 답을 외칠 수 없어요
 // - 방장이 정한 라운드(5~7) 후 승자 가넷 +2, 패자 가넷 -2
+import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
 
 const LOCK_MS = 10000;
@@ -51,7 +52,7 @@ function newRound(state, roundNo) {
   return { ...state, round: roundNo, phase: 'play', tiles: makeBoard(), found: [], log: [], winner: '', revealUntil: 0 };
 }
 
-const logPush = (state, entry) => [...state.log, entry].slice(-5);
+const logPush = (state, entry) => [...state.log, { ...entry, t: Date.now() }].slice(-5);
 
 export function result(order, scores, players) {
   const [a, b] = order;
@@ -181,6 +182,10 @@ export default {
     const name = (u) => esc(players[u]?.name || '나간 사람');
     const isPlayer = state.order.includes(me);
     const roundKey = `${room?.code}:${state.round}`;
+    if (!finished && room) {
+      const l = state.log[state.log.length - 1];
+      if (l?.t && (l.ok || l.uid === me)) soundEvent(room.code, `cb:${l.t}:${l.uid}`, l.ok ? 'ok' : 'no'); // 맞히면 띵동(모두), 틀리면 삐(본인)
+    }
     if (pickedKey !== roundKey) { picked = []; pickedKey = roundKey; }
 
     if (finished) {

@@ -2,7 +2,7 @@
 // users/{uid} = {
 //   name, photo,
 //   garnets: 보유 가넷 수,
-//   stats: { [gameId]: { plays, wins(1등 횟수), garnets(그 게임에서 받은 가넷) } },
+//   stats: { [gameId]: { plays, wins(가넷을 받은 판 = 승), garnets(그 게임에서 받은 가넷) } },  패 = plays - wins
 //   lastMatch: 마지막으로 기록한 판 (중복 기록 방지)
 // }
 
@@ -25,7 +25,7 @@ export function tierOf(garnets) {
 export function gameRecord(stats, gameId) {
   const s = stats?.[gameId] || {};
   const plays = s.plays || 0, wins = s.wins || 0, garnets = s.garnets || 0;
-  return { plays, wins, garnets, rate: plays ? Math.round((wins / plays) * 100) : 0 };
+  return { plays, wins, losses: Math.max(0, plays - wins), garnets, rate: plays ? Math.round((wins / plays) * 100) : 0 };
 }
 
 export function summarize(profile) {
@@ -34,7 +34,7 @@ export function summarize(profile) {
   for (const s of Object.values(profile?.stats || {})) { plays += s.plays || 0; wins += s.wins || 0; }
   const { tier, next } = tierOf(garnets);
   const progress = next ? Math.min(100, Math.round(((garnets - tier.min) / (next.min - tier.min)) * 100)) : 100;
-  return { garnets, plays, wins, rate: plays ? Math.round((wins / plays) * 100) : 0, tier, next, progress };
+  return { garnets, plays, wins, losses: Math.max(0, plays - wins), rate: plays ? Math.round((wins / plays) * 100) : 0, tier, next, progress };
 }
 
 // 가넷 아이콘 — 반짝이는 붉은 정육면체 보석 (O게임 오리지널)

@@ -8,6 +8,7 @@
 //   상대 설명에 함정단어가 들어가면 "함정단어입니다" — 보낼 수 없음. 라운드가 끝나면 함정 공개
 // - 맞히는 사람들의 채팅은 모두에게 보이고, 팀 캐릭터 옆 말풍선으로 나옴 (설명자는 채팅 없음)
 // - 라운드(5~10) 후 이긴 팀 모두 가넷 +2
+import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
 import { WORDS, mainWord, allAnswers } from './typing-words.js';
 
@@ -229,7 +230,7 @@ export default {
       if (allAnswers(state.word).some((w) => norm(text) === norm(w))) {
         return { state: { ...state, scores: { ...state.scores, [myTeam]: state.scores[myTeam] + 1 }, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: uid, solvedTeam: myTeam } };
       }
-      return { state: { ...state, lockUntil: { ...state.lockUntil, [myTeam]: now + LOCK_MS }, wrong: [...state.wrong, { uid, team: myTeam, text }].slice(-6) } };
+      return { state: { ...state, lockUntil: { ...state.lockUntil, [myTeam]: now + LOCK_MS }, wrong: [...state.wrong, { uid, team: myTeam, text, t: now }].slice(-6) } };
     }
 
     if (move?.type === 'tick' && state.phase === 'trap' && now >= state.trapUntil) {
@@ -252,6 +253,11 @@ export default {
     const myTeam = teamOf(state, me);
     const amDescriber = state.describers.A === me || state.describers.B === me;
     const key = `${room?.code}:${state.round}`;
+    if (!finished && room) {
+      if (state.phase === 'reveal' && state.solvedBy) soundEvent(room.code, `tq:${state.round}:solved`, 'ok');
+      const lw = state.wrong[state.wrong.length - 1];
+      if (lw?.uid === me && lw.t) soundEvent(room.code, `tq:w:${lw.t}`, 'no');
+    }
 
     const teamList = (t) => `
       <div class="tq-team tq-${t}">

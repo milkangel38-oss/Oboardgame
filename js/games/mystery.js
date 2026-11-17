@@ -4,6 +4,7 @@
 // - 언제든 정답을 낼 수 있어요. 정답 +1점, 오답 -1점 (틀려도 계속 도전 가능)
 // - 난이도(쉬움·보통·어려움·넌센스)는 라운드마다 무작위
 // - 방장이 정한 라운드(5~10) 후 1등 가넷 3개, 2등 1개
+import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
 import { getRule, pickRule, pickTarget, apply, LEVELS } from './mystery-rules.js';
 
@@ -119,7 +120,7 @@ export default {
         return { state: endRound({ ...state, scores }, now, uid) };
       }
       scores[uid] -= 1; // 틀려도 라운드는 잠기지 않아요
-      return { state: { ...state, scores, wrong: [...state.wrong, { uid, n }].slice(-6) } };
+      return { state: { ...state, scores, wrong: [...state.wrong, { uid, n, t: Date.now() }].slice(-6) } };
     }
 
     if (move?.type === 'tick') {
@@ -154,6 +155,11 @@ export default {
   render(el, { state, me, players, finished, sendMove, room }) {
     const name = (u) => esc(players[u]?.name || '나간 사람');
     const key = `${room?.code}:${state.round}`;
+    if (!finished && room) {
+      if (state.phase === 'reveal' && state.winner) soundEvent(room.code, `ms:${state.round}:win`, 'ok'); // 띵동 (모두)
+      const lw = state.wrong[state.wrong.length - 1];
+      if (lw?.uid === me && lw.t) soundEvent(room.code, `ms:w:${lw.t}`, 'no'); // 삐 (틀린 사람)
+    }
     const isPlayer = state.order.includes(me);
     const turnUid = state.turnIdx >= 0 ? state.order[state.turnIdx] : null;
     const myTurn = state.phase === 'play' && turnUid === me;

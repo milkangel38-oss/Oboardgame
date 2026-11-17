@@ -5,6 +5,7 @@ import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
+import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange } from './sound.js';
 
 const $app = document.getElementById('app');
 let user = null;      // 로그인 정보 (구글/네이버)
@@ -641,7 +642,7 @@ function drawProfile() {
           ? `<span class="nick-form" data-nickform><input maxlength="12" value="${esc(nickEdit)}" aria-label="새 닉네임"><button class="btn sm primary" data-nicksave>저장</button><button class="btn sm ghost" data-nickcancel>취소</button></span>`
           : `<b>${esc(my.name)}</b><button class="nick-btn" data-nick title="닉네임 변경">✎ 변경</button><span class="tier-badge">${s.tier.icon} ${s.tier.name}</span>`}</div>
         <div class="profile-garnet">${GARNET}<b>${s.garnets}</b><span>가넷</span></div>
-        <div class="profile-sum">${s.plays ? `${s.plays}판 · 1등 ${s.wins}회 · 1등률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
+        <div class="profile-sum">${s.plays ? `${s.plays}전 ${s.wins}승 ${s.losses}패 · 승률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
       </div>
       <span class="chevron" aria-hidden="true">▾</span>
     </div>
@@ -657,11 +658,11 @@ function drawProfile() {
         ${playable.map((g) => {
           const r = gameRecord(profile?.stats, g.id);
           return `<li><span class="rec-game">${g.emoji} ${esc(g.name)}</span>
-            <span class="rec-wl">${r.plays ? `${r.plays}판 · 1등 ${r.wins}회` : '기록 없음'}</span>
-            <span class="rec-rate">${r.plays ? `${GARNET}${r.garnets}` : '-'}</span></li>`;
+            <span class="rec-wl">${r.plays ? `${r.plays}전 ${r.wins}승 ${r.losses}패` : '기록 없음'}</span>
+            <span class="rec-rate">${r.plays ? `${r.rate}%` : '-'}</span></li>`;
         }).join('')}
       </ul>
-      <p class="hint">게임 순위에 따라 가넷을 받고, 보유 가넷 수로 티어가 정해져요</p>
+      <p class="hint">등수와 관계없이 가넷을 받으면 <b>승</b>, 못 받으면 <b>패</b>예요 · 보유 가넷 수로 티어가 정해져요</p>
     </div>`;
 
   const toggle = () => {
@@ -716,7 +717,7 @@ function recordLine(id) {
   const g = getGame(id);
   const top = g?.rewards?.[0];
   return r.plays
-    ? `<span>${r.plays}판 · 1등 ${r.wins}</span><span class="gold">${GARNET}${r.garnets}</span>`
+    ? `<span>${r.plays}전 ${r.wins}승 ${r.losses}패</span><span class="gold">승률 ${r.rate}%</span>`
     : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : (g?.id === 'typing' || g?.teamGame) ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
@@ -833,8 +834,10 @@ function renderRoom(code) {
     });
   }, Math.min(HEARTBEAT_MS, GONE_MS / 3)) : null;
 
+  const vol = mountVolume();
   const unsub = backend.watchRoom(code, (room, err) => {
     latest = room;
+    if (room?.status === 'playing' && room.players?.[user.uid]) startGameBgm(); else stopGameBgm();
     if (err) return message('방을 불러오지 못했어요', err.message);
     if (!room) return message('방을 찾을 수 없어요', '코드가 맞는지, 방이 아직 있는지 확인해 주세요.');
     const game = getGame(room.gameId);
@@ -861,7 +864,38 @@ function renderRoom(code) {
     drawRoom($main, room, game);
   });
 
-  return () => { unsub(); if (presence) clearInterval(presence); };
+  return () => { unsub(); if (presence) clearInterval(presence); stopGameBgm(); vol(); };
+}
+
+// 화면 오른쪽 아래 음량 버튼 (BGM·효과음 음량 / 음소거)
+function mountVolume() {
+  const $v = document.createElement('div');
+  $v.className = 'vol';
+  $v.innerHTML = `
+    <div class="vol-pop" hidden>
+      <div class="vol-t">🎵 게임 소리</div>
+      <input type="range" min="0" max="100" step="5" aria-label="음량">
+      <div class="vol-row"><span class="vol-num"></span><button class="btn sm" data-mute></button></div>
+    </div>
+    <button class="vol-btn" aria-label="소리 설정"></button>`;
+  document.body.appendChild($v);
+  const $pop = $v.querySelector('.vol-pop'), $btn = $v.querySelector('.vol-btn'), $r = $v.querySelector('input'), $mute = $v.querySelector('[data-mute]');
+  const paint = () => {
+    const v = Math.round(getVolume() * 100), m = isMuted() || v === 0;
+    $btn.textContent = m ? '🔇' : v < 40 ? '🔉' : '🔊';
+    $btn.classList.toggle('muted', m);
+    $r.value = v;
+    $v.querySelector('.vol-num').textContent = m ? '음소거' : `${v}%`;
+    $mute.textContent = m ? '🔊 소리 켜기' : '🔇 음소거';
+  };
+  $btn.onclick = (e) => { e.stopPropagation(); $pop.hidden = !$pop.hidden; };
+  $r.oninput = () => setVolume(Number($r.value) / 100);
+  $mute.onclick = () => { if (isMuted() || getVolume() === 0) { if (getVolume() === 0) setVolume(0.5); setMuted(false); } else setMuted(true); };
+  const outside = (e) => { if (!$v.contains(e.target)) $pop.hidden = true; };
+  document.addEventListener('pointerdown', outside);
+  const off = onSoundChange(paint);
+  paint();
+  return () => { off(); document.removeEventListener('pointerdown', outside); $v.remove(); };
 }
 
 // 게임이 끝나면 내 전적에 한 번만 기록
@@ -978,6 +1012,7 @@ function drawRoom($main, room, game) {
   });
 
   const $area = $main.querySelector('.game-area');
+  primeSounds(room.code);
   if ($area && room.game) {
     game.render($area, {
       state: room.game,
