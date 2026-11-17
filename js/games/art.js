@@ -7,6 +7,43 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 티츄: 붉은 하늘 아래 용 + 펼친 카드
+  tichu: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="tcA-bg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#e8452a"/><stop offset=".6" stop-color="#8a1a2a"/><stop offset="1" stop-color="#2a0a18"/></radialGradient></defs>
+  <rect width="300" height="420" fill="url(#tcA-bg)"/>
+  <circle cx="150" cy="130" r="70" fill="#ffd27a" opacity=".35"/>
+  <path d="M40 200 C70 120 120 150 140 110 C160 70 140 40 180 30 C220 22 250 52 238 82 C228 104 206 94 196 108 C184 128 214 150 190 178 C166 206 110 210 40 200 Z" fill="#2f9e5b"/>
+  <path d="M180 30 l-10 -22 l22 16 z M212 30 l8 -24 l4 28 z" fill="#ffc23a"/>
+  <circle cx="214" cy="56" r="7" fill="#ffd84d"/><circle cx="216" cy="56" r="3" fill="#111"/>
+  <path d="M238 82 q22 6 18 26" stroke="#ff4f2a" stroke-width="4" fill="none"/>
+  <path d="M80 180 q20 -16 40 0 M110 196 q20 -16 40 0" stroke="#1f7a40" stroke-width="5" fill="none"/>
+  <g transform="translate(150 330)">
+    ${[-36, -18, 0, 18, 36].map((r, i) => `<g transform="rotate(${r}) translate(0 -70)"><rect x="-26" y="-36" width="52" height="72" rx="6" fill="#fffdf6" stroke="#d8cfb8"/><text x="-18" y="-16" font-family="'Black Han Sans', sans-serif" font-size="18" fill="${['#23232b', '#d23a3a', '#2f6fd6', '#2f9e5b', '#d23a3a'][i]}">${['10', 'J', 'Q', 'K', 'A'][i]}</text><text x="0" y="16" text-anchor="middle" font-size="22" fill="${['#23232b', '#d23a3a', '#2f6fd6', '#2f9e5b', '#d23a3a'][i]}">${['♠', '♥', '♦', '♣', '♥'][i]}</text></g>`).join('')}
+  </g>
+</svg>`,
+
+  // 스컬킹: 달밤의 해적선 + 해골 깃발
+  skullking: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="skA-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d0b2a"/><stop offset=".6" stop-color="#2a1d5a"/><stop offset="1" stop-color="#4a2a6a"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#skA-sky)"/>
+  <circle cx="220" cy="80" r="40" fill="#fff4c9"/><circle cx="234" cy="72" r="38" fill="#141039" opacity=".25"/>
+  <g fill="#fff" opacity=".8"><circle cx="40" cy="50" r="1.5"/><circle cx="90" cy="30" r="1"/><circle cx="140" cy="70" r="1.4"/><circle cx="270" cy="160" r="1"/><circle cx="60" cy="140" r="1.2"/></g>
+  <g transform="translate(150 250)">
+    <path d="M-6 -150 V20" stroke="#3a2412" stroke-width="7"/><path d="M60 -110 V20" stroke="#3a2412" stroke-width="6"/>
+    <path d="M-2 -140 C30 -130 34 -70 -2 -50 Z" fill="#e9dcc0"/><path d="M-10 -140 C-50 -128 -54 -66 -10 -50 Z" fill="#d8c8a8"/>
+    <path d="M64 -100 C88 -92 90 -50 64 -38 Z" fill="#e9dcc0"/>
+    <path d="M-2 -40 C30 -32 34 0 -2 8 Z" fill="#e9dcc0"/><path d="M-10 -40 C-44 -32 -46 0 -10 8 Z" fill="#d8c8a8"/>
+    <path d="M-6 -150 h-34 l6 10 l-6 10 h34 z" fill="#111"/><circle cx="-22" cy="-142" r="4" fill="#f2efe6"/><path d="M-30 -136 l16 8 M-14 -136 l-16 8" stroke="#f2efe6" stroke-width="2"/>
+    <path d="M-110 20 H110 L90 70 H-86 Z" fill="#5a3418"/><path d="M-110 20 H110 L106 32 H-106 Z" fill="#7a4a22"/>
+    <g fill="#f5c32c"><circle cx="-60" cy="44" r="5"/><circle cx="-30" cy="44" r="5"/><circle cx="0" cy="44" r="5"/><circle cx="30" cy="44" r="5"/><circle cx="60" cy="44" r="5"/></g>
+  </g>
+  <path d="M0 330 Q40 316 80 330 T160 330 T240 330 T320 330 V420 H0 Z" fill="#1c3a7a"/>
+  <path d="M0 350 Q40 336 80 350 T160 350 T240 350 T320 350 V420 H0 Z" fill="#14295a"/>
+  <path d="M0 330 Q40 316 80 330 T160 330 T240 330 T320 330" fill="none" stroke="#7ab8ff" stroke-width="2" opacity=".6"/>
+</svg>`,
+
   // 언더독레이스: 결승선을 향해 달리는 동물들 + 다크호스
   underdog: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

@@ -336,7 +336,7 @@ function recordLine(id) {
   const top = g?.rewards?.[0];
   return r.plays
     ? `<span>${r.plays}판 · 1등 ${r.wins}</span><span class="gold">${GARNET}${r.garnets}</span>`
-    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.id === 'typing' ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
+    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : (g?.id === 'typing' || g?.teamGame) ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
   $app.querySelectorAll('[data-rec]').forEach((el) => { el.innerHTML = recordLine(el.dataset.rec); });
@@ -519,7 +519,7 @@ function drawRoom($main, room, game) {
     const reward = r.rewards?.[user.uid] || 0;
     const tag = r.aborted ? ''
       : r.draw && mineRank ? '<span class="res-tag draw">DRAW</span>'
-      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.id === 'typing' ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
+      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.id === 'typing' || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
       : r.draw ? '<span class="res-tag draw">DRAW</span>'
       : (r.winners || []).includes(user.uid) ? '<span class="res-tag win">WIN</span>' : '<span class="res-tag lose">LOSE</span>';
     resultBanner = `
@@ -592,7 +592,7 @@ function drawRoom($main, room, game) {
   $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.start(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
   $main.querySelectorAll('[data-opt]').forEach((sel) => {
-    sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number(sel.value)));
+    sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number.isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
   });
 
   const $area = $main.querySelector('.game-area');
