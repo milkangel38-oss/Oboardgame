@@ -309,7 +309,7 @@ function stopFriends() {
 function syncFriendSubs() {
   if (!user) return;
   const ids = new Set([...Object.keys(profile?.friends || {}), ...(profile?.reqOut || [])]);
-  ids.forEach((id) => { if (!friendSubs[id]) friendSubs[id] = backend.watchProfile(id, (p) => { fdocs[id] = p; reconcile(); notifyFriends(); }); });
+  ids.forEach((id) => { if (!friendSubs[id]) friendSubs[id] = backend.watchProfile(id, (p) => { fdocs[id] = p; reconcile(); notifyFriends(); checkInvites(id); }); });
   Object.keys(friendSubs).forEach((id) => { if (!ids.has(id)) { friendSubs[id](); delete friendSubs[id]; } });
   reconcile();
   notifyFriends();
@@ -442,6 +442,101 @@ function drawFriends() {
     b.disabled = true;
     friendAction(b.dataset.fr, { uid: b.dataset.id, name: li.dataset.pname, photo: li.dataset.pphoto }).catch((e) => { toast('처리하지 못했어요: ' + e.message); b.disabled = false; });
   }));
+}
+
+// ───────── 친구 게임 초대 ─────────
+// 초대한 사람 문서에 invites{친구uid: {room, game, at}} 를 남기면, 친구 쪽 화면에 초대 알림이 떠요.
+const INVITE_TTL = 5 * 60 * 1000;
+const SEEN_KEY = 'og:seenInvites';
+const seenInvites = new Set((() => { try { return JSON.parse(sessionStorage.getItem(SEEN_KEY)) || []; } catch { return []; } })());
+function markSeen(k) { seenInvites.add(k); try { sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seenInvites].slice(-50))); } catch {} }
+
+function checkInvites(fromUid) {
+  if (!user || !profile?.friends?.[fromUid]) return;
+  const inv = fdocs[fromUid]?.invites?.[user.uid];
+  if (!inv?.room || Date.now() - inv.at > INVITE_TTL) return;
+  const key = `${fromUid}:${inv.at}`;
+  if (seenInvites.has(key)) return;
+  markSeen(key);
+  if (location.hash === `#/room/${inv.room}`) return; // 이미 그 방에 있음
+  showInvitePopup(friendView(fromUid), inv);
+}
+
+function showInvitePopup(from, inv) {
+  let $box = document.querySelector('.invite-stack');
+  if (!$box) { $box = document.createElement('div'); $box.className = 'invite-stack'; document.body.appendChild($box); }
+  const g = getGame(inv.game);
+  const $c = document.createElement('div');
+  $c.className = 'invite-pop';
+  $c.innerHTML = `
+    <div class="ip-head">${avatar(from)}<div><b>${esc(from.name)}</b>님이 게임에 초대했어요!<small>${g ? `${g.emoji} ${esc(g.name)}` : ''} · 방 코드 ${esc(inv.room)}</small></div></div>
+    <div class="ip-acts"><button class="btn primary" data-go>참가하기</button><button class="btn ghost" data-no>다음에</button></div>`;
+  $box.appendChild($c);
+  const close = () => { $c.remove(); if (!$box.children.length) $box.remove(); };
+  $c.querySelector('[data-go]').onclick = () => { close(); location.hash = `#/room/${inv.room}`; };
+  $c.querySelector('[data-no]').onclick = close;
+  setTimeout(close, INVITE_TTL);
+}
+
+async function sendInvite(friendUid, room) {
+  await backend.updateProfile(user.uid, (d) => {
+    const invites = { ...(d.invites || {}) };
+    Object.keys(invites).forEach((k) => { if (Date.now() - invites[k].at > INVITE_TTL) delete invites[k]; }); // 오래된 초대 정리
+    invites[friendUid] = { room: room.code, game: room.gameId, at: Date.now() };
+    return { ...d, invites };
+  });
+}
+
+// 방에서 '친구 초대' → 친구 목록 창
+function openInviteModal(room, game) {
+  document.querySelector('.invite-modal')?.remove();
+  const sent = {};
+  const $m = document.createElement('div');
+  $m.className = 'modal-backdrop invite-modal';
+  document.body.appendChild($m);
+  const draw = () => {
+    const list = Object.keys(profile?.friends || {})
+      .map((uid) => ({ ...friendView(uid), st: friendStatus(fdocs[uid]), inRoom: !!room.players?.[uid] }))
+      .sort((a, b) => a.st.order - b.st.order || a.name.localeCompare(b.name));
+    $m.innerHTML = `
+      <div class="modal panel" role="dialog" aria-modal="true" aria-label="친구 초대">
+        <h3 class="section-title sm">친구 초대 <span class="muted">${esc(game.emoji)} ${esc(game.name)}</span></h3>
+        <div class="inv-code">방 코드 <b>${esc(room.code)}</b></div>
+        ${list.length ? `<ul class="fr-list inv-list">${list.map((f) => `
+          <li class="fr-item st-${f.st.key}">
+            <span class="fr-av">${avatar(f)}<i class="fr-dot"></i></span>
+            <span class="fr-main"><b>${esc(f.name)}</b><small>${f.inRoom ? '이 방에 있어요' : esc(f.st.label)}</small></span>
+            ${f.inRoom ? '<span class="inv-done">참가 중</span>'
+              : sent[f.uid] ? '<span class="inv-done">✓ 초대함</span>'
+              : `<button class="btn sm ${f.st.key === 'off' ? 'ghost' : 'primary'}" data-inv="${esc(f.uid)}" ${f.st.key === 'off' ? 'disabled' : ''}>${f.st.key === 'off' ? '오프라인' : '초대'}</button>`}
+          </li>`).join('')}</ul>
+          ${list.some((f) => f.st.key !== 'off' && !f.inRoom && !sent[f.uid]) ? '<button class="btn block" data-invall>접속 중인 친구 모두 초대</button>' : ''}`
+          : '<p class="muted">아직 친구가 없어요. 참가자 프로필을 우클릭(길게 누르기)해서 친구 요청을 보내 보세요.</p>'}
+        <div class="row end">
+          <button class="btn ghost" data-link>🔗 초대 링크 보내기</button>
+          <button class="btn" data-close>닫기</button>
+        </div>
+      </div>`;
+    const inviteOne = async (uid, btn) => {
+      if (btn) btn.disabled = true;
+      try { await sendInvite(uid, room); sent[uid] = true; draw(); }
+      catch (e) { toast('초대하지 못했어요: ' + e.message); if (btn) btn.disabled = false; }
+    };
+    $m.querySelectorAll('[data-inv]').forEach((b) => (b.onclick = async () => { await inviteOne(b.dataset.inv, b); toast(`${friendView(b.dataset.inv).name}님에게 초대를 보냈어요`); }));
+    const $all = $m.querySelector('[data-invall]');
+    if ($all) $all.onclick = async () => {
+      const targets = list.filter((f) => f.st.key !== 'off' && !f.inRoom && !sent[f.uid]);
+      $all.disabled = true;
+      for (const f of targets) await inviteOne(f.uid);
+      toast(`친구 ${targets.length}명에게 초대를 보냈어요`);
+    };
+    $m.querySelector('[data-link]').onclick = () => shareInviteLink(room, game);
+    $m.querySelector('[data-close]').onclick = close;
+  };
+  const close = () => { friendListeners.delete(draw); $m.remove(); };
+  $m.onclick = (e) => { if (e.target === $m) close(); };
+  friendListeners.add(draw);
+  draw();
 }
 
 // 프로필 우클릭 / 길게 누르기 → 친구 메뉴
@@ -895,7 +990,11 @@ function drawRoom($main, room, game) {
   }
 }
 
-async function invite(room, game) {
+function invite(room, game) {
+  openInviteModal(room, game);
+}
+
+async function shareInviteLink(room, game) {
   const url = `${location.origin}${location.pathname}${location.search}#/room/${room.code}`;
   const text = `${me().name}님이 [${game.name}] 게임에 초대했어요! O게임에 참여하시겠습니까? 방 코드: ${room.code}`;
   // 혼자 테스트 모드: 새 탭 주소창에 바로 붙여 넣을 수 있게 주소만 복사
