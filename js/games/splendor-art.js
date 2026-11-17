@@ -82,7 +82,54 @@ const SCENES = [
    <circle cx="25" cy="38" r="4" fill="#5a8ac8" stroke="#6a5a4a" stroke-width=".8"/><path d="M25 34v8M21 38h8" stroke="#6a5a4a" stroke-width=".6"/>
    <path d="M21 56v-8a4 4 0 0 1 8 0v8z" fill="#6a4a3a"/>`,
 ];
-export const sceneSvg = (i) => `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice">${SCENES[i % SCENES.length]}</svg>`;
+// 1단계: 농사 · 농작물
+const FARM = [
+  // 밀밭
+  `<circle cx="38" cy="14" r="6" fill="#f5c32c" opacity=".8"/><path d="M0 40 Q25 32 50 40V70H0z" fill="#e8c86a"/>
+   ${[6, 13, 20, 27, 34, 41].map((x) => `<path d="M${x} 66V46" stroke="#a8843a" stroke-width="1"/><ellipse cx="${x}" cy="44" rx="1.8" ry="4" fill="#d8a83a"/><path d="M${x - 2} 50l2 2 2-2" stroke="#a8843a" stroke-width=".8" fill="none"/>`).join('')}`,
+  // 헛간 + 건초
+  `<path d="M0 54h50v16H0z" fill="#9bb87a"/><path d="M10 54V34l14-10 14 10v20z" fill="#b8423a"/><path d="M10 34l14-10 14 10" fill="none" stroke="#f2ead8" stroke-width="1.6"/>
+   <rect x="19" y="42" width="10" height="12" fill="#7a2a24" stroke="#f2ead8" stroke-width="1"/><path d="M19 42l10 12M29 42L19 54" stroke="#f2ead8" stroke-width=".8"/>
+   <ellipse cx="42" cy="56" rx="6" ry="4" fill="#e8c86a"/><path d="M37 55h10M38 58h8" stroke="#c9a03a" stroke-width=".7"/>`,
+  // 채소밭 (양배추 · 당근)
+  `<path d="M0 36h50v34H0z" fill="#8a6a4a"/><path d="M0 34h50" stroke="#c9a87a" stroke-width="2"/>
+   ${[[8, 44], [20, 44], [32, 44], [44, 44]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4.5" fill="#6ab04a"/><circle cx="${x}" cy="${y}" r="2.5" fill="#9ad06a"/>`).join('')}
+   ${[8, 20, 32, 44].map((x) => `<path d="M${x} 62l-2-7h4z" fill="#ee8a1c"/><path d="M${x} 55l-2-3M${x} 55l2-3" stroke="#3a8a2a" stroke-width="1"/>`).join('')}
+   <path d="M0 28h50M4 24v8M14 24v8M24 24v8M34 24v8M44 24v8" stroke="#a8844a" stroke-width="1.2"/>`,
+  // 사과 과수원 + 바구니
+  `<path d="M0 52 Q25 48 50 52V70H0z" fill="#8ab86a"/>
+   ${[[13, 30], [37, 26]].map(([x, y]) => `<rect x="${x - 1.5}" y="${y + 8}" width="3" height="16" fill="#7a5a3a"/><circle cx="${x}" cy="${y}" r="10" fill="#4a9a4a"/>${[[-4, -2], [3, -4], [5, 3], [-3, 4], [0, 0]].map(([dx, dy]) => `<circle cx="${x + dx}" cy="${y + dy}" r="1.6" fill="#d6334a"/>`).join('')}`).join('')}
+   <path d="M20 60h12l-2 6h-8z" fill="#b8843a"/><circle cx="23" cy="59" r="1.8" fill="#d6334a"/><circle cx="27" cy="58.5" r="1.8" fill="#d6334a"/><circle cx="30" cy="59.5" r="1.6" fill="#6ab04a"/>`,
+];
+// 3단계: 보석 · 세공
+const JEWEL = [
+  // 세공 작업대 + 돋보기
+  `<path d="M0 46h50v24H0z" fill="#7a5232"/><path d="M0 46h50" stroke="#a8784a" stroke-width="2"/><rect x="6" y="40" width="20" height="6" rx="1" fill="#2a4a8a"/>
+   <path d="M10 41l2 3 2-3zM17 40l3 4 3-4z" fill="#d6334a"/><path d="M13 42l1.5 2 1.5-2z" fill="#2f9e5b"/>
+   <circle cx="36" cy="30" r="7" fill="#cfe8ff" opacity=".6" stroke="#8a6a3a" stroke-width="2"/><path d="M41 35l6 8" stroke="#6a4a2a" stroke-width="3" stroke-linecap="round"/>
+   <path d="M2 14h46" stroke="#a8784a" stroke-width="1"/><path d="M8 14v6M16 14v4M40 14v5" stroke="#8a6a3a" stroke-width=".8"/>`,
+  // 왕관 + 붉은 방석
+  `<ellipse cx="25" cy="50" rx="20" ry="8" fill="#a8243a"/><ellipse cx="25" cy="48" rx="18" ry="6" fill="#c8384a"/>
+   <path d="M12 44l2-14 6 7 5-11 5 11 6-7 2 14z" fill="#f5c32c" stroke="#a87a10" stroke-width="1"/><rect x="12" y="42" width="26" height="4" fill="#e0a11a"/>
+   <circle cx="25" cy="38" r="2" fill="#2f6fd6"/><circle cx="18" cy="40" r="1.5" fill="#d6334a"/><circle cx="32" cy="40" r="1.5" fill="#2f9e5b"/>
+   <path d="M25 22l1 2 2 .5-2 .7-1 2-1-2-2-.7 2-.5z" fill="#fff"/>`,
+  // 열린 보물 상자
+  `<path d="M0 56h50v14H0z" fill="#6a4a2a"/><rect x="9" y="38" width="32" height="18" rx="2" fill="#8a5a2a" stroke="#4a2a12" stroke-width="1"/>
+   <path d="M9 38q16-16 32 0" fill="#a8743a" stroke="#4a2a12" stroke-width="1"/><path d="M9 44h32" stroke="#e0a11a" stroke-width="2"/>
+   <circle cx="16" cy="37" r="2.4" fill="#f5c32c"/><circle cx="22" cy="35" r="2.4" fill="#f5c32c"/><circle cx="28" cy="36" r="2.4" fill="#f5c32c"/><circle cx="34" cy="37" r="2.4" fill="#f5c32c"/>
+   <path d="M19 33l2-3 2 3-2 2z" fill="#d6334a"/><path d="M29 32l2-3 2 3-2 2z" fill="#2f6fd6"/><rect x="23" y="44" width="4" height="5" fill="#e0a11a"/>`,
+  // 보석 연마 바퀴
+  `<path d="M0 54h50v16H0z" fill="#7a5232"/><rect x="8" y="46" width="34" height="8" fill="#5a3a22"/>
+   <circle cx="25" cy="34" r="12" fill="#9aa4b4" stroke="#4a5260" stroke-width="1.5"/><circle cx="25" cy="34" r="3" fill="#4a5260"/>
+   <path d="M25 22v24M13 34h24M17 26l16 16M33 26 17 42" stroke="#7a8494" stroke-width=".8"/>
+   <path d="M37 30l3-1M38 34h4M37 38l3 1" stroke="#ffd84d" stroke-width="1.2" stroke-linecap="round"/>
+   <path d="M40 22l3 4-3 4-3-4z" fill="#2f9e5b" stroke="#175c33" stroke-width=".6"/>`,
+];
+// 1단계 = 농사, 2단계 = 중세 풍경, 3단계 = 보석 세공
+export const sceneSvg = (i, lv = 2) => {
+  const set = lv === 1 ? FARM : lv === 3 ? JEWEL : SCENES;
+  return `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice">${set[i % set.length]}</svg>`;
+};
 
 // ── 귀족 초상 (viewBox 0 0 60 60) ──
 const SKIN = ['#f3d2b0', '#e8b890', '#f6dcc4', '#d9a57a', '#f0c8a0'];

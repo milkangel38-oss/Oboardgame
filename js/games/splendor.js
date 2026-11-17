@@ -133,6 +133,19 @@ function findMarket(state, id) {
 }
 
 let ui = { key: '', pick: [], card: null };
+const seen = { room: '', action: null, turn: '' };
+
+// 화면 가운데 잠깐 띄우기
+function flash(html, ms = 2200, cls = '') {
+  document.querySelector('.spl-flash')?.remove();
+  const $f = document.createElement('div');
+  $f.className = `spl-flash ${cls}`;
+  $f.innerHTML = html;
+  document.body.appendChild($f);
+  $f.onclick = () => $f.remove();
+  setTimeout(() => $f.remove(), ms);
+}
+const bigTurn = () => flash('<div class="spl-myturn">내 차례!</div>', 1500, 'turn');
 
 export default {
   id: 'splendor',
@@ -236,6 +249,7 @@ export default {
       const tokens = { ...p.tokens }, bank = { ...s.bank };
       if (bank.gold > 0) { bank.gold--; tokens.gold++; }
       s = { ...setP(s, { ...p, tokens, reserved: [...p.reserved, id], hidden: move.deck ? [...(p.hidden || []), id] : (p.hidden || []) }), bank, log: `${name}님이 ${move.deck ? `${move.deck}단계 덱 카드를` : '카드를'} 예약했어요${tokens.gold > p.tokens.gold ? ' (+황금)' : ''}` };
+      s.lastAction = { uid, type: 'reserve', card: id, hidden: !!move.deck, t: Date.now() };
       return finishTurn(s, uid, players);
     }
 
@@ -257,6 +271,7 @@ export default {
       if (at) s = refill(s, at[0], at[1]);
       const c = CARDS[id];
       s.log = `${name}님이 ${GEM[c.bonus].name} 카드${c.pts ? ` (${c.pts}점)` : ''}를 샀어요`;
+      s.lastAction = { uid, type: 'buy', card: id, t: Date.now() };
       return finishTurn(s, uid, players);
     }
     throw new Error('알 수 없는 동작이에요');
@@ -294,7 +309,7 @@ export default {
       if (back) return `<span class="spl-card back lv${c.lv} sm"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
       const can = !sm && mp && payFor(mp, c);
       return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
-        ${sceneSvg(cardIdx(id))}
+        ${sceneSvg(cardIdx(id), c.lv)}
         <span class="spl-ch"><b>${c.pts || ''}</b>${gemSvg(c.bonus)}</span>
         <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i class="spl-cg ${!sm && myBonus && myBonus[x] ? 'has' : ''}">${gemSvg(x)}<b>${c.cost[x]}</b></i>`).join('')}</span>
       </${sm ? 'span' : 'button'}>`;
@@ -337,43 +352,53 @@ export default {
     const myGems = mp ? `<div class="spl-gems">${[...COLORS, 'gold'].map((c) => `
       <div class="spl-gem">${tokenSvg(c)}<b>${mp.tokens[c]}</b>${c === 'gold' ? '<small>&nbsp;</small>' : `<small class="${myBonus[c] ? 'on' : ''}">카드 +${myBonus[c]}</small>`}</div>`).join('')}</div>` : '';
 
-    // 다른 사람: 보석, 산 카드(색별), 예약 카드
-    const others = state.order.filter((u) => u !== me).map((u) => {
-      const p = state.ps[u], b = bonusOf(p);
-      const byColor = COLORS.map((c) => {
-        const cs = p.cards.filter((id) => CARDS[id].bonus === c);
-        return cs.length ? `<span class="spl-owned" style="--gc:${GEM[c].fill};--gt:${GEM[c].text}">${gemSvg(c)}<b>${cs.length}장</b>${cs.reduce((a, id) => a + CARDS[id].pts, 0) ? `<i>${cs.reduce((a, id) => a + CARDS[id].pts, 0)}점</i>` : ''}</span>` : '';
-      }).join('');
-      return `<div class="spl-op ${u === turnUid ? 'turn' : ''}">
-        <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}</b><span class="spl-pts">${pointsOf(p)}점</span>${p.nobles.length ? `<small>👑 귀족 ${p.nobles.length}</small>` : ''}</div>
+    // 모든 플레이어(나 포함): 점수 · 보석 · 산 카드 · 예약 카드를 모두 공개
+    const playerBox = (u) => {
+      const p = state.ps[u];
+      const owned = [...p.cards].sort((x, y) => COLORS.indexOf(CARDS[x].bonus) - COLORS.indexOf(CARDS[y].bonus) || CARDS[x].lv - CARDS[y].lv);
+      const showHidden = u === me;
+      return `<div class="spl-op ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}">
+        <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}${u === me ? ' (나)' : ''}</b>${p.nobles.length ? `<small>👑 귀족 ${p.nobles.length}명 (+${p.nobles.length * 3})</small>` : ''}<span class="spl-pts big">${pointsOf(p)}<small>점</small></span></div>
         <div class="spl-op-row"><span class="spl-op-t">보석</span><div class="spl-gems sm">${[...COLORS, 'gold'].map((c) => `<div class="spl-gem">${tokenSvg(c)}<b>${p.tokens[c]}</b></div>`).join('')}</div></div>
-        <div class="spl-op-row"><span class="spl-op-t">산 카드</span><div class="spl-owneds">${byColor || '<span class="muted">아직 없음</span>'}</div></div>
-        <div class="spl-op-row"><span class="spl-op-t">예약</span><div class="spl-res sm">${p.reserved.length ? p.reserved.map((id) => cardHtml(id, { sm: true, back: (p.hidden || []).includes(id) })).join('') : '<span class="muted">없음</span>'}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">구매 ${p.cards.length}</span><div class="spl-res sm multi">${owned.length ? owned.map((id) => cardHtml(id, { sm: true })).join('') : '<span class="muted">아직 없음</span>'}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">예약 ${p.reserved.length}</span><div class="spl-res sm">${p.reserved.length ? p.reserved.map((id) => cardHtml(id, { sm: true, back: !showHidden && (p.hidden || []).includes(id) })).join('') : '<span class="muted">없음</span>'}</div></div>
       </div>`;
-    }).join('');
+    };
+    const scoreboard = `<div class="spl-board">${state.order.map((u) => `<span class="${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}"><b>${name(u)}</b><i>${pointsOf(state.ps[u])}점</i></span>`).join('')}</div>`;
 
     el.innerHTML = `
       <div class="spl">
         ${SPL_DEFS}
         ${state.finalRound ? '<div class="spl-final">🏁 누군가 15점에 닿았어요! 이번 바퀴가 마지막이에요</div>' : ''}
+        ${scoreboard}
         <div class="spl-nobles-wrap"><div class="spl-ntitle">👑 귀족 카드<small>보너스 조건을 채우면 +3점</small></div><div class="spl-nobles">${state.nobles.map(nobleHtml).join('')}</div></div>
         <div class="spl-market">${[3, 2, 1].map((lv) => `
           <div class="spl-lv">
             <button class="spl-deck lv${lv}" data-deck="${lv}" title="덱 맨 위 카드 예약"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[lv - 1]}</b><small>${state.decks[lv].length}</small></button>
             ${state.market[lv].map((id) => (id ? cardHtml(id) : '<span class="spl-card empty"></span>')).join('')}
           </div>`).join('')}</div>
-        ${state.logs?.length ? `<ul class="spl-logs">${state.logs.slice().reverse().map((l, i) => `<li class="${i ? '' : 'new'}">${esc(l.text)}</li>`).join('')}</ul>` : ''}
         <div class="nb-banner">${banner}</div>
-        ${bank}
-        ${action}
-        ${isPlayer ? `<div class="spl-me">
-          <div class="spl-me-h">💰 내 보석 <span class="spl-pts">${pointsOf(mp)}점</span></div>
+        <section class="spl-zone bank-zone"><div class="spl-zone-t">💎 보석 가져오기 <small>모두가 함께 쓰는 보석</small></div>${bank}${action}</section>
+        ${isPlayer ? `<section class="spl-zone me-zone"><div class="spl-zone-t">🧑 내 자리 <span class="spl-pts big">${pointsOf(mp)}<small>점</small></span></div><div class="spl-me">
+          <div class="spl-me-h">💰 내 보석</div>
           ${myGems}
           ${mp.reserved.length ? `<div class="spl-me-h">📌 예약한 카드 <small class="muted">눌러서 사기</small></div><div class="spl-res">${mp.reserved.map((id) => cardHtml(id)).join('')}</div>` : ''}
-        </div>` : ''}
-        <div class="spl-ops">${others}</div>
+        </div></section>` : ''}
+        <section class="spl-zone all-zone"><div class="spl-zone-t">👥 모든 플레이어 <small>점수 · 보석 · 구매/예약 카드</small></div><div class="spl-ops">${state.order.map(playerBox).join('')}</div></section>
         ${guide()}
       </div>`;
+
+    // 다른 사람이 카드를 사거나 예약하면 모두에게 잠깐 보여 주기
+    const la = state.lastAction;
+    if (seen.room !== room?.code) { seen.room = room?.code; seen.action = la?.t ?? null; } // 방에 처음 들어왔을 땐 이전 행동은 건너뛰기
+    if (la && la.t !== seen.action) {
+      seen.action = la.t;
+      if (la.uid !== me) flash(`<div class="spl-flash-t"><b>${name(la.uid)}</b>님이 카드를 ${la.type === 'buy' ? '<em class="buy">구매</em>' : '<em>예약</em>'}했어요</div>${la.type === 'reserve' && la.hidden ? `<div class="spl-flash-c">${cardHtml(la.card, { sm: true, back: true })}</div><small>덱에서 몰래 예약</small>` : `<div class="spl-flash-c">${cardHtml(la.card, { sm: true })}</div>`}`);
+    }
+    // 내 차례가 되면 가운데에 크게
+    const turnKey = `${room?.code}:${state.turn}:${(state.logs || []).length}`;
+    if (myTurn && state.phase === 'play' && seen.turn !== turnKey) { seen.turn = turnKey; setTimeout(() => bigTurn(), la && la.uid !== me ? 1600 : 0); }
+    if (!myTurn) seen.turn = '';
 
     const rerender = () => { const y = window.scrollY; this.render(el, ctx); window.scrollTo(0, y); };
     const notTurn = () => showAlert(state.phase === 'discard' || state.phase === 'noble' ? '먼저 보석 반납이나 귀족 선택을 마쳐 주세요.' : `지금은 ${name(turnUid)}님 차례예요. 내 차례가 오면 할 수 있어요.`);
