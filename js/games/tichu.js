@@ -1,8 +1,8 @@
 // 보드게임: 티츄 (4명, 2:2 팀전 클라이밍 게임)
-// 카드 56장: ♠♥♦♣ 2~A + 특수 카드 4장(참새 1, 개, 봉황, 용)
+// 카드 56장: ♠♥♦♣ 2~A + 특수 카드 4장(참새 1, 개, 주작, 용)
 // 8장 받고 그랜드 티츄 → 6장 더 받고 카드 교환(3장) → 참새를 가진 사람이 선
 // 같은 조합으로 더 높게 내거나 패스. 나머지가 모두 패스하면 마지막으로 낸 사람이 트릭을 가져가요.
-// 점수: 5=5점, 10·K=10점, 용 +25, 봉황 −25 / 티츄 ±100, 그랜드 티츄 ±200 / 원투(같은 팀 1·2등) 200점
+// 점수: 5=5점, 10·K=10점, 용 +25, 주작 −25 / 티츄 ±100, 그랜드 티츄 ±200 / 원투(같은 팀 1·2등) 200점
 import { GARNET } from '../profile.js';
 
 const SUITS = { s: { sym: '♠', color: '#23232b' }, h: { sym: '♥', color: '#d23a3a' }, d: { sym: '♦', color: '#2f6fd6' }, c: { sym: '♣', color: '#2f9e5b' } };
@@ -16,7 +16,13 @@ CARDS.dog = { id: 'dog', special: 'dog', rank: 0 };
 CARDS.ph = { id: 'ph', special: 'ph', rank: 0 };
 CARDS.dr = { id: 'dr', special: 'dr', rank: 15 };
 export const DECK = Object.keys(CARDS);
-const SPECIAL_NAME = { mj: '참새', dog: '개', ph: '봉황', dr: '용' };
+const SPECIAL_NAME = { mj: '참새', dog: '개', ph: '주작', dr: '용' };
+export const SPECIAL_DESC = {
+  mj: '가장 낮은 카드(1). 참새를 가진 사람은 첫 트릭을 꼭 참새로 시작해요(싱글 또는 스트레이트). 낼 때 소원 숫자를 불러요 — 그 숫자를 가진 사람은 낼 수 있으면 꼭 내야 해요.',
+  dog: '내가 선일 때만 혼자 낼 수 있어요. 바로 파트너에게 선을 넘겨요. 점수 0점.',
+  ph: '싱글로 내면 바로 앞 카드보다 ½ 높아요(선이면 1½, 용은 못 이김). 조합에서는 아무 숫자나 대신해요(폭탄 제외). −25점.',
+  dr: '가장 높은 싱글이에요(폭탄만 이길 수 있어요). 용으로 트릭을 이기면 그 트릭을 상대 팀 한 명에게 줘야 해요. +25점.',
+};
 const isNormal = (id) => !CARDS[id].special;
 
 export const cardPoints = (id) => { const c = CARDS[id]; if (c.special === 'dr') return 25; if (c.special === 'ph') return -25; return c.rank === 5 ? 5 : c.rank === 10 || c.rank === 13 ? 10 : 0; };
@@ -47,7 +53,7 @@ function classify(ranks) {
   return null;
 }
 
-// top: 지금 바닥에 있는 조합 (봉황 단독의 값 계산용)
+// top: 지금 바닥에 있는 조합 (주작 단독의 값 계산용)
 export function analyze(ids, top = null) {
   if (!ids?.length || new Set(ids).size !== ids.length || ids.some((id) => !CARDS[id])) return null;
   const cs = ids.map((id) => CARDS[id]);
@@ -86,12 +92,13 @@ export function beats(c, top) {
   if (c.type === 'bomb') return top.type !== 'bomb' || bombVal(c) > bombVal(top);
   if (top.type === 'bomb') return false;
   if (c.type !== top.type || c.len !== top.len) return false;
-  if (c.phoenix && top.rank === 15) return false; // 봉황은 용을 못 이겨요
+  if (c.phoenix && top.rank === 15) return false; // 주작은 용을 못 이겨요
   return c.rank > top.rank;
 }
 
 export function comboName(c) {
   if (!c) return '';
+  if (c.phoenix) return `싱글 주작 (${c.rank === 1.5 ? '1½' : `${rankLabel(Math.floor(c.rank))}½`})`;
   const r = (x) => (x === 15 ? '용' : x % 1 ? `${rankLabel(Math.floor(x))}½` : rankLabel(x));
   return {
     single: `싱글 ${r(c.rank)}`, pair: `페어 ${r(c.rank)}`, triple: `트리플 ${r(c.rank)}`, full: `풀하우스 ${r(c.rank)}`,
@@ -229,15 +236,15 @@ export default {
   options: [{ key: 'target', label: '목표 점수', choices: [1000, 500], default: 1000 }],
   rules: [
     '4명이 2:2 팀전을 해요. 마주 앉은 사람이 내 파트너예요 (🔴 빨강팀 vs 🔵 파랑팀, 자리는 무작위).',
-    '카드 56장: 숫자 2~A(4무늬) + 특수 카드 🐦참새(1) · 🐕개 · 🔥봉황 · 🐉용.',
+    '카드 56장: 숫자 2~A(4무늬) + 특수 카드 🐦참새(1) · 🐕개 · 🔥주작 · 🐉용.',
     '먼저 8장을 받아요. 이때 "그랜드 티츄"를 선언할 수 있어요 (1등으로 나가면 +200, 못 하면 −200). 그다음 6장을 더 받아요.',
     '다른 세 사람에게 카드를 1장씩 줘요 (3장 교환). 첫 카드를 내기 전까지 "티츄"를 선언할 수 있어요 (1등이면 +100, 아니면 −100).',
-    '🐦 참새를 가진 사람이 먼저 내요. 조합: 싱글 · 페어 · 트리플 · 풀하우스 · 스트레이트(5장 이상) · 연속 페어(2쌍 이상).',
+    '🐦 참새를 가진 사람이 첫 트릭을 꼭 참새로 시작해요. 조합: 싱글 · 페어 · 트리플 · 풀하우스 · 스트레이트(5장 이상) · 연속 페어(2쌍 이상).',
     '앞사람과 같은 조합·같은 장수로 더 높게 내거나 패스해요. 나머지가 모두 패스하면 마지막으로 낸 사람이 트릭을 가져가고 새로 시작해요.',
     '💣 폭탄(같은 숫자 4장 / 같은 무늬 스트레이트 5장 이상)은 내 차례가 아니어도 언제든 낼 수 있고 무엇이든 이겨요.',
-    '🐦참새를 낼 때 소원 숫자를 말할 수 있어요. 그 숫자를 가진 사람은 낼 수 있으면 꼭 내야 해요. 🐕개는 선일 때만 내고 파트너에게 선을 넘겨요.',
-    '🔥봉황: 싱글이면 앞 카드보다 ½ 높고(용은 못 이김), 조합에서는 아무 숫자나 대신해요 (폭탄 제외). 🐉용: 가장 높은 싱글, 이기면 그 트릭을 상대 팀에게 줘야 해요.',
-    '3명이 나가면 판 끝! 꼴찌의 손패는 상대 팀에게, 꼴찌가 가져간 카드는 1등에게 가요. 점수: 5 = 5점, 10·K = 10점, 용 +25, 봉황 −25.',
+    '🐦참새를 낼 때 소원 숫자를 꼭 불러요. 다음 사람부터 그 숫자를 가진 사람은 낼 수 있으면 반드시 내야 해요 (소원은 그 숫자가 나올 때까지 유지). 🐕개는 선일 때만 내고 파트너에게 선을 넘겨요.',
+    '🔥주작: 싱글이면 앞 카드보다 ½ 높고(용은 못 이김), 조합에서는 아무 숫자나 대신해요 (폭탄 제외). 🐉용: 가장 높은 싱글, 이기면 그 트릭을 상대 팀에게 줘야 해요.',
+    '3명이 나가면 판 끝! 꼴찌의 손패는 상대 팀에게, 꼴찌가 가져간 카드는 1등에게 가요. 점수 카드: 5 = 5점, 10·K = 10점, 용 +25점, 주작 −25점.',
     '같은 팀이 1·2등으로 나가면 "원투"로 200점! (카드 점수 없음)',
     '목표 점수(1000 또는 500)에 먼저 닿은 팀이 승리, 이긴 팀 모두 가넷 +2',
   ],
@@ -309,13 +316,15 @@ export default {
         if (!myTurn && !top) throw new Error('폭탄은 바닥에 카드가 있을 때 끼어들 수 있어요');
       } else if (!myTurn) throw new Error('내 차례가 아니에요');
       if (combo.type === 'dog' && top) throw new Error('개는 선일 때만 낼 수 있어요');
+      if (hand.includes('mj') && !Object.values(state.played).some(Boolean) && !cards.includes('mj')) throw new Error('첫 트릭은 참새를 내면서 시작해야 해요');
+      if (cards.includes('mj') && !(move.wish >= 2 && move.wish <= 14)) throw new Error('참새를 낼 때는 소원 숫자를 불러야 해요');
       if (!beats(combo, top)) throw new Error('바닥보다 높은 같은 조합을 내야 해요');
       if (combo.type !== 'bomb' && mustFulfill(hand, top, state.wish) && !cards.some((c) => isNormal(c) && CARDS[c].rank === state.wish)) {
         throw new Error(`소원 숫자 ${rankLabel(state.wish)}를 내야 해요!`);
       }
       let wish = state.wish;
       if (cards.some((c) => isNormal(c) && CARDS[c].rank === wish)) wish = null;
-      if (cards.includes('mj')) wish = move.wish >= 2 && move.wish <= 14 ? Number(move.wish) : null;
+      if (cards.includes('mj')) wish = Number(move.wish);
       const hands = { ...state.hands, [uid]: hand.filter((c) => !cards.includes(c)) };
       let s = {
         ...state, hands, wish, played: { ...state.played, [uid]: true },
@@ -426,13 +435,15 @@ export default {
         if (state.dragon === me) action = `<div class="ud-opts">${state.order.filter((u) => teamOf(u) !== teamOf(me)).map((u) => `<button class="btn" data-dragon="${u}">${name(u)}에게 주기</button>`).join('')}</div>`;
       } else {
         const must = myTurn && mustFulfill(state.hands[me], state.trick.top, state.wish);
-        banner = myTurn ? `<span><b>내 차례!</b> ${state.trick.top ? `${esc(comboName(state.trick.top))}보다 높게 내거나 패스` : '선이에요. 원하는 조합을 내세요'}${must ? ` · <b style="color:var(--gold)">소원 ${rankLabel(state.wish)}를 꼭 내야 해요</b>` : ''}</span>` : `<span><b>${name(turnUid)}</b>님 차례${state.outs.includes(me) ? ' · 나는 이미 나갔어요' : ''}</span>`;
+        const mjFirst = myTurn && (state.hands[me] || []).includes('mj') && !Object.values(state.played).some(Boolean);
+        banner = myTurn ? `<span><b>내 차례!</b> ${state.trick.top ? `${esc(comboName(state.trick.top))}보다 높게 내거나 패스` : '선이에요. 원하는 조합을 내세요'}${must ? ` · <b style="color:var(--gold)">소원 ${rankLabel(state.wish)}를 꼭 내야 해요</b>` : ''}${mjFirst ? ' · <b style="color:var(--gold)">🐦 참새를 내면서 시작하세요</b>' : ''}</span>` : `<span><b>${name(turnUid)}</b>님 차례${state.outs.includes(me) ? ' · 나는 이미 나갔어요' : ''}</span>`;
         const combo = analyze(ui.sel, state.trick.top);
         const ok = combo && beats(combo, state.trick.top) && (myTurn || (combo.type === 'bomb' && state.trick.top)) && !(combo.type === 'dog' && state.trick.top);
         if (isPlayer && active(state, me)) {
           action = `
+            ${ui.sel.filter((c) => CARDS[c].special).map((c) => `<div class="tc-spdesc">${cardHtml(c, 'xs')}<span><b>${SPECIAL_NAME[CARDS[c].special]}</b> ${SPECIAL_DESC[CARDS[c].special]}</span></div>`).join('')}
             <div class="tc-preview">${ui.sel.length ? (combo ? `${esc(comboName(combo))}${ok ? '' : ' · <span class="dn">지금은 못 내요</span>'}` : '<span class="dn">조합이 아니에요</span>') : '<span class="muted">낼 카드를 눌러 고르세요</span>'}</div>
-            ${ui.wish ? `<div class="tc-wishpick"><span>🐦 참새 소원 숫자를 고르세요</span><div>${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((r) => `<button class="btn sm" data-wish="${r}">${rankLabel(r)}</button>`).join('')}<button class="btn sm" data-wish="0">소원 없음</button></div></div>` : `
+            ${ui.wish ? `<div class="tc-wishpick"><span>🐦 소원 숫자를 부르세요! 그 숫자를 가진 사람은 낼 수 있으면 꼭 내야 해요</span><div>${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((r) => `<button class="btn sm" data-wish="${r}">${rankLabel(r)}</button>`).join('')}</div></div>` : `
             <div class="tc-acts">
               <button class="btn primary" data-play ${ok ? '' : 'disabled'}>${combo?.type === 'bomb' && !myTurn ? '💣 폭탄 끼어들기!' : '내기'}</button>
               <button class="btn" data-pass ${myTurn && state.trick.top && !must ? '' : 'disabled'}>패스</button>
@@ -467,7 +478,8 @@ export default {
         ${isPlayer && shownHand.length ? `
           <div class="ud-mine-title">🃏 내 카드 ${hand.length}장 ${state.grand[me] ? '<b class="tc-call g">그랜드 티츄</b>' : state.tichu[me] ? '<b class="tc-call">티츄</b>' : ''}
             ${canTichu ? '<button class="btn sm tc-tbtn" data-tichu>티츄!</button>' : ''}</div>
-          <div class="tc-hand">${shownHand.map((c) => `<button class="tc-cbtn ${ui.sel.includes(c) ? 'sel' : ''}" data-c="${c}">${cardHtml(c)}</button>`).join('')}</div>` : ''}
+          <div class="tc-hand">${shownHand.map((c) => `<button class="tc-cbtn ${ui.sel.includes(c) ? 'sel' : ''} ${state.wish && !CARDS[c].special && CARDS[c].rank === state.wish ? 'wishc' : ''}" data-c="${c}">${cardHtml(c)}</button>`).join('')}</div>` : ''}
+        ${guideHtml()}
         ${state.history.length ? `<details class="tc-hist"><summary>판별 점수 보기</summary>${historyTable(state, name)}</details>` : ''}
       </div>`;
 
@@ -502,8 +514,48 @@ export default {
     el.querySelectorAll('[data-dragon]').forEach((b) => (b.onclick = () => sendMove({ type: 'dragon', to: b.dataset.dragon })));
     const $next = el.querySelector('[data-next]');
     if ($next) $next.onclick = () => sendMove({ type: 'next' });
+    const $g = el.querySelector('.tc-guide');
+    if ($g) $g.ontoggle = () => (guideOpen = $g.open);
   },
 };
+
+// ── 족보 · 이기는 순서 (모두에게 게시) ──
+let guideOpen = true;
+function guideHtml() {
+  const ex = (...ids) => `<span class="tc-ex">${ids.map((c) => cardHtml(c, 'xs')).join('')}</span>`;
+  const rows = [
+    ['싱글', '카드 1장', ex('h9')],
+    ['페어', '같은 숫자 2장', ex('s7', 'h7')],
+    ['트리플', '같은 숫자 3장', ex('s7', 'h7', 'd7')],
+    ['풀하우스', '트리플 + 페어 · 트리플 숫자로 비교', ex('s7', 'h7', 'd7', 'c3', 'h3')],
+    ['스트레이트', '연속된 숫자 5장 이상 · 가장 높은 숫자로 비교', ex('s3', 'h4', 'd5', 'c6', 'h7')],
+    ['연속 페어', '이어지는 페어 2쌍 이상', ex('s3', 'h3', 'd4', 'c4')],
+  ];
+  return `<details class="tc-guide" ${guideOpen ? 'open' : ''}><summary>📜 족보 · 이기는 순서</summary>
+    <div class="tc-gsec">
+      <div class="tc-gt">숫자 순서 (낮음 → 높음)</div>
+      <div class="tc-order">🐦참새(1) < 2 < 3 < 4 < 5 < 6 < 7 < 8 < 9 < 10 < J < Q < K < A < 🐉용</div>
+    </div>
+    <div class="tc-gsec">
+      <div class="tc-gt">족보 <small>바닥과 같은 족보 · 같은 장수로 더 높아야 이겨요</small></div>
+      ${rows.map(([n, d, e]) => `<div class="tc-grow"><b>${n}</b><span>${d}</span>${e}</div>`).join('')}
+    </div>
+    <div class="tc-gsec bomb">
+      <div class="tc-gt">💣 폭탄 <small>무엇이든 이기고, 내 차례가 아니어도 끼어들 수 있어요</small></div>
+      <div class="tc-grow"><b>포카드</b><span>같은 숫자 4장</span>${ex('s9', 'h9', 'd9', 'c9')}</div>
+      <div class="tc-grow"><b>스트레이트 플러시</b><span>같은 무늬 연속 5장 이상 · 포카드보다 강하고, 길수록 강해요</span>${ex('h4', 'h5', 'h6', 'h7', 'h8')}</div>
+    </div>
+    <div class="tc-gsec">
+      <div class="tc-gt">특수 카드</div>
+      ${['mj', 'dog', 'ph', 'dr'].map((c) => `<div class="tc-grow sp">${cardHtml(c, 'sm')}<span><b>${SPECIAL_NAME[CARDS[c].special]}</b> ${SPECIAL_DESC[CARDS[c].special]}</span></div>`).join('')}
+    </div>
+    <div class="tc-gsec">
+      <div class="tc-gt">점수 카드</div>
+      <div class="tc-pts">${ex('h5')}<b>5점</b>${ex('s10')}${ex('dK'.replace('K', '13'))}<b>10점</b>${ex('dr')}<b class="up">+25점</b>${ex('ph')}<b class="dn">−25점</b></div>
+      <div class="tc-gnote">티츄 성공 +100 / 실패 −100 · 그랜드 티츄 ±200 · 원투(같은 팀 1·2등) +200</div>
+    </div>
+  </details>`;
+}
 
 function historyTable(state, name) {
   return `<table class="sk-table tc-htable"><thead><tr><th>판</th><th>🔴 빨강</th><th>🔵 파랑</th><th>내용</th></tr></thead><tbody>
@@ -527,9 +579,42 @@ const SP_ART = {
   ph: `<svg viewBox="0 0 40 40"><path d="M20 34 C10 30 4 20 6 8 C12 16 16 18 20 18 C24 18 28 16 34 8 C36 20 30 30 20 34 Z" fill="#ff6b2a"/><path d="M20 34 C14 30 11 24 12 16 C16 21 18 22 20 22 C22 22 24 21 28 16 C29 24 26 30 20 34 Z" fill="#ffc23a"/><circle cx="20" cy="12" r="4.5" fill="#ff8a2a"/><path d="M24 12 l4 1 l-4 1.5 z" fill="#e0a11a"/><circle cx="21" cy="11" r="1" fill="#111"/><path d="M18 8 q-1 -5 2 -6 M20 8 q1 -5 4 -5" stroke="#ff4f2a" stroke-width="1.4" fill="none"/></svg>`,
   dr: `<svg viewBox="0 0 40 40"><path d="M6 30 C10 20 16 22 20 18 C24 14 22 8 28 6 C34 5 38 10 36 14 C34 18 30 16 28 18 C26 22 30 26 26 30 C22 34 14 34 6 30 Z" fill="#2f9e5b"/><path d="M28 6 l-2 -4 l4 3 z M33 6 l1 -4 l1 5 z" fill="#e0a11a"/><circle cx="32" cy="10" r="1.6" fill="#ffd84d"/><circle cx="32.4" cy="10" r=".7" fill="#111"/><path d="M36 14 q4 1 3 4" stroke="#d23a3a" stroke-width="1.4" fill="none"/><path d="M12 26 q4 -3 8 0 M16 30 q4 -3 8 0" stroke="#1f7a40" stroke-width="1.4" fill="none"/></svg>`,
 };
+const PIPS = {
+  2: [[25, 17], [25, 53]], 3: [[25, 17], [25, 35], [25, 53]],
+  4: [[18, 17], [32, 17], [18, 53], [32, 53]], 5: [[18, 17], [32, 17], [25, 35], [18, 53], [32, 53]],
+  6: [[18, 17], [32, 17], [18, 35], [32, 35], [18, 53], [32, 53]],
+  7: [[18, 17], [32, 17], [25, 26], [18, 35], [32, 35], [18, 53], [32, 53]],
+  8: [[18, 17], [32, 17], [25, 26], [18, 35], [32, 35], [25, 44], [18, 53], [32, 53]],
+  9: [[18, 15], [32, 15], [18, 28], [32, 28], [25, 35], [18, 42], [32, 42], [18, 55], [32, 55]],
+  10: [[18, 15], [32, 15], [25, 21.5], [18, 28], [32, 28], [18, 42], [32, 42], [25, 48.5], [18, 55], [32, 55]],
+};
+const HATS = {
+  11: (c) => `<path d="M16 26 Q25 14 34 26 Z" fill="${c}"/><path d="M33 22 q6 -8 4 -14" stroke="${c}" stroke-width="1.6" fill="none"/>`,
+  12: (c) => `<path d="M17 26 L19 18 L22 23 L25 16 L28 23 L31 18 L33 26 Z" fill="#e0b13a"/><circle cx="25" cy="16" r="1.4" fill="${c}"/>`,
+  13: (c) => `<path d="M16 26 L17 15 L21 21 L25 13 L29 21 L33 15 L34 26 Z" fill="#e0b13a" stroke="#a87a10" stroke-width=".6"/><circle cx="25" cy="13" r="1.6" fill="${c}"/>`,
+};
+const face = (r, col, sym) => `
+  <rect x="11" y="11" width="28" height="48" rx="2" fill="${col}" opacity=".08"/>
+  ${HATS[r](col)}
+  <circle cx="25" cy="31" r="6.5" fill="#f3d2b0"/>
+  <circle cx="22.8" cy="30.5" r=".9" fill="#2a1a10"/><circle cx="27.2" cy="30.5" r=".9" fill="#2a1a10"/><path d="M23 34 q2 1.4 4 0" stroke="#a0503a" stroke-width=".7" fill="none"/>
+  ${r === 13 ? '<path d="M20 34 q5 7 10 0 q-2 6 -5 6 q-3 0 -5 -6z" fill="#8a5a3a"/>' : ''}
+  ${r === 12 ? '<path d="M18.5 30 q0 -7 6.5 -7.5 q6.5 0.5 6.5 7.5 q-1 -4 -6.5 -4.5 q-5.5 0.5 -6.5 4.5z" fill="#7a3a1a"/>' : ''}
+  <path d="M14 58 C14 44 19 39 25 39 C31 39 36 44 36 58 Z" fill="${col}"/>
+  <text x="25" y="52" text-anchor="middle" font-size="9" fill="#fff">${sym}</text>`;
 export function cardHtml(id, size = '') {
   const c = CARDS[id];
-  if (c.special) return `<div class="tcard sp ${size} sp-${c.special}"><b>${c.special === 'mj' ? '1' : ''}</b><span class="tcard-art">${SP_ART[c.special]}</span><i>${SPECIAL_NAME[c.special]}</i></div>`;
-  const s = SUITS[c.suit];
-  return `<div class="tcard ${size}" style="--tc:${s.color}"><b>${rankLabel(c.rank)}</b><span class="tcard-suit">${s.sym}</span></div>`;
+  if (c.special) {
+    return `<div class="tcard sp ${size} sp-${c.special}"><svg viewBox="0 0 50 70">
+      ${c.special === 'mj' ? '<text x="5" y="12" font-family="\'Black Han Sans\', sans-serif" font-size="10" fill="#3a2412">1</text>' : ''}
+      <svg x="5" y="11" width="40" height="40" viewBox="0 0 40 40">${SP_ART[c.special]}</svg>
+      <text x="25" y="63" text-anchor="middle" font-size="9" font-weight="800" fill="#3a2412">${SPECIAL_NAME[c.special]}</text></svg></div>`;
+  }
+  const s = SUITS[c.suit], L = rankLabel(c.rank);
+  const corner = `<text x="5" y="11" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="${L.length > 1 ? 8 : 10}" fill="${s.color}">${L}</text><text x="5" y="19" text-anchor="middle" font-size="7" fill="${s.color}">${s.sym}</text>`;
+  let mid;
+  if (c.rank <= 10) mid = PIPS[c.rank].map(([x, y]) => `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${s.color}" ${y > 36 ? `transform="rotate(180 ${x} ${y})"` : ''}>${s.sym}</text>`).join('');
+  else if (c.rank === 14) mid = `<text x="25" y="36" text-anchor="middle" dominant-baseline="central" font-size="30" fill="${s.color}">${s.sym}</text>`;
+  else mid = face(c.rank, s.color, s.sym);
+  return `<div class="tcard ${size}"><svg viewBox="0 0 50 70">${corner}<g transform="rotate(180 25 35)">${corner}</g>${mid}</svg></div>`;
 }

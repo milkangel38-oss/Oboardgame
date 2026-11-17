@@ -835,7 +835,7 @@ a.cat-banner:active { transform: translateY(0); }
 .tc-slot { appearance: none; display: grid; justify-items: center; gap: 4px; padding: 8px 4px; border-radius: 12px; border: 2px dashed rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .04); color: var(--ink); font: inherit; cursor: pointer; }
 .tc-slot.full { border-style: solid; border-color: var(--pink); }
 .tc-slot small { font-size: 10.5px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tc-empty { display: grid; place-items: center; width: 40px; aspect-ratio: 5 / 7; font-size: 22px; color: rgba(255, 255, 255, .4); }
+.tc-empty { display: grid; place-items: center; width: 36px; aspect-ratio: 5 / 7; font-size: 22px; color: rgba(255, 255, 255, .4); }
 .tc-preview { text-align: center; font-size: 13px; font-weight: 700; }
 .tc-acts { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .tc-wishpick { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(255, 216, 77, .1); }
@@ -849,7 +849,8 @@ a.cat-banner:active { transform: translateY(0); }
 .tc-recv > span { display: inline-flex; align-items: center; gap: 3px; }
 .tc-recv small { font-size: 11px; color: var(--ink); }
 .tc-tbtn { margin-left: 6px; background: #ff4f9a; color: #fff; border: 0; }
-.tc-hand { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.tc-hand { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+@media (min-width: 560px) { .tc-hand { grid-template-columns: repeat(7, 1fr); } }
 .tc-cbtn { appearance: none; border: 0; padding: 0; background: none; cursor: pointer; font: inherit; transition: transform .12s; }
 .tc-cbtn.sel { transform: translateY(-8px); }
 .tc-cbtn.sel .tcard { box-shadow: 0 0 0 3px #ff4f9a, 0 4px 10px rgba(255, 79, 154, .5); }
@@ -858,17 +859,33 @@ a.cat-banner:active { transform: translateY(0); }
 .tc-total td { font-weight: 800; color: var(--gold); }
 .tc .up { color: #4ee07a; } .tc .dn { color: #ff5c7a; }
 /* 티츄 카드 */
-.tcard { --tc: #222; position: relative; aspect-ratio: 5 / 7; border-radius: 6px; background: #fffdf6; color: var(--tc); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); display: grid; place-items: center; overflow: hidden; border: 1px solid #d8cfb8; }
-.tcard b { position: absolute; top: 2px; left: 4px; font-family: var(--logo); font-weight: 400; font-size: 17px; line-height: 1; }
-.tcard-suit { font-size: 22px; margin-top: 12px; line-height: 1; }
-.tcard.sm { width: 34px; } .tcard.sm b { font-size: 13px; left: 3px; } .tcard.sm .tcard-suit { font-size: 15px; margin-top: 10px; }
-.tcard.xs { width: 26px; } .tcard.xs b { font-size: 11px; left: 2px; } .tcard.xs .tcard-suit { font-size: 12px; margin-top: 8px; }
-.tcard.sp { color: #3a2412; }
-.tcard.sp i { position: absolute; bottom: 1px; left: 0; right: 0; text-align: center; font-style: normal; font-size: 9px; font-weight: 800; }
-.tcard-art { width: 78%; margin-bottom: 6px; } .tcard-art svg { width: 100%; height: auto; display: block; }
+.tcard { position: relative; aspect-ratio: 5 / 7; border-radius: 6px; background: #fffdf6; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); overflow: hidden; border: 1px solid #d8cfb8; }
+.tcard svg { width: 100%; height: 100%; display: block; }
+.tcard.sm { width: 36px; } .tcard.xs { width: 26px; border-radius: 4px; }
 .tcard.sp-dr { background: linear-gradient(180deg, #fff3d0, #ffd77a); } .tcard.sp-ph { background: linear-gradient(180deg, #fff1e6, #ffc9a8); }
 .tcard.sp-dog { background: #f3ece2; } .tcard.sp-mj { background: #eef6ea; }
-.tcard.sm i, .tcard.xs i { display: none; } .tcard.sm .tcard-art, .tcard.xs .tcard-art { margin: 0; width: 86%; }
+.tc-cbtn.wishc .tcard { box-shadow: 0 0 0 3px #ffd84d, 0 2px 0 rgba(0, 0, 0, .35); }
+.tc-spdesc { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255, 216, 77, .1); font-size: 12.5px; line-height: 1.45; }
+.tc-spdesc .tcard { flex: none; width: 30px; }
+.tc-spdesc b { color: var(--gold); margin-right: 3px; }
+/* 족보 게시판 */
+.tc-guide { border-radius: 14px; background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 216, 77, .3); padding: 8px 10px; }
+.tc-guide summary { cursor: pointer; font-family: var(--display); font-size: 14px; color: var(--gold); }
+.tc-gsec { display: grid; gap: 6px; margin-top: 10px; }
+.tc-gsec.bomb { padding: 8px; border-radius: 10px; background: rgba(255, 79, 110, .1); }
+.tc-gt { font-weight: 800; font-size: 13px; }
+.tc-gt small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+.tc-order { font-size: 12px; line-height: 1.6; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, .25); }
+.tc-grow { display: grid; grid-template-columns: 76px 1fr; gap: 2px 8px; align-items: center; font-size: 12px; }
+.tc-grow b { font-size: 12.5px; }
+.tc-grow > span:not(.tc-ex) { color: #cfc8ea; line-height: 1.4; }
+.tc-grow .tc-ex { grid-column: 2; }
+.tc-grow.sp { grid-template-columns: 36px 1fr; }
+.tc-grow.sp b { color: var(--gold); margin-right: 3px; }
+.tc-ex { display: inline-flex; gap: 2px; flex-wrap: wrap; }
+.tc-pts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12.5px; }
+.tc-pts b { margin-right: 6px; }
+.tc-gnote { font-size: 11.5px; color: var(--muted); }
 
 /* ───────── 프로필 편집 창 ───────── */
 .modal-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(5, 2, 15, .7); display: grid; place-items: center; padding: 16px; }
