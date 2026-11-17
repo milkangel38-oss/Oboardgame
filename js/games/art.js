@@ -7,6 +7,25 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 자객 마피아: 어두운 저택 바닥 + 손전등 빛 + 두건 쓴 자객 실루엣
+  assassin: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="amL" cx=".5" cy=".55" r=".45"><stop offset="0" stop-color="#ffe7a8" stop-opacity=".55"/><stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/></radialGradient></defs>
+  <rect width="300" height="420" fill="#07070f"/>
+  ${Array.from({ length: 12 }, (_, i) => `<rect x="0" y="${i * 36}" width="300" height="35" fill="#151223"/>`).join('')}
+  <circle cx="150" cy="240" r="170" fill="url(#amL)"/>
+  <g transform="translate(150 250)">
+    <ellipse cy="78" rx="46" ry="9" fill="rgba(0,0,0,.5)"/>
+    <path d="M-44 76 Q-44 6 0 6 Q44 6 44 76Z" fill="#2b2140"/>
+    <circle cy="-24" r="38" fill="#ffe0bd"/>
+    <path d="M-40 -18 Q-42 -72 0 -72 Q42 -72 40 -18 Q32 -50 0 -50 Q-32 -50 -40 -18Z" fill="#2b2140"/>
+    <path d="M-36 -26 Q0 -10 36 -26 L36 -36 Q0 -20 -36 -36Z" fill="#120d1f"/>
+    <circle cx="-13" cy="-26" r="5" fill="#2a2030"/><circle cx="13" cy="-26" r="5" fill="#2a2030"/>
+    <g transform="translate(52 22) rotate(35)"><rect x="-4" y="-46" width="8" height="44" rx="2" fill="#dfe6f2"/><rect x="-12" y="-4" width="24" height="6" rx="2" fill="#c9a85a"/><rect x="-3" y="2" width="6" height="16" rx="2" fill="#5a3a22"/></g>
+  </g>
+  <text x="70" y="110" font-size="34">💀</text><text x="215" y="150" font-size="30">❗</text>
+</svg>`,
+
   // 기억포커: 남색 카드 뒷면 격자 + 뒤집힌 카드 한 장
   memorypoker: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

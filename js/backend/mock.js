@@ -129,6 +129,21 @@ export function createBackend() {
       saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: Math.max(0, (p.garnets || 0) + garnets), lastMatch: matchKey });
     },
 
+    // 실시간 위치 채널 (테스트 모드: 같은 브라우저 탭끼리 BroadcastChannel)
+    liveAvailable: true,
+    async live(code) {
+      const ch = new BroadcastChannel(`mbg-live-${code}`);
+      const data = {};
+      const cbs = new Set();
+      ch.onmessage = (e) => { if (e.data.d == null) delete data[e.data.uid]; else data[e.data.uid] = e.data.d; cbs.forEach((f) => f({ ...data })); };
+      return {
+        send(uid, d) { data[uid] = d; ch.postMessage({ uid, d }); cbs.forEach((f) => f({ ...data })); },
+        watch(cb) { cbs.add(cb); cb({ ...data }); return () => cbs.delete(cb); },
+        onLeave() {},
+        close(uid) { ch.postMessage({ uid, d: null }); ch.close(); },
+      };
+    },
+
     watchRoom(code, cb) {
       const emit = () => cb(loadRooms()[code] || null);
       roomListeners.add(emit);

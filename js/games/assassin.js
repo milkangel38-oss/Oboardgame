@@ -1,0 +1,644 @@
+// 예능: 자객 마피아 (6~8명) — 실시간 이동 + 암전 + 마피아 미션 + 시체발견 회의 투표
+// 차례·투표·점수 같은 "게임 상태"는 방 문서(sendMove)로, 캐릭터 위치는 실시간 채널(backend.live)로 주고받아요.
+import { GARNET } from '../profile.js';
+import { soundEvent } from '../sound.js';
+
+const W = 1000, H = 700;           // 맵 크기(좌표)
+const R = 50;                       // 캐릭터 반지름 (화면 폭의 10%)
+const MEET = 120;                   // 이 거리 안이면 "만남"
+const SPEED = 230;                  // 초당 이동 거리
+const SLOW = 0.35;                  // 만났을 때 1초 동안 속도 배율
+const SLOW_MS = 1000;
+const INTRO_MS = 6500;              // 마피아 선정 연출
+const HUNT_MS = 180000;             // 암전 상태 최대 3분 (아무도 시체를 못 찾으면 불이 켜짐)
+const VOTE_MS = 180000;             // 회의·투표 3분
+const KILL_CD = 3000;
+const SEND_MS = 100;
+const COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6', '#ff8ad8', '#e8cf8a'];
+export const REWARDS = [5, 4, 3];
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+};
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function spawns(order) {
+  const pts = {};
+  order.forEach((u) => {
+    let p, tries = 0;
+    do { p = { x: 70 + Math.random() * (W - 140), y: 80 + Math.random() * (H - 150) }; tries++; }
+    while (tries < 200 && Object.values(pts).some((q) => dist(p, q) < 170));
+    pts[u] = { x: Math.round(p.x), y: Math.round(p.y) };
+  });
+  return pts;
+}
+
+// ── 미션 ──
+function makeMission(state, mafia) {
+  const citizens = shuffle(state.order.filter((u) => u !== mafia));
+  const kind = ['targets', 'count', 'frame'][Math.floor(Math.random() * 3)];
+  if (kind === 'targets') return { kind, targets: citizens.slice(0, 2 + Math.floor(Math.random() * 2)) };
+  if (kind === 'count') return { kind, n: 2 + Math.floor(Math.random() * 2) };
+  return { kind, target: citizens[0] };
+}
+export function missionText(m, players) {
+  const nm = (u) => `${players[u]?.name || '?'}님`;
+  if (!m) return '';
+  if (m.kind === 'targets') return `${m.targets.map(nm).join(', ')}을(를) 모두 공격하세요`;
+  if (m.kind === 'count') return `유저를 ${m.n}명 이상 공격하세요`;
+  return `${nm(m.target)}이(가) 의심받아 가장 많은 표를 받게 하세요`;
+}
+function missionOk(m, dead, caught) {
+  if (m.kind === 'targets') return m.targets.every((u) => dead[u]);
+  if (m.kind === 'count') return Object.keys(dead).length >= m.n;
+  return caught === m.target;
+}
+
+function newRound(state, roundNo) {
+  return {
+    ...state, round: roundNo, phase: 'lobby', ready: {}, spawn: spawns(state.order),
+    mafia: null, mafiaAt: 0, mission: null, dead: {}, found: null, votes: {}, deadline: 0, lastKill: 0, meeting: null,
+  };
+}
+const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u]);
+function toVote(state, now, why) {
+  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, meeting: why };
+}
+function resolve(state, players) {
+  const tally = {};
+  Object.values(state.votes).forEach((t) => (tally[t] = (tally[t] || 0) + 1));
+  const max = Math.max(0, ...Object.values(tally));
+  const leaders = Object.keys(tally).filter((u) => tally[u] === max);
+  const caught = max > 0 && leaders.length === 1 ? leaders[0] : null;
+  const mafiaCaught = caught === state.mafia;
+  const ok = missionOk(state.mission, state.dead, caught);
+  const scores = { ...state.scores };
+  const breakdown = {};
+  state.order.forEach((u) => {
+    const items = [];
+    if (u === state.mafia) {
+      items.push(mafiaCaught ? ['마피아 검거됨', -10] : ['마피아 생존', 10]);
+      if (ok) items.push(['미션 성공', 5]);
+    } else {
+      if (mafiaCaught) items.push(['마피아 검거', 10]);
+      items.push(state.dead[u] ? ['공격받음', -3] : ['생존', 3]);
+    }
+    breakdown[u] = items;
+    scores[u] += items.reduce((a, [, p]) => a + p, 0);
+  });
+  const last = { round: state.round, mafia: state.mafia, mission: state.mission, missionOk: ok, caught, mafiaCaught, tally, votes: state.votes, dead: Object.keys(state.dead), breakdown };
+  const s = { ...state, phase: 'result', scores, last, deadline: 0, history: [...state.history, { round: state.round, mafia: state.mafia, mafiaCaught }] };
+  if (s.round >= s.rounds) {
+    const done = { ...s, phase: 'done' };
+    return { state: done, result: finalResult(done, players) };
+  }
+  return { state: s };
+}
+function finalResult(state, players) {
+  const ranking = state.order
+    .map((uid) => ({ uid, score: state.scores[uid] }))
+    .sort((a, b) => b.score - a.score)
+    .map((r, _, all) => {
+      const place = 1 + all.filter((o) => o.score > r.score).length;
+      return { ...r, place, garnets: REWARDS[place - 1] || 0 };
+    });
+  const top = ranking.filter((r) => r.place === 1).map((r) => players[r.uid]?.name || '?');
+  return {
+    message: `${top.join(', ')}님 1등! 🗡`,
+    winners: ranking.filter((r) => r.place === 1).map((r) => r.uid),
+    ranking,
+    rewards: Object.fromEntries(ranking.map((r) => [r.uid, r.garnets])),
+  };
+}
+
+// ── 캐릭터 그림 (오리지널: 두건 쓴 꼬마 자객) ──
+export const charSvg = (color, dead = false) => `<svg viewBox="0 0 60 72" aria-hidden="true">
+  <ellipse cx="30" cy="68" rx="18" ry="4" fill="rgba(0,0,0,.35)"/>
+  <path d="M11 66 Q11 36 30 36 Q49 36 49 66 Z" fill="${dead ? '#6b6f7a' : color}"/>
+  <path d="M22 44 L30 52 L38 44" stroke="rgba(0,0,0,.25)" stroke-width="3" fill="none"/>
+  <circle cx="30" cy="25" r="16" fill="${dead ? '#b9bcc4' : '#ffe0bd'}"/>
+  <path d="M13 27 Q12 6 30 6 Q48 6 47 27 Q44 15 30 15 Q16 15 13 27Z" fill="${dead ? '#55596a' : color}"/>
+  <path d="M15 24 Q30 30 45 24 L45 20 Q30 26 15 20Z" fill="rgba(0,0,0,.28)"/>
+  ${dead ? '<path d="M21 22 l6 6 M27 22 l-6 6 M33 22 l6 6 M39 22 l-6 6" stroke="#2a2030" stroke-width="2.4"/>'
+    : '<circle cx="24" cy="25" r="2.6" fill="#2a2030"/><circle cx="36" cy="25" r="2.6" fill="#2a2030"/><path d="M26 32 Q30 34 34 32" stroke="#c46a5a" stroke-width="1.6" fill="none"/>'}
+</svg>`;
+
+// ── 화면 컨트롤러 (방 문서가 바뀔 때마다 render가 다시 불려도, 조이스틱·이동은 끊기지 않게 한 번만 만들어요) ──
+let ctl = null;
+
+function teardown() {
+  if (!ctl) return;
+  cancelAnimationFrame(ctl.raf);
+  ctl.unwatch?.();
+  ctl.live?.close?.(ctl.ctx.me);
+  window.removeEventListener('keydown', ctl.onKey);
+  window.removeEventListener('keyup', ctl.onKey);
+  window.removeEventListener('pointermove', ctl.onPMove);
+  window.removeEventListener('pointerup', ctl.onPUp);
+  window.removeEventListener('pointercancel', ctl.onPUp);
+  ctl = null;
+}
+
+function build(code) {
+  const root = document.createElement('div');
+  root.className = 'am';
+  root.innerHTML = `
+    <div class="am-top"><span class="am-round"></span><span class="am-phase"></span><span class="am-timer"></span></div>
+    <div class="am-chips"></div>
+    <div class="am-arena">
+      <div class="am-floor"></div>
+      <div class="am-layer am-under"></div>
+      <div class="am-dark"></div>
+      <div class="am-layer am-over"></div>
+      <div class="am-center"></div>
+    </div>
+    <div class="am-mission"></div>
+    <div class="am-ctrl">
+      <div class="am-joy"><i></i></div>
+      <div class="am-btns">
+        <button class="am-act" data-act><b>상호작용</b><small></small></button>
+        <div class="am-row">
+          <button class="am-b" data-readyb>준비</button>
+          <button class="am-b" data-pick>마피아 선택</button>
+          <button class="am-b red" data-report>시체발견</button>
+        </div>
+      </div>
+    </div>
+    <div class="am-hint">조이스틱(또는 방향키·WASD)으로 움직이고, 상호작용 버튼(또는 스페이스)을 눌러요</div>
+    <div class="am-panel"></div>
+    <div class="am-chat"><div class="am-log"></div><form class="am-say"><input maxlength="60" placeholder="채팅 입력" /><button>보내기</button></form></div>`;
+  const c = {
+    code, root, raf: 0, sig: '',
+    $: (q) => root.querySelector(q),
+    pos: null, posRound: -1, posPhase: '', disp: {}, others: {}, lastSend: 0, lastSent: '',
+    enter: {}, joy: { x: 0, y: 0, id: null }, keys: new Set(), lastTick: 0, lastT: performance.now(),
+    chars: {}, live: null, unwatch: null, notice: null, gone: 0, shake: 0,
+  };
+  // 조이스틱 (창 전체에서 손가락을 따라가요 → 화면이 다시 그려져도 끊기지 않음)
+  const $joy = c.$('.am-joy'), $knob = $joy.querySelector('i');
+  $joy.addEventListener('pointerdown', (e) => { c.joy.id = e.pointerId; c.joyEl = $joy; moveJoy(e); e.preventDefault(); });
+  const moveJoy = (e) => {
+    const r = c.joyEl.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const max = r.width / 2 - 14, len = Math.hypot(dx, dy);
+    if (len > max) { dx = (dx / len) * max; dy = (dy / len) * max; }
+    c.joy.x = dx / max; c.joy.y = dy / max;
+    c.root.querySelector('.am-joy i').style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  c.onPMove = (e) => { if (e.pointerId === c.joy.id) moveJoy(e); };
+  c.onPUp = (e) => {
+    if (e.pointerId !== c.joy.id) return;
+    c.joy = { x: 0, y: 0, id: null };
+    c.root.querySelector('.am-joy i').style.transform = '';
+  };
+  c.onKey = (e) => {
+    if (e.target.closest?.('input, textarea')) return;
+    const k = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' }[e.code];
+    if (k) { e.type === 'keydown' ? c.keys.add(k) : c.keys.delete(k); e.preventDefault(); }
+    if (e.type === 'keydown' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) { e.preventDefault(); interact(); }
+  };
+  window.addEventListener('pointermove', c.onPMove);
+  window.addEventListener('pointerup', c.onPUp);
+  window.addEventListener('pointercancel', c.onPUp);
+  window.addEventListener('keydown', c.onKey);
+  window.addEventListener('keyup', c.onKey);
+
+  c.$('[data-act]').addEventListener('click', () => interact());
+  c.$('[data-readyb]').addEventListener('click', () => {
+    const { state, me } = c.ctx;
+    if (state.phase === 'lobby') c.ctx.sendMove({ type: 'ready', on: !state.ready[me] });
+  });
+  c.$('[data-pick]').addEventListener('click', () => c.ctx.sendMove({ type: 'pickMafia' }));
+  c.$('[data-report]').addEventListener('click', () => c.ctx.sendMove({ type: 'report' }));
+  c.$('.am-say').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const $i = c.$('.am-say input');
+    const text = $i.value.trim();
+    if (!text) return;
+    $i.value = '';
+    c.ctx.sendMove({ type: 'chat', text });
+  });
+  c.$('.am-panel').addEventListener('click', (e) => {
+    const v = e.target.closest('[data-vote]');
+    if (v && !v.disabled) c.ctx.sendMove({ type: 'vote', target: v.dataset.vote });
+    if (e.target.closest('[data-next]')) c.ctx.sendMove({ type: 'next' });
+  });
+  return c;
+}
+
+// 지금 내 주변 상황 (만남 판정)
+function surroundings(now) {
+  const { state, me, players } = ctl.ctx;
+  const out = { slow: false, icon: '', target: null, body: null, near: [] };
+  if (state.phase !== 'hunt' || state.dead[me] || !ctl.pos) return out;
+  const mine = ctl.pos;
+  const seen = new Set();
+  const touch = (key) => { seen.add(key); if (!ctl.enter[key]) ctl.enter[key] = now; return now - ctl.enter[key] < SLOW_MS; };
+  const alive = state.order.filter((u) => u !== me && !state.dead[u] && ctl.disp[u]);
+  if (me === state.mafia) {
+    let best = null;
+    alive.forEach((u) => {
+      const d = dist(mine, ctl.disp[u]);
+      if (d < MEET) { if (touch('m:' + u)) out.slow = true; if (!best || d < best.d) best = { u, d }; }
+    });
+    if (best) { out.target = best.u; out.icon = `🗡 ${esc(players[best.u]?.name || '')}`; }
+  } else {
+    alive.forEach((u) => {
+      const d = dist(mine, ctl.disp[u]);
+      if (d >= MEET) return;
+      if (u === state.mafia) { if (touch('m:' + u)) out.slow = true; out.icon = '❗'; }
+      else if (!out.icon) out.icon = '✋';
+    });
+    Object.entries(state.dead).forEach(([u, p]) => {
+      if (dist(mine, p) < MEET) { if (touch('b:' + u)) out.slow = true; out.body = u; if (out.icon !== '❗') out.icon = '🚑'; }
+    });
+  }
+  Object.keys(ctl.enter).forEach((k) => { if (!seen.has(k)) delete ctl.enter[k]; });
+  return out;
+}
+
+function interact() {
+  if (!ctl) return;
+  const { state, me, sendMove } = ctl.ctx;
+  const now = Date.now();
+  if (state.phase !== 'hunt' || state.dead[me] || now < state.mafiaAt + INTRO_MS) { ctl.shake = now; return; }
+  const s = surroundings(performance.now());
+  if (me === state.mafia) {
+    if (!s.target) { ctl.shake = now; return; }
+    if (now - (state.lastKill || 0) < KILL_CD) { ctl.shake = now; return; }
+    const p = ctl.disp[s.target];
+    sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y) });
+  } else if (s.body && !state.found) {
+    sendMove({ type: 'shout', body: s.body });
+  } else ctl.shake = now;
+}
+
+function canMove(state, me, now) {
+  if (state.dead?.[me]) return false;
+  if (state.phase === 'lobby') return true;
+  return state.phase === 'hunt' && now >= state.mafiaAt + INTRO_MS;
+}
+
+function frame() {
+  if (!ctl) return;
+  ctl.raf = requestAnimationFrame(frame);
+  const c = ctl;
+  if (!c.root.isConnected) { if (!c.gone) c.gone = Date.now(); else if (Date.now() - c.gone > 4000) teardown(); return; }
+  c.gone = 0;
+  const { state, me, players, room, sendMove } = c.ctx;
+  const now = Date.now(), t = performance.now();
+  const dt = Math.min(0.05, (t - c.lastT) / 1000);
+  c.lastT = t;
+  const isMafia = me === state.mafia;
+  const iAmIn = state.order.includes(me);
+
+  // 라운드가 바뀌면 처음 위치로
+  if (c.posRound !== state.round && state.spawn?.[me]) { c.pos = { ...state.spawn[me] }; c.posRound = state.round; c.lastSent = ''; }
+  if (state.dead?.[me]) c.pos = { ...state.dead[me] };
+
+  // 이동
+  const sur = surroundings(t);
+  if (iAmIn && c.pos && canMove(state, me, now)) {
+    let vx = c.joy.x + (c.keys.has('r') ? 1 : 0) - (c.keys.has('l') ? 1 : 0);
+    let vy = c.joy.y + (c.keys.has('d') ? 1 : 0) - (c.keys.has('u') ? 1 : 0);
+    const len = Math.hypot(vx, vy);
+    if (len > 1) { vx /= len; vy /= len; }
+    const sp = SPEED * (sur.slow ? SLOW : 1);
+    c.pos.x = Math.max(R, Math.min(W - R, c.pos.x + vx * sp * dt));
+    c.pos.y = Math.max(R + 10, Math.min(H - R, c.pos.y + vy * sp * dt));
+  }
+  // 위치 보내기
+  if (iAmIn && c.pos && c.live) {
+    const key = `${Math.round(c.pos.x)},${Math.round(c.pos.y)}`;
+    if ((key !== c.lastSent && t - c.lastSend > SEND_MS) || t - c.lastSend > 1500) {
+      c.lastSend = t; c.lastSent = key;
+      c.live.send(me, { x: Math.round(c.pos.x), y: Math.round(c.pos.y), r: state.round });
+    }
+  }
+  // 다른 사람 위치 (부드럽게 따라가기)
+  state.order.forEach((u) => {
+    if (u === me) { if (c.pos) c.disp[u] = { ...c.pos }; return; }
+    const tgt = state.dead?.[u] || (c.others[u]?.r === state.round ? c.others[u] : state.spawn?.[u]);
+    if (!tgt) return;
+    const d = c.disp[u];
+    if (!d || dist(d, tgt) > 250) c.disp[u] = { x: tgt.x, y: tgt.y };
+    else { const k = Math.min(1, dt * 12); d.x += (tgt.x - d.x) * k; d.y += (tgt.y - d.y) * k; }
+  });
+
+  // 그리기
+  const dark = state.phase === 'dark' || state.phase === 'hunt';
+  const $under = c.$('.am-under'), $over = c.$('.am-over');
+  c.$('.am-dark').classList.toggle('on', dark);
+  const chatAt = {};
+  (state.chat || []).forEach((m) => { if (now - m.at < 5000) chatAt[m.u] = m.text; });
+  state.order.forEach((u, i) => {
+    let el = c.chars[u];
+    if (!el || !el.isConnected) {
+      el = document.createElement('div');
+      el.className = 'am-ch';
+      el.innerHTML = `<span class="am-fx"></span><span class="am-bub"></span><span class="am-svg"></span><span class="am-nm"></span>`;
+      c.chars[u] = el;
+    }
+    const p = c.disp[u];
+    const dead = !!state.dead?.[u];
+    // 암전 중 보이는 것: 나 자신, (마피아에게만) 해골
+    const visible = !dark || u === me || (dead && isMafia);
+    const layer = dark ? $over : $under;
+    if (el.parentNode !== layer) layer.appendChild(el);
+    el.style.display = p && visible ? '' : 'none';
+    if (!p) return;
+    el.style.left = `${(p.x / W) * 100}%`;
+    el.style.top = `${(p.y / H) * 100}%`;
+    el.style.zIndex = String(Math.round(p.y));
+    const look = `${COLORS[i % COLORS.length]}|${dead}`;
+    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = charSvg(COLORS[i % COLORS.length], dead); }
+    el.querySelector('.am-nm').textContent = players[u]?.name || '나간 사람';
+    el.classList.toggle('me', u === me);
+    el.classList.toggle('dead', dead);
+    // 머리 위 표시
+    let fx = '';
+    if (dead && (isMafia || !dark)) fx = '💀';
+    if (u === me && sur.icon) fx = sur.icon;
+    const $fx = el.querySelector('.am-fx');
+    if ($fx.dataset.v !== fx) { $fx.dataset.v = fx; $fx.innerHTML = fx; $fx.classList.toggle('knife', fx.startsWith('🗡')); }
+    // 말풍선: 시체발견 외침(마피아 제외 모두에게) / 채팅
+    let bub = '';
+    if (state.phase === 'hunt' && state.found?.by === u && !isMafia) bub = '시체발견!';
+    else if (!dark && chatAt[u]) bub = esc(chatAt[u]);
+    const $b = el.querySelector('.am-bub');
+    if ($b.dataset.v !== bub) { $b.dataset.v = bub; $b.innerHTML = bub; $b.classList.toggle('shout', bub === '시체발견!'); }
+    if (state.phase === 'hunt' && state.found?.by === u && !isMafia && el.style.display === 'none') {
+      el.style.display = ''; el.classList.add('ghost'); // 외친 사람 위치에 말풍선만 보이게
+    } else el.classList.remove('ghost');
+  });
+
+  // 가운데 안내 문구
+  let center = '';
+  if (c.noLive) center = '<b>실시간 서버 준비 중</b><small>관리자가 Realtime Database를 연결하면 플레이할 수 있어요</small>';
+  else if (state.phase === 'dark') center = `<b>불이 꺼졌어요</b><small>${room?.hostId === me ? '마피아 선택 버튼을 눌러 주세요' : '방장이 마피아를 고르길 기다리는 중…'}</small>`;
+  if (state.phase === 'hunt' && !c.noLive) {
+    const e = now - state.mafiaAt;
+    if (isMafia) {
+      if (e < 1500) center = '<b>마피아를 고르는 중…</b>';
+      else if (e < 4500) center = `<b class="red">당신은 마피아입니다</b><small>🎯 ${esc(missionText(state.mission, players))}</small>`;
+      else if (e < INTRO_MS) center = '<b class="red">유저들을 공격하세요</b>';
+    } else {
+      if (e < 4500) center = '<b>마피아를 고르는 중…</b>';
+      else if (e < INTRO_MS) center = '<b>마피아의 공격으로부터 피하세요</b>';
+    }
+    if (!center && state.dead[me]) center = '<b class="red">공격당했어요</b><small>움직일 수 없고 채팅도 할 수 없어요</small>';
+    if (!center && state.found && !isMafia && now - state.found.at < 4000) center = `<b>시체발견!</b><small>${esc(players[state.found.by]?.name || '')}님이 외쳤어요 · 시체발견 버튼으로 회의를 열어요</small>`;
+  }
+  const $c = c.$('.am-center');
+  if ($c.dataset.v !== center) { $c.dataset.v = center; $c.innerHTML = center; $c.classList.toggle('on', !!center); }
+
+  // 타이머
+  let left = 0;
+  if (state.phase === 'hunt' && now >= state.mafiaAt + INTRO_MS) left = state.deadline - now;
+  if (state.phase === 'vote') left = state.deadline - now;
+  const $tm = c.$('.am-timer');
+  const tt = left > 0 ? `⏱ ${Math.floor(left / 60000)}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}` : '';
+  if ($tm.textContent !== tt) $tm.textContent = tt;
+  $tm.classList.toggle('hurry', left > 0 && left < 20000);
+  if ((state.phase === 'hunt' || state.phase === 'vote') && state.deadline && now > state.deadline + 300 + Math.max(0, state.order.indexOf(me)) * 300 && now - c.lastTick > 2000) {
+    c.lastTick = now;
+    sendMove({ type: 'tick' }, { silent: true });
+  }
+
+  // 버튼
+  const $act = c.$('[data-act]');
+  let actLabel = '', actOn = false;
+  if (state.phase === 'hunt' && !state.dead[me] && now >= state.mafiaAt + INTRO_MS) {
+    if (isMafia && sur.target) { actOn = now - (state.lastKill || 0) >= KILL_CD; actLabel = actOn ? `${players[sur.target]?.name || ''} 공격!` : '잠시 후 공격 가능'; }
+    else if (!isMafia && sur.body && !state.found) { actOn = true; actLabel = '시체발견 외치기'; }
+  }
+  $act.classList.toggle('hot', actOn);
+  $act.classList.toggle('mafia', isMafia && state.phase === 'hunt');
+  $act.classList.toggle('shake', now - c.shake < 300);
+  const $al = $act.querySelector('small');
+  if ($al.textContent !== actLabel) $al.textContent = actLabel;
+  const $rb = c.$('[data-readyb]');
+  $rb.disabled = state.phase !== 'lobby' || !iAmIn;
+  $rb.textContent = state.ready?.[me] && state.phase === 'lobby' ? '준비 완료 ✔' : '준비';
+  $rb.classList.toggle('on', !!state.ready?.[me] && state.phase === 'lobby');
+  c.$('[data-pick]').disabled = !(state.phase === 'dark' && room?.hostId === me);
+  c.$('[data-report]').disabled = !(state.phase === 'hunt' && state.found && !isMafia && !state.dead[me] && iAmIn);
+  c.$('.am-joy').classList.toggle('off', !canMove(state, me, now));
+
+  // 채팅 가능 여부: 암전 중 X, 회의 중 죽은 사람 X
+  const canChat = iAmIn && !dark && !(state.phase === 'vote' && state.dead[me]);
+  const $in = c.$('.am-say input');
+  if ($in.disabled === canChat) {
+    $in.disabled = !canChat; c.$('.am-say button').disabled = !canChat;
+    $in.placeholder = canChat ? '채팅 입력' : dark ? '불이 꺼진 동안은 채팅할 수 없어요' : '공격당한 사람은 채팅할 수 없어요';
+  }
+}
+
+// 상태가 바뀔 때만 다시 그리는 부분 (점수·투표·결과·채팅 기록)
+function paintPanel() {
+  const { state, me, players, room, finished } = ctl.ctx;
+  const nm = (u) => esc(players[u]?.name || '나간 사람');
+  const color = (u) => COLORS[state.order.indexOf(u) % COLORS.length];
+  const isMafia = me === state.mafia;
+  const phaseName = { lobby: '준비', dark: '암전', hunt: '암전', vote: '회의 · 투표', result: '라운드 결과', done: '게임 종료' }[state.phase];
+  ctl.$('.am-round').innerHTML = `ROUND <b>${state.round}</b> / ${state.rounds}`;
+  ctl.$('.am-phase').textContent = phaseName;
+  const showDead = ['vote', 'result', 'done'].includes(state.phase) || isMafia;
+  ctl.$('.am-chips').innerHTML = state.order.map((u) => `<span class="${u === me ? 'me' : ''} ${showDead && state.dead[u] ? 'dead' : ''}" style="--pc:${color(u)}"><i></i>${nm(u)} <b>${state.scores[u]}</b>${state.phase === 'lobby' && state.ready[u] ? ' ✔' : ''}${state.phase === 'vote' && state.votes[u] ? ' 🗳' : ''}${showDead && state.dead[u] ? ' 💀' : ''}</span>`).join('');
+  ctl.$('.am-mission').innerHTML = isMafia && ['hunt', 'vote'].includes(state.phase) && Date.now() >= state.mafiaAt + 1500
+    ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}` : '';
+  ctl.$('.am-mission').classList.toggle('on', !!ctl.$('.am-mission').innerHTML);
+
+  let html = '';
+  const resultHtml = (L) => {
+    if (!L) return '';
+    const mission = missionText(L.mission, players);
+    const order = [...state.order].sort((a, b) => (L.tally[b] || 0) - (L.tally[a] || 0));
+    return `<div class="am-res">
+      <div class="am-res-t">ROUND ${L.round} 결과</div>
+      <div class="am-reveal ${L.mafiaCaught ? 'caught' : 'escaped'}">
+        <span class="am-mini">${charSvg(color(L.mafia))}</span>
+        <div><small>마피아는</small><b>${nm(L.mafia)}</b><em>${L.mafiaCaught ? '🚨 검거 성공!' : L.caught ? `🗡 탈출 성공 (${nm(L.caught)}님이 대신 지목됨)` : '🗡 탈출 성공 (최다 득표 동점·투표 없음)'}</em></div>
+      </div>
+      <div class="am-mis ${L.missionOk ? 'ok' : 'fail'}">🎯 미션: ${esc(mission)} → <b>${L.missionOk ? '성공' : '실패'}</b></div>
+      <div class="am-tally">${order.map((u) => `<div style="--pc:${color(u)}"><span>${nm(u)}${L.dead.includes(u) ? ' 💀' : ''}</span><i style="width:${Math.min(100, (L.tally[u] || 0) * 25)}%"></i><b>${L.tally[u] || 0}표</b><small>${Object.entries(L.votes).filter(([, t]) => t === u).map(([v]) => nm(v)).join(', ')}</small></div>`).join('')}</div>
+      <div class="am-pts">${state.order.map((u) => {
+        const items = L.breakdown[u] || [];
+        const sum = items.reduce((a, [, p]) => a + p, 0);
+        return `<div class="${u === me ? 'me' : ''}"><span style="color:${color(u)}">${nm(u)}${u === L.mafia ? ' 🗡' : ''}</span><small>${items.map(([l, p]) => `${l} ${p > 0 ? '+' : ''}${p}`).join(' · ')}</small><b class="${sum >= 0 ? 'plus' : 'minus'}">${sum > 0 ? '+' : ''}${sum}</b></div>`;
+      }).join('')}</div>
+    </div>`;
+  };
+
+  if (state.phase === 'lobby') {
+    const waiting = state.order.filter((u) => !state.ready[u]).length;
+    html = `<div class="am-tip">맵 안에서 자유롭게 움직여 보세요. 모두 <b>준비</b>를 누르면 불이 꺼져요 ${waiting ? `(남은 사람 ${waiting}명)` : ''}</div>`;
+  } else if (state.phase === 'vote') {
+    const iVote = state.votes[me];
+    const canVote = state.order.includes(me) && !state.dead[me];
+    const counts = {};
+    Object.values(state.votes).forEach((t) => (counts[t] = (counts[t] || 0) + 1));
+    html = `<div class="am-tip">🔦 불이 켜졌어요! ${state.meeting === 'time' ? '시간이 다 되어 회의가 열렸어요.' : state.meeting === 'auto' ? '살아남은 시민이 1명뿐이라 회의가 열렸어요.' : '시체가 발견됐어요.'} 채팅으로 이야기하고 <b>마피아라고 생각하는 사람의 프로필</b>을 눌러 투표하세요.${canVote ? '' : ' (공격당한 사람은 투표할 수 없어요)'}</div>
+      <div class="am-votes">${state.order.map((u) => {
+        const dead = !!state.dead[u];
+        return `<button class="am-card ${iVote === u ? 'on' : ''} ${dead ? 'dead' : ''}" data-vote="${u}" ${!canVote || dead || u === me ? 'disabled' : ''} style="--pc:${color(u)}">
+          <span class="am-mini">${charSvg(color(u), dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small></button>`;
+      }).join('')}</div>
+      <div class="am-tip sm">투표 ${Object.keys(state.votes).length} / ${state.order.filter((u) => !state.dead[u]).length} · 다 투표하면 바로 결과가 나와요 · 다시 누르면 바꿀 수 있어요</div>`;
+  } else if (state.phase === 'result') {
+    const host = room?.hostId === me || !state.order.includes(room?.hostId);
+    html = `${resultHtml(state.last)}${host ? '<button class="am-next" data-next>다음 라운드 시작 →</button>' : '<div class="am-tip">방장이 다음 라운드를 시작하길 기다리는 중…</div>'}`;
+  } else if (state.phase === 'done' || finished) {
+    const ranking = room?.result?.ranking || finalResult(state, players).ranking;
+    html = `<div class="dm-title" style="color:var(--gold)">🗡 최종 순위</div>
+      <ol class="nb-final">${ranking.map((r) => `<li class="${r.uid === me ? 'me' : ''}">
+        <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
+        <span class="nb-name">${nm(r.uid)}</span><span class="nb-score">${r.score}점</span>
+        <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span></li>`).join('')}</ol>${resultHtml(state.last)}`;
+  }
+  ctl.$('.am-panel').innerHTML = html;
+  ctl.$('.am-chat').style.display = state.phase === 'done' ? 'none' : '';
+  ctl.$('.am-log').innerHTML = (state.chat || []).slice(-6).map((m) => `<div><b style="color:${color(m.u)}">${nm(m.u)}</b> ${esc(m.text)}</div>`).join('');
+}
+
+export default {
+  id: 'assassin',
+  name: '자객 마피아',
+  emoji: '🗡',
+  category: 'variety',
+  minPlayers: 6,
+  maxPlayers: 8,
+  duration: '15~30분',
+  rewards: REWARDS,
+  rewardLabel: '1등 +5',
+  ownChat: true,
+  description: '불이 꺼지면 자객이 움직인다! 시체를 찾고 마피아를 잡아라',
+  options: [{ key: 'rounds', label: '라운드 수', choices: [3, 4, 5], default: 3 }],
+  rules: [
+    '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용 버튼(스페이스)을 써요.',
+    '모두 준비를 누르면 불이 꺼져요. 방장이 마피아 선택을 누르면 1명이 몰래 마피아가 되고 비밀 미션을 받아요.',
+    '어둠 속에선 내 캐릭터만 보여요. 마피아와 마주치면 둘 다 1초 동안 느려지고, 마피아에겐 🗡+이름, 시민에겐 ❗가 떠요. 시민끼리는 ✋만 떠요.',
+    '마피아는 마주친 순간 상호작용 버튼으로 공격! 공격받은 사람은 그 자리에 쓰러져 움직이거나 채팅할 수 없어요 (💀는 마피아에게만 보여요).',
+    '시민이 쓰러진 사람과 마주치면 🚑가 떠요. 상호작용을 누르면 "시체발견!"을 외치고(마피아 빼고 모두에게 보임), 시체발견 버튼을 누르면 모두 멈추고 불이 켜져요.',
+    '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 최다 득표 1명이 지목돼요 (동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
+    '마피아 미션: 정해진 2~3명 공격 / 2~3명 이상 공격 / 정해진 사람이 가장 많은 표를 받게 하기 중 하나.',
+    '점수 — 마피아: 지목돼도 살아남으면 +10, 미션 성공 +5, 다득표로 잡히면 −10 / 시민: 마피아를 잡으면 모두 +10, 공격받으면 −3, 생존 +3',
+    '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
+  ],
+
+  setup(players, room) {
+    const order = players.map((p) => p.uid);
+    const rounds = Math.min(5, Math.max(3, Number(room?.options?.rounds) || 3));
+    const base = { order, host: room?.hostId || order[0], rounds, round: 0, scores: Object.fromEntries(order.map((u) => [u, 0])), history: [], pastMafia: [], chat: [], last: null };
+    return newRound(base, 1);
+  },
+
+  move(state, move, uid, players) {
+    const now = Date.now();
+    const t = move?.type;
+    if (t !== 'tick' && !state.order.includes(uid)) throw new Error('참가자가 아니에요');
+    const hostOk = uid === state.host || !players[state.host];
+
+    if (t === 'ready') {
+      if (state.phase !== 'lobby') throw new Error('__noop');
+      const ready = { ...state.ready, [uid]: move.on !== false };
+      if (state.order.every((u) => ready[u])) return { state: { ...state, ready, phase: 'dark' } };
+      return { state: { ...state, ready } };
+    }
+    if (t === 'pickMafia') {
+      if (state.phase !== 'dark') throw new Error('지금은 마피아를 고를 수 없어요');
+      if (!hostOk) throw new Error('방장만 마피아를 고를 수 있어요');
+      let pool = state.order.filter((u) => !state.pastMafia.includes(u));
+      if (!pool.length) pool = state.order;
+      const mafia = pool[Math.floor(Math.random() * pool.length)];
+      return { state: { ...state, phase: 'hunt', mafia, mafiaAt: now, mission: makeMission(state, mafia), pastMafia: [...state.pastMafia, mafia], deadline: now + INTRO_MS + HUNT_MS } };
+    }
+    if (t === 'kill') {
+      if (state.phase !== 'hunt' || uid !== state.mafia) throw new Error('__noop');
+      if (now < state.mafiaAt + INTRO_MS) throw new Error('아직 공격할 수 없어요');
+      if (now - (state.lastKill || 0) < KILL_CD) throw new Error('잠시 후에 다시 공격할 수 있어요');
+      const tg = move.target;
+      if (!state.order.includes(tg) || tg === uid || state.dead[tg]) throw new Error('공격할 수 없는 대상이에요');
+      const dead = { ...state.dead, [tg]: { x: Math.round(Number(move.x) || 0), y: Math.round(Number(move.y) || 0), at: now } };
+      const s = { ...state, dead, lastKill: now };
+      if (aliveCitizens(s).length <= 1) return { state: toVote(s, now, 'auto') };
+      return { state: s };
+    }
+    if (t === 'shout') {
+      if (state.phase !== 'hunt' || uid === state.mafia || state.dead[uid]) throw new Error('__noop');
+      if (state.found) throw new Error('이미 시체가 발견됐어요');
+      if (!state.dead[move.body]) throw new Error('__noop');
+      return { state: { ...state, found: { by: uid, body: move.body, at: now } } };
+    }
+    if (t === 'report') {
+      if (state.phase !== 'hunt' || !state.found) throw new Error('아직 발견된 시체가 없어요');
+      if (uid === state.mafia || state.dead[uid]) throw new Error('__noop');
+      return { state: toVote(state, now, 'found') };
+    }
+    if (t === 'vote') {
+      if (state.phase !== 'vote') throw new Error('지금은 투표 시간이 아니에요');
+      if (state.dead[uid]) throw new Error('공격당한 사람은 투표할 수 없어요');
+      if (!state.order.includes(move.target) || state.dead[move.target]) throw new Error('투표할 수 없는 사람이에요');
+      if (move.target === uid) throw new Error('나에게는 투표할 수 없어요');
+      const votes = { ...state.votes, [uid]: move.target };
+      const s = { ...state, votes };
+      if (state.order.filter((u) => !state.dead[u]).every((u) => votes[u])) return resolve(s, players);
+      return { state: s };
+    }
+    if (t === 'chat') {
+      const text = String(move.text || '').trim().slice(0, 60);
+      if (!text) throw new Error('__noop');
+      if (state.phase === 'dark' || state.phase === 'hunt') throw new Error('불이 꺼진 동안은 채팅할 수 없어요');
+      if (state.phase === 'vote' && state.dead[uid]) throw new Error('공격당한 사람은 채팅할 수 없어요');
+      return { state: { ...state, chat: [...(state.chat || []), { u: uid, text, at: now }].slice(-30) } };
+    }
+    if (t === 'next') {
+      if (state.phase !== 'result') throw new Error('__noop');
+      if (!hostOk) throw new Error('방장만 다음 라운드를 시작할 수 있어요');
+      return { state: newRound(state, state.round + 1) };
+    }
+    if (t === 'tick') {
+      if (state.phase === 'hunt' && now >= state.deadline) return { state: toVote(state, now, 'time') };
+      if (state.phase === 'vote' && now >= state.deadline) return resolve(state, players);
+      throw new Error('__noop');
+    }
+    throw new Error('알 수 없는 동작이에요');
+  },
+
+  render(el, ctx) {
+    const code = ctx.room?.code || 'local';
+    if (!ctl || ctl.code !== code) {
+      teardown();
+      ctl = build(code);
+      ctl.ctx = ctx;
+      ctl.raf = requestAnimationFrame(frame);
+      import('../backend/index.js').then(async ({ backend }) => {
+        const c = ctl;
+        if (!c || c.code !== code) return;
+        const live = backend.live ? await backend.live(code) : null;
+        if (!live) { c.noLive = true; return; }
+        c.live = live;
+        live.onLeave(ctx.me);
+        c.unwatch = live.watch((all) => { c.others = all || {}; });
+      });
+    }
+    ctl.ctx = ctx;
+    if (typeof location !== 'undefined' && location.search.includes('test')) window.__am = ctl; // 테스트 모드 점검용
+    if (ctl.root.parentNode !== el) { el.innerHTML = ''; el.appendChild(ctl.root); }
+    const { state, me, room, finished } = ctx;
+    const sig = JSON.stringify([state.phase, state.round, state.ready, state.votes, state.dead, state.scores, state.last?.round, (state.chat || []).length, state.found?.by, state.mafia === me, room?.hostId, finished]);
+    if (sig !== ctl.sig) {
+      ctl.sig = sig;
+      paintPanel();
+      if (state.mafia === me && state.phase === 'hunt') setTimeout(() => ctl && paintPanel(), 1600); // 미션 줄 표시
+    }
+    if (room && state.phase === 'hunt' && state.found && me !== state.mafia) soundEvent(room.code, `am:found:${state.round}`, 'ok');
+    if (room && (state.phase === 'result' || state.phase === 'done') && state.last) {
+      const good = me === state.last.mafia ? !state.last.mafiaCaught : state.last.mafiaCaught;
+      soundEvent(room.code, `am:res:${state.last.round}`, good ? 'ok' : 'no');
+    }
+  },
+};

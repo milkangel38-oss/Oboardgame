@@ -140,6 +140,22 @@ export function createBackend(config) {
       });
     },
 
+    // 실시간 위치 채널 (자객 마피아) — Realtime Database: live/{방코드}/{uid}
+    // Firestore는 초당 여러 번 쓰기엔 무료 한도가 금방 차서, 위치만 따로 Realtime Database로 보내요.
+    liveAvailable: !!config.databaseURL,
+    async live(code) {
+      if (!config.databaseURL) return null;
+      const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+      const rdb = m.getDatabase(app);
+      const base = m.ref(rdb, `live/${code}`);
+      return {
+        send(uid, data) { m.set(m.child(base, uid), data).catch(() => {}); },
+        watch(cb) { return m.onValue(base, (snap) => cb(snap.val() || {}), () => cb({})); },
+        onLeave(uid) { try { m.onDisconnect(m.child(base, uid)).remove(); } catch {} },
+        close(uid) { m.remove(m.child(base, uid)).catch(() => {}); },
+      };
+    },
+
     watchRoom(code, cb) {
       return onSnapshot(
         doc(db, 'rooms', code),
