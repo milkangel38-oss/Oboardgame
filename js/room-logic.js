@@ -110,6 +110,7 @@ export function start(room, game, uid) {
   const now = Date.now();
   Object.values(room.players).forEach((p) => (p.seen = now)); // 접속 확인 시작
   room.status = 'playing';
+  room.startedAt = Date.now();
   room.result = null;
   return room;
 }

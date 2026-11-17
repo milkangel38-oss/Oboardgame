@@ -78,6 +78,7 @@ export default {
   name: '초성퀴즈',
   emoji: '🔤',
   category: 'mini',
+  ownChat: true, // 게임 안에 초상화·말풍선 채팅이 있어요
   minPlayers: 2,
   maxPlayers: 8,
   duration: '10~20분',

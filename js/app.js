@@ -986,6 +986,7 @@ function renderRoom(code) {
 const RCHAT_FOLD = 'og:roomChatFolded';
 const rchat = { code: '', draft: '', seen: 0, focus: false };
 function drawRoomChat(room, full = false) {
+  drawBubbles(room);
   const $c = document.getElementById('rchat');
   if (!$c) return;
   if (rchat.code !== room.code) { rchat.code = room.code; rchat.draft = ''; rchat.seen = Date.now(); }
@@ -1031,6 +1032,39 @@ function drawRoomChat(room, full = false) {
     const text = $in.value.trim();
     if (!text) return;
     rchat.draft = ''; $in.value = '';
+    backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
+  };
+}
+
+// ───────── 게임 중 채팅: 초상화 위 말풍선 ─────────
+const BUBBLE_MS = 6000;
+const gchat = { draft: '', focus: false };
+function drawBubbles(room) {
+  const now = Date.now();
+  const last = {};
+  (room.chat || []).forEach((m) => { if (now - m.t < BUBBLE_MS && (!room.startedAt || m.t >= room.startedAt - 1000)) last[m.uid] = m; });
+  document.querySelectorAll('[data-bub]').forEach(($b) => {
+    const m = last[$b.dataset.bub];
+    const key = m ? String(m.t) : '';
+    if ($b.dataset.key === key) return; // 같은 말풍선이면 그대로 (애니메이션 유지)
+    $b.dataset.key = key;
+    $b.innerHTML = m ? `<span class="bub" style="animation-delay:-${now - m.t}ms">${esc(m.text)}</span>` : '';
+  });
+}
+function bindGameChat($main, room) {
+  const $f = $main.querySelector('.gchat');
+  if (!$f) return;
+  const $in = $f.querySelector('input');
+  $in.value = gchat.draft;
+  $in.oninput = () => (gchat.draft = $in.value);
+  $in.onfocus = () => (gchat.focus = true);
+  $in.onblur = () => setTimeout(() => { if ($in.isConnected) gchat.focus = false; }, 0);
+  if (gchat.focus) $in.focus();
+  $f.onsubmit = (e) => {
+    e.preventDefault();
+    const text = $in.value.trim();
+    if (!text) return;
+    gchat.draft = ''; $in.value = '';
     backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
   };
 }
@@ -1086,6 +1120,8 @@ function drawRoom($main, room, game) {
   const act = (fn, silent) => backend.mutateRoom(room.code, fn).catch((e) => { if (!silent) toast(e.message); });
 
   const emptySeats = Math.max(0, game.minPlayers - players.length);
+  const playing = room.status === 'playing';
+  const gameChat = playing && !game.ownChat; // 초성퀴즈·타이핑퀴즈는 게임 안 채팅을 그대로 써요
 
   let controls = '';
   if (room.status === 'waiting') {
@@ -1141,14 +1177,15 @@ function drawRoom($main, room, game) {
       </div>
     </div>
     <div class="room-body">
-      <section class="players panel">
-        <h3>참가자 <span class="muted">${players.length}/${game.maxPlayers}</span></h3>
+      <section class="players panel ${gameChat ? 'ingame' : ''}">
+        <h3>${gameChat ? '플레이어' : '참가자'} <span class="muted">${players.length}/${game.maxPlayers}</span></h3>
         <ul class="seats">
           ${players.map((p) => {
             const host = p.uid === room.hostId;
             const tag = host ? '방장' : room.status === 'waiting' ? (p.ready ? 'READY' : '대기') : '';
             return `<li class="seat ${p.uid === user.uid ? 'is-me' : ''} ${host ? 'host' : ''} ${!host && room.status === 'waiting' && p.ready ? 'ready' : ''} ${profile?.friends?.[p.uid] ? 'friend' : ''}" title="${esc(p.name)}${p.uid === user.uid ? '' : ' · 우클릭(길게 누르기)으로 친구 요청'}" data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo || '')}">
-              <span class="seat-av">${avatar(p)}${host ? '<span class="crown">👑</span>' : ''}</span>
+              ${gameChat ? `<span class="seat-bubble" data-bub="${esc(p.uid)}"></span>` : ''}
+              <span class="seat-av">${avatar(p, gameChat ? 'lg' : '')}${host ? '<span class="crown">👑</span>' : ''}</span>
               <span class="seat-name">${profile?.friends?.[p.uid] ? '<i class="fr-mark">♥</i>' : ''}${esc(p.name)}</span>
               ${tag ? `<span class="seat-tag">${tag}</span>` : ''}
             </li>`;
@@ -1157,12 +1194,14 @@ function drawRoom($main, room, game) {
           ${room.status === 'waiting' && players.length >= game.minPlayers && players.length < game.maxPlayers
             ? '<li class="seat add" data-invite-seat role="button" tabindex="0"><span class="seat-av"><span class="avatar">+</span></span><span class="seat-name">초대하기</span></li>' : ''}
         </ul>
+        ${gameChat && mine ? '<form class="gchat"><input maxlength="60" placeholder="채팅 입력 (말풍선으로 떠요)" autocomplete="off"><button class="btn sm primary">💬</button></form>' : ''}
       </section>
-      <section class="panel rchat" id="rchat"></section>
+      ${playing ? '' : '<section class="panel rchat" id="rchat"></section>'}
       <section class="stage panel">${stage}</section>
     </div>`;
 
   drawRoomChat(room, true);
+  if (gameChat) bindGameChat($main, room);
   $main.querySelector('[data-invite]').onclick = () => invite(room, game);
   const $seatInvite = $main.querySelector('[data-invite-seat]');
   if ($seatInvite) $seatInvite.onclick = () => invite(room, game);

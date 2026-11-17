@@ -973,6 +973,16 @@ a.cat-banner:active { transform: translateY(0); }
 .dm-tt { display: grid; font-size: 13px; line-height: 1.35; min-width: 0; }
 .dm-tt b { font-size: 12.5px; color: #ff8fb8; }
 
+/* ───────── 게임 중 초상화 + 말풍선 ───────── */
+.players.ingame .seats { padding-top: 34px; gap: 30px 6px; }
+.players.ingame .seat { position: relative; }
+.seat-bubble { position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); z-index: 3; pointer-events: none; }
+.seat-bubble .bub { display: block; width: max-content; max-width: 130px; padding: 5px 10px; border-radius: 12px; background: #fff; color: #1a1033; font-size: 12.5px; font-weight: 700; line-height: 1.3; word-break: keep-all; overflow-wrap: anywhere; box-shadow: 0 3px 8px rgba(0, 0, 0, .35); position: relative; animation: seatBub 6s forwards; }
+@keyframes seatBub { 0% { opacity: 0; transform: translateY(6px); } 5%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+.seat-bubble .bub::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #fff; border-bottom: 0; }
+.gchat { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 12px; }
+.gchat input { padding: 8px 10px; font-size: 14px; }
+
 /* ───────── 방 채팅 ───────── */
 .rchat { padding: 10px 14px 12px; }
 .rc-head { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 15px; cursor: pointer; user-select: none; }

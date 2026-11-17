@@ -140,6 +140,7 @@ export default {
   emoji: '⌨️',
   category: 'variety',
   teamGame: true,
+  ownChat: true, // 게임 안에 초상화·말풍선 채팅이 있어요
   minPlayers: 6,
   maxPlayers: 10,
   duration: '15~25분',
