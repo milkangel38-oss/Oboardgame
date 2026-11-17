@@ -1,7 +1,7 @@
 // 미니게임: 초성퀴즈 (2~8명)
-// - 방장이 카테고리(식품 · 영화/드라마 · 노래제목 · 속담/명언)를 고르면 그 카테고리로 10~20라운드
+// - 첫 라운드는 방장이, 그다음부터는 정답을 맞힌 사람이 카테고리(식품 · 영화/드라마 · 노래제목 · 속담/명언)를 골라요
 // - 초성을 보고 누구나 먼저 정답을 외쳐요. 정답 +10점, 오답 −5점 + 10초 동안 정답 금지
-// - 힌트: 요청하면 다른 모두가 동의해야 받아요. 요청한 사람이 10% · 30% · 50% 중 골라 글자를 공개
+// - 힌트: 요청하면 다른 모두가 동의해야 받아요. 요청한 사람이 초성 10% · 30% 공개 또는 관련어 공개 중 골라요
 // - 채팅은 아바타 위 말풍선으로 보여요
 import { GARNET } from '../profile.js';
 import { charSvg } from '../avatars.js';
@@ -29,10 +29,15 @@ const shuffle = (arr) => {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const chatPush = (state, entry) => [...state.chat, { ...entry, t: Date.now() }].slice(-30);
 
-function newRound(state, roundNo) {
+// 카테고리를 고르면 새 라운드 (그 카테고리에서 아직 안 나온 문제)
+function newRound(state, catId) {
+  const cat = CATEGORIES[catId];
+  let pool = cat.words.filter(([w]) => !state.used.includes(w));
+  if (!pool.length) pool = cat.words;
+  const [word, related] = pool[Math.floor(Math.random() * pool.length)];
   return {
-    ...state, round: roundNo, phase: 'play', word: state.deck[roundNo - 1], revealed: [],
-    hint: null, hintNote: '', solvedBy: '', revealUntil: 0, lockUntil: {},
+    ...state, round: state.round + 1, phase: 'play', category: catId, word, related, relatedShown: false,
+    used: [...state.used, word], revealed: [], hint: null, hintNote: '', solvedBy: '', revealUntil: 0, lockUntil: {},
   };
 }
 
@@ -81,12 +86,12 @@ export default {
   description: 'ㅊㅅㅋㅈ! 초성 보고 먼저 맞혀라',
   options: [{ key: 'rounds', label: '라운드 수', choices: [10, 15, 20], default: 10 }],
   rules: [
-    '게임이 시작되면 방장이 카테고리를 골라요: 🍲 식품 · 🎬 영화/드라마 · 🎵 노래제목 · 📜 속담/명언. 고른 카테고리는 모두에게 보여요.',
+    '카테고리: 🍲 식품 · 🎬 영화/드라마 · 🎵 노래제목 · 📜 속담/명언. 첫 라운드는 방장이 고르고, 그다음부터는 정답을 맞힌 사람이 다음 카테고리를 골라요. 고른 카테고리는 모두에게 보여요.',
     '가운데 나온 초성을 보고 정답을 맞혀요. 제한 시간은 없고, 누구나 먼저 외칠 수 있어요.',
     '정답 +10점, 오답 −5점! 틀리면 10초 동안 정답을 외칠 수 없어요. 띄어쓰기는 상관없어요.',
     '💡 힌트: 힌트 버튼을 누르면 다른 모든 사람에게 동의를 물어요. 한 명이라도 거부하면 힌트를 받을 수 없어요.',
-    '모두 동의하면 요청한 사람이 10% · 30% · 50% 중 골라 그만큼 글자를 공개해요.',
-    '아무도 못 맞히면 방장이 문제를 넘길 수 있어요 (점수 없음).',
+    '모두 동의하면 요청한 사람이 ① 초성 10% 공개 ② 초성 30% 공개 ③ 관련어 공개 중 하나를 골라요. 관련어: 식품은 종류(과자·라면·한식·중식·일식 등), 영화/드라마는 주연 배우, 노래는 가수, 속담/명언은 뜻·상황 설명.',
+    '아무도 못 맞히면 방장이 문제를 넘길 수 있어요 (점수 없음, 다음 카테고리는 방장이 골라요).',
     '채팅을 치면 내 아바타 위에 말풍선으로 보여요.',
     '가넷: 2명 → 1등 2개 / 3~4명 → 1·2등 2개 / 5~6명 → 1등 3 · 2등 2 · 3등 1 / 7~8명 → 1등 4 · 2등 3 · 3등 2 · 4등 1',
   ],
@@ -95,7 +100,7 @@ export default {
     const order = players.map((p) => p.uid);
     const rounds = [10, 15, 20].includes(Number(room?.options?.rounds)) ? Number(room.options.rounds) : 10;
     return {
-      order, host: room?.hostId || order[0], rounds, round: 0, phase: 'pick', category: null, deck: [],
+      order, host: room?.hostId || order[0], rounds, round: 0, phase: 'pick', picker: room?.hostId || order[0], category: null, used: [], lastWord: '',
       scores: Object.fromEntries(order.map((u) => [u, 0])), chat: [], revealed: [], lockUntil: {}, hint: null, hintNote: '',
     };
   },
@@ -112,11 +117,9 @@ export default {
 
     if (move?.type === 'pick') {
       if (state.phase !== 'pick') throw new Error('__noop');
-      if (uid !== state.host) throw new Error('방장이 카테고리를 골라요');
-      const cat = CATEGORIES[move.cat];
-      if (!cat) throw new Error('카테고리를 골라 주세요');
-      const deck = shuffle(cat.words).slice(0, state.rounds);
-      return { state: newRound({ ...state, category: move.cat, deck, rounds: Math.min(state.rounds, deck.length) }, 1) };
+      if (uid !== state.picker) throw new Error(`${name(state.picker)}님이 카테고리를 골라요`);
+      if (!CATEGORIES[move.cat]) throw new Error('카테고리를 골라 주세요');
+      return { state: newRound(state, move.cat) };
     }
 
     if (move?.type === 'answer') {
@@ -144,7 +147,7 @@ export default {
       if (state.phase !== 'play' || state.hint) throw new Error('지금은 힌트를 요청할 수 없어요');
       if (!state.order.includes(uid)) throw new Error('참가자가 아니에요');
       const letters = [...state.word.split('|')[0]].filter(isHangul).length;
-      if (state.revealed.length >= letters) throw new Error('이미 모든 글자가 공개됐어요');
+      if (state.revealed.length >= letters && state.relatedShown) throw new Error('더 줄 힌트가 없어요');
       return { state: { ...state, hint: { by: uid, votes: {}, stage: 'vote' }, hintNote: '' } };
     }
 
@@ -160,13 +163,18 @@ export default {
     if (move?.type === 'hintPick') {
       const h = state.hint;
       if (state.phase !== 'play' || !h || h.stage !== 'choose' || uid !== h.by) throw new Error('__noop');
-      const pct = [10, 30, 50].includes(Number(move.pct)) ? Number(move.pct) : 10;
+      if (move.pct === 'rel') {
+        if (state.relatedShown) throw new Error('관련어는 이미 공개됐어요');
+        return { state: { ...state, hint: null, relatedShown: true, hintNote: `💡 ${name(uid)}님이 관련어를 공개했어요` } };
+      }
+      const pct = Number(move.pct) === 30 ? 30 : 10;
       const chars = [...shownAnswer(state.word)];
       const idx = chars.map((c, i) => (isHangul(c) ? i : -1)).filter((i) => i >= 0);
       const hidden = idx.filter((i) => !state.revealed.includes(i));
       const n = Math.max(1, Math.ceil((idx.length * pct) / 100));
       const pick = shuffle(hidden).slice(0, n);
-      return { state: { ...state, hint: null, revealed: [...state.revealed, ...pick], hintNote: `💡 ${name(uid)}님이 ${pct}% 힌트를 열었어요 (${pick.length}글자)` } };
+      if (!pick.length) throw new Error('더 공개할 초성이 없어요');
+      return { state: { ...state, hint: null, revealed: [...state.revealed, ...pick], hintNote: `💡 ${name(uid)}님이 초성 ${pct}%를 공개했어요 (${pick.length}글자)` } };
     }
 
     if (move?.type === 'skip') {
@@ -180,7 +188,8 @@ export default {
           const done = { ...state, phase: 'done' };
           return { state: done, result: result(done, players) };
         }
-        return { state: newRound(state, state.round + 1) };
+        // 맞힌 사람이 다음 카테고리를 골라요 (넘긴 문제면 방장)
+        return { state: { ...state, phase: 'pick', picker: state.solvedBy || state.host, lastWord: state.word, lastBy: state.solvedBy } };
       }
       throw new Error('__noop');
     }
@@ -244,11 +253,15 @@ export default {
 
     // 카테고리 고르기
     if (state.phase === 'pick') {
+      const myPick = me === state.picker;
+      const who = state.lastBy ? '정답을 맞힌' : state.round ? '방장' : '방장';
       el.innerHTML = `
         <div class="cs">
-          <div class="nb-banner">${isHost ? '<span><b>카테고리를 골라 주세요!</b> 모든 라운드가 이 카테고리로 진행돼요</span>' : `<span><b>${name(state.host)}</b>님(방장)이 카테고리를 고르는 중…</span>`}</div>
+          <div class="nb-top"><span class="nb-round">다음 ROUND <b>${state.round + 1}</b> / ${state.rounds}</span></div>
+          ${state.lastWord ? `<div class="cs-last">지난 문제 정답 <b>${esc(shownAnswer(state.lastWord))}</b>${state.lastBy ? ` · <b>${name(state.lastBy)}</b>님 정답` : ''}</div>` : ''}
+          <div class="nb-banner">${myPick ? `<span><b>다음 카테고리를 골라 주세요!</b>${state.lastBy ? ' 정답을 맞혀서 고를 수 있어요 🎉' : ''}</span>` : `<span><b>${name(state.picker)}</b>님(${who} 사람)이 다음 카테고리를 고르는 중…</span>`}</div>
           <div class="cs-cats">
-            ${Object.entries(CATEGORIES).map(([id, c]) => `<button class="cs-catbtn" data-cat="${id}" ${isHost ? '' : 'disabled'}><span>${c.icon}</span>${esc(c.name)}</button>`).join('')}
+            ${Object.entries(CATEGORIES).map(([id, c]) => `<button class="cs-catbtn" data-cat="${id}" ${myPick ? '' : 'disabled'}><span>${c.icon}</span>${esc(c.name)}</button>`).join('')}
           </div>
           ${avatars}
           ${chatBox}
@@ -269,6 +282,7 @@ export default {
 
     // 힌트 상태
     const h = state.hint;
+    const allOpen = [...answer].filter(isHangul).length <= state.revealed.length;
     let hintBox = '';
     if (state.phase === 'play') {
       if (h && h.stage === 'vote') {
@@ -281,7 +295,10 @@ export default {
             : `<div class="cs-hint ask">💡 <b>${name(h.by)}</b>님의 힌트 요청 · 동의 기다리는 중 <small>${waiting.map(name).join(', ')}</small></div>`;
       } else if (h && h.stage === 'choose') {
         hintBox = h.by === me
-          ? `<div class="cs-hint ok">모두 동의했어요! 공개할 만큼 고르세요<div class="cs-hint-acts">${[10, 30, 50].map((p) => `<button class="btn primary sm" data-pct="${p}">${p}%</button>`).join('')}</div></div>`
+          ? `<div class="cs-hint ok">모두 동의했어요! 힌트를 고르세요<div class="cs-hint-acts">
+              <button class="btn primary sm" data-pct="10" ${allOpen ? 'disabled' : ''}>① 초성 10% 공개</button>
+              <button class="btn primary sm" data-pct="30" ${allOpen ? 'disabled' : ''}>② 초성 30% 공개</button>
+              <button class="btn primary sm" data-pct="rel" ${state.relatedShown ? 'disabled' : ''}>③ 관련어 공개 (${esc(cat.hintLabel)})</button></div></div>`
           : `<div class="cs-hint ok">모두 동의! <b>${name(h.by)}</b>님이 힌트 크기를 고르는 중…</div>`;
       } else {
         hintBox = `${state.hintNote ? `<div class="cs-hint note">${esc(state.hintNote)}</div>` : ''}`;
@@ -301,6 +318,7 @@ export default {
         </div>
         <div class="cs-board ${state.phase === 'reveal' ? 'reveal' : ''}">${board}</div>
         <div class="nb-banner">${banner}</div>
+        ${state.relatedShown || state.phase === 'reveal' ? `<div class="cs-related">💬 관련어 <i>${esc(cat.hintLabel)}</i> <b>${esc(state.related || '')}</b></div>` : ''}
         ${hintBox}
         ${avatars}
         ${isPlayer && state.phase === 'play' ? `
@@ -349,7 +367,7 @@ export default {
       el.querySelector('[data-hint]')?.addEventListener('click', () => sendMove({ type: 'hint' }));
       el.querySelector('[data-skip]')?.addEventListener('click', () => sendMove({ type: 'skip' }));
       el.querySelectorAll('[data-vote]').forEach((b) => (b.onclick = () => sendMove({ type: 'vote', ok: b.dataset.vote === '1' })));
-      el.querySelectorAll('[data-pct]').forEach((b) => (b.onclick = () => sendMove({ type: 'hintPick', pct: Number(b.dataset.pct) })));
+      el.querySelectorAll('[data-pct]').forEach((b) => (b.onclick = () => sendMove({ type: 'hintPick', pct: b.dataset.pct === 'rel' ? 'rel' : Number(b.dataset.pct) })));
     }
 
     // 잠금 표시 · 다음 라운드 진행

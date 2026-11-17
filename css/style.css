@@ -420,6 +420,8 @@ a.cat-banner:active { transform: translateY(0); }
 .ms-hint-row input { flex: 1 1 0; min-width: 0; text-align: center; font-family: var(--logo); font-size: 18px; padding: 9px 4px; }
 .ms-hint-row input::placeholder { font-family: Pretendard, sans-serif; font-size: 13px; }
 .ms-hint .ms-sign { font-size: 22px; flex: none; }
+.ms-level.lv2 { background: rgba(61, 123, 255, .25); color: #9cc0ff; }
+.ms-level.lv4 { background: #c81d38; color: #fff; }
 .ms-level { display: inline-block; margin-right: 4px; padding: 1px 8px; border-radius: 99px; background: rgba(224, 54, 79, .25); color: #ff9aa8; font-size: 12px; font-weight: 800; }
 .ms-answer input { font-family: var(--logo); font-size: 20px; }
 .ms-answer .btn { flex: none; }
@@ -917,6 +919,10 @@ a.cat-banner:active { transform: translateY(0); }
 .cs-gap { width: 12px; }
 @keyframes csFlip { from { transform: rotateY(90deg); } }
 @media (max-width: 420px) { .cs-tile { width: 34px; height: 40px; font-size: 22px; border-radius: 8px; } }
+.cs-last { text-align: center; font-size: 13px; color: #cfc8ea; }
+.cs-last b { color: var(--gold); }
+.cs-related { padding: 10px 12px; border-radius: 12px; background: rgba(61, 123, 255, .15); border: 1px solid rgba(61, 123, 255, .5); font-size: 14px; text-align: center; line-height: 1.5; }
+.cs-related i { font-style: normal; font-size: 11.5px; padding: 1px 7px; border-radius: 99px; background: #2f6fd6; color: #fff; margin: 0 4px; }
 .cs-hint { padding: 10px 12px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
 .cs-hint small { display: block; color: var(--muted); font-size: 11.5px; }
 .cs-hint.ask { background: rgba(255, 216, 77, .12); border: 1px solid rgba(255, 216, 77, .45); }
@@ -966,6 +972,24 @@ a.cat-banner:active { transform: translateY(0); }
 .dm-toast { appearance: none; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px; border-radius: 14px; background: #2a1f5a; border: 2px solid #ff4f9a; color: var(--ink); font: inherit; cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, .55); animation: ip-in .3s ease-out; }
 .dm-tt { display: grid; font-size: 13px; line-height: 1.35; min-width: 0; }
 .dm-tt b { font-size: 12.5px; color: #ff8fb8; }
+
+/* ───────── 방 채팅 ───────── */
+.rchat { padding: 10px 14px 12px; }
+.rc-head { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 15px; cursor: pointer; user-select: none; }
+.rc-head .muted { font-size: 11.5px; font-weight: 500; }
+.rc-head .chevron { margin-left: auto; transition: transform .2s; }
+.rchat.folded .rc-head .chevron { transform: rotate(-90deg); }
+.rchat.folded .rc-body { display: none; }
+.rc-unread { font-style: normal; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: #ff4f6e; color: #fff; font-size: 11px; }
+.rc-list { list-style: none; margin: 8px 0; padding: 0 2px 0 0; max-height: 170px; overflow-y: auto; display: grid; gap: 4px; }
+.rc-list li { display: flex; align-items: baseline; gap: 6px; font-size: 13.5px; line-height: 1.4; }
+.rc-list li b { flex: none; font-size: 12.5px; color: #9cc0ff; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-list li.me b { color: #ff8fb8; }
+.rc-list li span { flex: 1; word-break: break-word; }
+.rc-list li small { flex: none; font-size: 10px; color: var(--muted); }
+.rc-list li.rc-empty { color: var(--muted); font-size: 12.5px; }
+.rc-form { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.rc-form input { padding: 8px 10px; font-size: 14px; }
 
 /* ───────── 음량 버튼 ───────── */
 .vol { position: fixed; right: 14px; bottom: 14px; z-index: 900; display: grid; justify-items: end; gap: 8px; }

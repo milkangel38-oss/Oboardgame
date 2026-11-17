@@ -126,6 +126,16 @@ export function applyMove(room, game, uid, move) {
   return room;
 }
 
+// 방 채팅 (방에 들어온 사람끼리만)
+export function chat(room, uid, text) {
+  const p = room.players[uid];
+  if (!p) throw new Error('방에 있는 사람만 채팅할 수 있어요');
+  const t = String(text || '').trim().slice(0, 120);
+  if (!t) return room;
+  room.chat = [...(room.chat || []), { uid, name: p.name, text: t, t: Date.now() }].slice(-50);
+  return room;
+}
+
 export function reset(room, uid) {
   if (room.hostId !== uid) throw new Error('방장만 새 게임을 열 수 있어요');
   room.status = 'waiting';

@@ -2,7 +2,7 @@
 // - 라운드마다 "X ◆ Y = ?" 문제가 나와요. ◆ 는 숨겨진 규칙.
 // - 차례대로 숫자 두 개를 입력하면 그 숫자에 ◆를 적용한 결과가 모두에게 힌트로 공개돼요.
 // - 언제든 정답을 낼 수 있어요. 정답 +1점, 오답 -1점 (틀려도 계속 도전 가능)
-// - 난이도(쉬움·보통·어려움·넌센스)는 라운드마다 무작위
+// - 난이도(보통·어려움·너무 어려움)는 라운드마다 무작위
 // - 방장이 정한 라운드(5~10) 후 1등 가넷 3개, 2등 1개
 import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
@@ -79,7 +79,7 @@ export default {
     `차례가 되면 숫자 두 개(0 ~ 999,999,999)를 입력해요. 그 숫자에 ◆를 적용한 결과가 모두에게 힌트로 공개돼요. (차례당 ${HINT_MS / 1000}초)`,
     '정답은 자기 차례가 아니어도 언제든 낼 수 있어요.',
     '정답 +1점, 오답 −1점! 틀려도 그 라운드에서 다시 도전할 수 있어요.',
-    '문제 난이도(쉬움·보통·어려움·넌센스)는 라운드마다 무작위로 나와요.',
+    '문제 난이도(보통 · 어려움 · 너무 어려움)는 라운드마다 무작위로 나와요.',
     `힌트가 ${MAX_HINTS}개 나온 뒤 ${FINAL_MS / 1000}초 안에 아무도 못 맞히면 라운드가 끝나요.`,
     '방장이 정한 라운드(5~10)가 끝나면 1등 가넷 3개, 2등 가넷 1개! (1점 이상일 때)',
   ],
@@ -209,7 +209,7 @@ export default {
           <span>${state.target[0]}</span>${SIGN}<span>${state.target[1]}</span><span class="ms-eq">=</span>
           <span class="ms-q ${state.phase === 'reveal' ? 'open' : ''}">${state.phase === 'reveal' ? state.answer : '?'}</span>
         </div>
-        ${state.phase === 'reveal' ? `<div class="ms-rule"><span class="ms-level">${LEVELS[rule?.level] || ''}</span> ◆ = ${esc(rule?.desc || '')}</div>` : ''}
+        ${state.phase === 'reveal' ? `<div class="ms-rule"><span class="ms-level lv${rule?.level}">${LEVELS[rule?.level] || ''}</span> ◆ = ${esc(rule?.desc || '')}</div>` : ''}
 
         <div class="nb-bar"><i data-bar></i></div>
         <div class="nb-banner"><span>${status}</span></div>

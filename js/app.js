@@ -973,13 +973,66 @@ function renderRoom(code) {
     recordIfFinished(room);
     setPresence({ state: room.status === 'playing' ? 'playing' : 'waiting', room: room.code, game: room.gameId });
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
-    const sig = JSON.stringify(room, (k, v) => (k === 'seen' ? undefined : v));
-    if (sig === lastSig && $main.querySelector('.room-head')) return;
+    const sig = JSON.stringify(room, (k, v) => (k === 'seen' || k === 'chat' ? undefined : v));
+    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); return; }
     lastSig = sig;
     drawRoom($main, room, game);
   });
 
   return () => { unsub(); if (presence) clearInterval(presence); stopGameBgm(); vol(); };
+}
+
+// ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
+const RCHAT_FOLD = 'og:roomChatFolded';
+const rchat = { code: '', draft: '', seen: 0, focus: false };
+function drawRoomChat(room, full = false) {
+  const $c = document.getElementById('rchat');
+  if (!$c) return;
+  if (rchat.code !== room.code) { rchat.code = room.code; rchat.draft = ''; rchat.seen = Date.now(); }
+  const msgs = room.chat || [];
+  const folded = localStorage.getItem(RCHAT_FOLD) === '1';
+  if (!folded) rchat.seen = Math.max(rchat.seen, ...msgs.map((m) => m.t), 0);
+  const unread = folded ? msgs.filter((m) => m.t > rchat.seen && m.uid !== user.uid).length : 0;
+  const list = msgs.length ? msgs.map((m) => {
+    const d = new Date(m.t);
+    return `<li class="${m.uid === user.uid ? 'me' : ''}"><b>${esc(room.players[m.uid]?.name || m.name)}</b><span>${esc(m.text)}</span><small>${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}</small></li>`;
+  }).join('') : '<li class="rc-empty">이 방에 있는 사람끼리만 보이는 채팅이에요. 인사를 건네 보세요 👋</li>';
+
+  if (!full && $c.querySelector('.rc-list') && $c.classList.contains('folded') === folded) {
+    // 채팅만 바뀐 경우: 목록만 바꾸고 입력칸은 그대로
+    const $l = $c.querySelector('.rc-list');
+    const atBottom = $l.scrollHeight - $l.scrollTop - $l.clientHeight < 30;
+    $l.innerHTML = list;
+    if (atBottom) $l.scrollTop = $l.scrollHeight;
+    $c.querySelector('.rc-unread')?.replaceWith(...(unread ? [Object.assign(document.createElement('i'), { className: 'rc-unread', textContent: unread })] : []));
+    if (unread && !$c.querySelector('.rc-unread')) $c.querySelector('.rc-head').insertAdjacentHTML('beforeend', `<i class="rc-unread">${unread}</i>`);
+    return;
+  }
+  $c.classList.toggle('folded', folded);
+  $c.innerHTML = `
+    <h3 class="rc-head" data-rcfold role="button" tabindex="0">💬 방 채팅 <span class="muted">이 방 사람끼리만</span>${unread ? `<i class="rc-unread">${unread}</i>` : ''}<span class="chevron">▾</span></h3>
+    <div class="rc-body">
+      <ul class="rc-list">${list}</ul>
+      <form class="rc-form"><input maxlength="120" placeholder="메시지 입력" autocomplete="off"><button class="btn sm primary">보내기</button></form>
+    </div>`;
+  const $l = $c.querySelector('.rc-list');
+  $l.scrollTop = $l.scrollHeight;
+  const $in = $c.querySelector('input');
+  $in.value = rchat.draft;
+  $in.oninput = () => (rchat.draft = $in.value);
+  $in.onfocus = () => (rchat.focus = true);
+  $in.onblur = () => setTimeout(() => { if ($in.isConnected) rchat.focus = false; }, 0);
+  if (rchat.focus && !folded) $in.focus();
+  const fold = () => { localStorage.setItem(RCHAT_FOLD, folded ? '0' : '1'); drawRoomChat(room, true); };
+  $c.querySelector('[data-rcfold]').onclick = fold;
+  $c.querySelector('[data-rcfold]').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fold(); } };
+  $c.querySelector('form').onsubmit = (e) => {
+    e.preventDefault();
+    const text = $in.value.trim();
+    if (!text) return;
+    rchat.draft = ''; $in.value = '';
+    backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
+  };
 }
 
 // 화면 오른쪽 아래 음량 버튼 (BGM·효과음 음량 / 음소거)
@@ -1105,9 +1158,11 @@ function drawRoom($main, room, game) {
             ? '<li class="seat add" data-invite-seat role="button" tabindex="0"><span class="seat-av"><span class="avatar">+</span></span><span class="seat-name">초대하기</span></li>' : ''}
         </ul>
       </section>
+      <section class="panel rchat" id="rchat"></section>
       <section class="stage panel">${stage}</section>
     </div>`;
 
+  drawRoomChat(room, true);
   $main.querySelector('[data-invite]').onclick = () => invite(room, game);
   const $seatInvite = $main.querySelector('[data-invite-seat]');
   if ($seatInvite) $seatInvite.onclick = () => invite(room, game);
