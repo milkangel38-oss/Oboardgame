@@ -1,3 +1,5 @@
+import { BIRDS, birdSvg } from './garden-birds.js';
+const BIRDS_ART = BIRDS.map(birdSvg);
 // 게임 카드 일러스트 (직접 그린 SVG) — 게임을 추가하면 여기에 그림도 추가하세요.
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
@@ -7,6 +9,20 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 새들의 정원: 숲·들판·물가 세 줄 풍경 + 새 세 마리 (garden-birds 그림 사용)
+  garden: (() => {
+    const pick = [BIRDS_ART[11], BIRDS_ART[8], BIRDS_ART[13]];
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="140" fill="#2f5a3a"/><rect y="140" width="300" height="140" fill="#9ab85a"/><rect y="280" width="300" height="140" fill="#4a9ac8"/>
+  ${[20, 70, 120, 170, 220, 270].map((x) => `<path d="M${x} 130 l14 -40 l14 40Z" fill="#1e4028"/>`).join('')}
+  ${[30, 90, 150, 210, 260].map((x) => `<path d="M${x} 270 q4 -18 8 0 M${x + 10} 270 q4 -14 8 0" stroke="#6a8a3a" stroke-width="3" fill="none"/>`).join('')}
+  <path d="M0 330 Q75 315 150 330 T300 330" stroke="#bfe6f8" stroke-width="3" fill="none" opacity=".7"/>
+  <g transform="translate(70 30) scale(1.6)">${pick[1].replace(/<svg[^>]*>|<\/svg>/g, '')}</g>
+  <g transform="translate(110 165) scale(1.5)">${pick[2].replace(/<svg[^>]*>|<\/svg>/g, '')}</g>
+  <g transform="translate(60 300) scale(1.7)">${pick[0].replace(/<svg[^>]*>|<\/svg>/g, '')}</g>
+</svg>`;
+  })(),
+
   // 폭풍의 증권시장: 번개 치는 밤하늘 아래 오르내리는 주가 그래프 + 거래소 건물
   stock: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
