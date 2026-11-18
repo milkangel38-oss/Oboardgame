@@ -7,6 +7,26 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 폭풍의 증권시장: 번개 치는 밤하늘 아래 오르내리는 주가 그래프 + 거래소 건물
+  stock: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="sxSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1030"/><stop offset="1" stop-color="#23164a"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#sxSky)"/>
+  <path d="M60 30 L48 70 L62 70 L50 110" stroke="#ffe07a" stroke-width="5" fill="none" stroke-linejoin="round"/>
+  <path d="M240 20 L228 55 L242 55 L232 90" stroke="#ffe07a" stroke-width="4" fill="none" stroke-linejoin="round" opacity=".8"/>
+  <g transform="translate(70 250)">
+    <polygon points="80,-60 170,-20 -10,-20" fill="#c9a85a"/>
+    <rect x="0" y="-20" width="160" height="12" fill="#e8cf8a"/>
+    ${[0, 1, 2, 3, 4].map((i) => `<rect x="${10 + i * 32}" y="-6" width="14" height="90" fill="#e9e3d0"/>`).join('')}
+    <rect x="-6" y="84" width="172" height="14" fill="#c9a85a"/>
+    <text x="80" y="-30" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="13" fill="#3a2a10">증권거래소</text>
+  </g>
+  <polyline points="10,220 50,180 80,200 120,130 150,160 190,90 230,120 290,60" fill="none" stroke="#3ddc84" stroke-width="6" stroke-linejoin="round"/>
+  <polyline points="10,250 60,240 100,270 140,230 190,260 240,215 290,240" fill="none" stroke="#ff4f6e" stroke-width="4" stroke-linejoin="round" opacity=".85"/>
+  <circle cx="290" cy="60" r="7" fill="#3ddc84"/>
+  <text x="150" y="395" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="30" fill="#ffe07a">▲ ▼</text>
+</svg>`,
+
   // 동상이몽퀴즈: 화이트보드를 든 세 사람 + 가운데 물음표
   dongsang: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

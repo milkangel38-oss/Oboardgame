@@ -1316,6 +1316,99 @@ a.cat-banner:active { transform: translateY(0); }
 .pc.dead .pc-head { filter: grayscale(1) brightness(.7); }
 .pc-x { position: absolute; left: 17%; top: 4%; width: 66%; aspect-ratio: 1; display: grid; place-items: center; color: #ff4f6e; font-size: 40cqw; font-weight: 900; text-shadow: 0 1px 3px #000; }
 
+/* ───────── 폭풍의 증권시장 ───────── */
+.sx { display: grid; gap: 8px; padding-bottom: 64px; user-select: none; -webkit-user-select: none; }
+.sx-top { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.sx-round b { color: var(--gold); font-size: 16px; }
+.sx-phase { padding: 2px 10px; border-radius: 99px; background: rgba(255, 255, 255, .08); color: #fff; font-weight: 700; }
+.sx-next { font-family: var(--display); color: var(--gold); }
+.sx-stage { position: relative; width: 100%; max-width: max(280px, min(900px, calc((100vh - 300px) * 1.43))); margin-inline: auto; }
+.sx-arena { isolation: isolate; position: relative; width: 100%; aspect-ratio: 10 / 7; border-radius: 16px; overflow: hidden; touch-action: none; container-type: inline-size; box-shadow: 0 0 0 3px #2a2f45, 0 8px 24px rgba(0, 0, 0, .5); }
+.sx-floor { position: absolute; inset: 0; background:
+  linear-gradient(180deg, #2b3350 0 15%, #1b1f33 15% 16.5%, transparent 16.5%),
+  repeating-linear-gradient(45deg, rgba(255, 255, 255, .035) 0 2px, transparent 2px 9%),
+  radial-gradient(ellipse at 50% 58%, #3a4166, #20243a 75%); }
+.sx-door { position: absolute; width: 22%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; text-align: center; }
+.sx-door > i { order: -1; display: block; width: 46%; aspect-ratio: 1 / 1.1; border-radius: 6px 6px 0 0; background: linear-gradient(90deg, #6b4a2a 49%, #3a2614 49% 51%, #6b4a2a 51%); box-shadow: 0 0 0 3px #c9a85a; }
+.sx-door.open > i { background: linear-gradient(90deg, #6b4a2a 18%, #ffe7a8 18% 82%, #6b4a2a 82%); }
+.sx-door.mine > i { box-shadow: 0 0 0 3px #3ddc84, 0 0 22px #3ddc84; animation: pulse .5s infinite alternate; }
+.sx-door b { order: -2; padding: 2px 10px; border-radius: 6px; background: #c9a85a; color: #2a1d08; font-family: var(--display); font-size: max(11px, 2cqw); white-space: nowrap; }
+.sx-door-in { font-size: max(8px, 1.25cqw); color: #ffe7a8; line-height: 1.3; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.sx-kiosk { position: absolute; width: 11%; aspect-ratio: 1 / 1.3; transform: translate(-50%, -50%); display: grid; place-content: center; text-align: center; gap: 2px; border-radius: 10px; background: linear-gradient(180deg, #e9edf7, #b8c0d6); color: #1a1033; box-shadow: 0 4px 0 #6d7590, 0 8px 14px rgba(0, 0, 0, .4); }
+.sx-kiosk b { font-family: var(--display); font-size: max(10px, 1.9cqw); }
+.sx-kiosk span { font-size: max(8px, 1.3cqw); font-weight: 800; color: #c21f3f; }
+.sx-clock { position: absolute; left: 50%; top: 57%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; pointer-events: none; }
+.sx-dial { position: relative; width: 15cqw; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #fffdf6 60%, #e8dfc4); box-shadow: 0 0 0 0.6cqw #c9a85a, 0 6px 18px rgba(0, 0, 0, .5); }
+.sx-dial i { position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%; border-radius: 4px; background: #1a1033; }
+.sx-dial i.h { width: 1.1cqw; height: 26%; margin-left: -0.55cqw; }
+.sx-dial i.m { width: 0.6cqw; height: 40%; margin-left: -0.3cqw; background: #c21f3f; }
+.sx-time { font-family: var(--logo); font-weight: 400; font-size: max(18px, 4.4cqw); color: #ffe7a8; text-shadow: 0 2px 6px #000; line-height: 1; }
+.sx-tick { font-size: max(9px, 1.4cqw); color: #cfd6f5; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.sx-board { position: absolute; right: 1.5%; top: 19%; width: 23%; display: grid; gap: 0.6cqw; padding: 1cqw; border-radius: 1.2cqw; background: rgba(5, 8, 20, .85); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); font-size: max(8px, 1.35cqw); }
+.sx-board span { display: grid; grid-template-columns: auto 1fr auto; gap: 0 0.6cqw; align-items: center; }
+.sx-board i { font-style: normal; } .sx-board b { color: var(--cc); white-space: nowrap; overflow: hidden; }
+.sx-board strong { font-family: var(--display); color: #fff; }
+.sx-board em { grid-column: 2 / 4; justify-self: end; font-style: normal; font-size: 0.9em; color: var(--muted); }
+em.up, b.up, strong.up { color: #ff4f6e; } em.down, b.down, strong.down { color: #3d9bff; }
+.sx-chars { position: absolute; inset: 0; pointer-events: none; }
+.sx-ch .am-nm { position: absolute; top: 96%; left: 50%; transform: translateX(-50%); }
+.sx-center { position: absolute; inset: 0; display: none; place-content: center; text-align: center; gap: 6px; padding: 16px; pointer-events: none; z-index: 1000; background: radial-gradient(ellipse at center, rgba(0, 0, 0, .6), transparent 70%); }
+.sx-center.on { display: grid; animation: amIn .35s ease; }
+.sx-center b { font-family: var(--display); font-size: max(20px, 4.2cqw); color: #fff; text-shadow: 0 3px 12px rgba(0, 0, 0, .8); }
+.sx-center small { font-size: max(12px, 1.9cqw); color: #ffe7a8; text-shadow: 0 2px 8px #000; word-break: keep-all; }
+/* 거래소 화면 (지도 위를 덮어요) */
+.sx-exch:empty { display: none; }
+.sx-exch { position: relative; z-index: 5; display: grid; grid-template-rows: auto auto 1fr auto; gap: 6px; padding: 10px; border-radius: 16px; background: linear-gradient(180deg, #13182e, #0b0f20); box-shadow: 0 0 0 3px #c9a85a; overflow: auto; animation: amIn .25s ease; }
+.sx-ex-head { display: flex; justify-content: space-between; align-items: center; font-family: var(--display); font-size: 16px; color: var(--gold); }
+.sx-ex-stay { font-family: inherit; font-size: 14px; color: #fff; } .sx-ex-stay b { font-size: 20px; color: var(--gold); } .sx-ex-stay.hurry b { color: #ff5c7a; }
+.sx-ex-clock { font-size: 12px; color: var(--muted); }
+.sx-ex-list { display: grid; gap: 5px; align-content: start; }
+.sx-ex-row { display: grid; grid-template-columns: minmax(84px, 1.3fr) 1fr auto auto; grid-template-areas: 'co spark price btns' 'co spark mine btns'; gap: 0 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, .05); box-shadow: inset 3px 0 0 var(--cc); }
+.sx-ex-co { grid-area: co; display: grid; grid-template-columns: auto 1fr; gap: 0 5px; align-items: center; }
+.sx-ex-co i { grid-row: 1 / 3; font-style: normal; font-size: 20px; } .sx-ex-co b { font-size: 13.5px; } .sx-ex-co small { font-size: 10.5px; color: var(--muted); }
+.sx-ex-spark { grid-area: spark; height: 30px; min-width: 40px; } .sx-ex-spark svg { width: 100%; height: 100%; display: block; }
+.sx-ex-price { grid-area: price; text-align: right; } .sx-ex-price strong { font-family: var(--display); font-size: 16px; margin-right: 4px; } .sx-ex-price em { font-style: normal; font-size: 11px; }
+.sx-ex-mine { grid-area: mine; text-align: right; font-size: 11px; color: var(--muted); } .sx-ex-mine b { color: #fff; }
+.sx-ex-btns { grid-area: btns; display: flex; gap: 4px; }
+.sx-ex-btns button { appearance: none; border: 0; white-space: nowrap; padding: 8px 10px; border-radius: 9px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; color: #fff; }
+.sx-ex-btns .buy { background: #ff4f6e; } .sx-ex-btns .sell { background: #3d7bff; } .sx-ex-btns .sell.all { background: #2a4f9e; font-size: 11.5px; padding: 8px 7px; }
+.sx-ex-btns button:disabled { background: rgba(255, 255, 255, .08); color: var(--muted); cursor: default; }
+.sx-ex-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; flex-wrap: wrap; } .sx-ex-foot b { color: var(--gold); }
+.sx-ex-leave { appearance: none; border: 0; padding: 8px 14px; border-radius: 10px; background: rgba(255, 255, 255, .12); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+/* 조작부 */
+.sx-ctrl { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; max-width: 900px; margin-inline: auto; }
+.sx.inside .sx-arena { display: none; }
+.sx.inside .sx-ctrl, .sx.done .sx-ctrl, .sx.inside .sx-hint, .sx.done .sx-hint { display: none; }
+.sx-queue { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; font-size: 11.5px; }
+.sx-queue > div { display: grid; justify-items: center; padding: 4px 8px; border-radius: 10px; background: rgba(255, 255, 255, .06); min-width: 62px; }
+.sx-queue > div.me { box-shadow: 0 0 0 2px #3ddc84; }
+.sx-queue small { font-size: 10px; color: var(--muted); } .sx-queue b { font-family: var(--display); font-size: 18px; color: var(--gold); line-height: 1.1; }
+.sx-queue .wait span { display: inline-block; margin: 0 2px; font-weight: 800; } .sx-queue .wait span.me { color: #3ddc84; }
+.sx-queue .mine { flex-basis: 100%; text-align: center; background: rgba(61, 220, 132, .14); } .sx-queue .mine b { font-size: 15px; color: #3ddc84; }
+.sx-hint { text-align: center; font-size: 11px; color: var(--muted); }
+/* 지갑 · 정보 카드 */
+.sx-panel { display: grid; gap: 8px; width: 100%; max-width: 900px; margin-inline: auto; }
+.sx-panel:empty { display: none; }
+.sx-wallet { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .06); font-size: 13px; }
+.sx-wallet div { display: grid; } .sx-wallet small { font-size: 10.5px; color: var(--muted); } .sx-wallet b { font-family: var(--display); font-size: 16px; } .sx-wallet b.gold { color: var(--gold); }
+.sx-info { display: grid; gap: 6px; padding: 10px; border-radius: 14px; background: rgba(0, 0, 0, .25); }
+.sx-info-t { font-weight: 800; font-size: 13.5px; } .sx-info-t small { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 4px; }
+.sx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.sx-card { display: grid; gap: 1px; padding: 7px 8px; border-radius: 10px; background: #fffdf6; color: #1a1033; box-shadow: inset 0 4px 0 var(--cc); }
+.sx-card small { font-size: 11px; font-weight: 800; color: #6a5a3a; } .sx-card b { font-size: 12.5px; } .sx-card strong { font-family: var(--display); font-size: 17px; }
+.sx-card strong.up { color: #d81b3f; } .sx-card strong.down { color: #1f63d6; }
+.sx-card em { font-style: normal; font-size: 10px; color: #6a6480; }
+.sx-card.past { opacity: .45; }
+.sx-ok { appearance: none; padding: 12px; border-radius: 12px; border: 0; background: linear-gradient(90deg, #c9a85a, #e8cf8a); color: #1a1033; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.sx-ok:disabled { background: rgba(255, 255, 255, .1); color: var(--muted); }
+.sx-notes { display: grid; gap: 2px; font-size: 12px; color: #ffe7a8; }
+.sx-log { display: grid; gap: 3px; font-size: 13px; max-height: 140px; overflow: auto; padding: 8px 10px; border-radius: 12px; background: rgba(0, 0, 0, .25); width: 100%; max-width: 900px; margin-inline: auto; box-sizing: border-box; }
+.sx-allinfo { padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, .05); font-size: 12px; }
+.sx-allinfo summary { cursor: pointer; font-weight: 800; }
+.sx-allinfo div { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.sx-allinfo span { padding: 2px 8px; border-radius: 8px; background: rgba(255, 255, 255, .06); box-shadow: inset 2px 0 0 var(--cc); }
+.sx-allinfo small { color: var(--muted); }
+
 /* ───────── 동상이몽퀴즈 ───────── */
 .dk { display: grid; gap: 10px; padding-bottom: 70px; }
 .dk-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
@@ -1508,3 +1601,8 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
 .gh-game { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gh-g { font-weight: 800; } .gh-g.plus { color: #3ddc84; } .gh-g.minus { color: #ff7a90; }
 .gh-total { color: var(--muted); font-size: 11.5px; }
+
+@media (max-width: 520px) {
+  .sx-ex-row { grid-template-columns: 1fr auto; grid-template-areas: 'co price' 'spark mine' 'btns btns'; gap: 4px 8px; }
+  .sx-ex-btns { justify-content: stretch; } .sx-ex-btns button { flex: 1; padding: 9px 4px; }
+}
