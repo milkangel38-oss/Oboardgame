@@ -1606,3 +1606,28 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
   .sx-ex-row { grid-template-columns: 1fr auto; grid-template-areas: 'co price' 'spark mine' 'btns btns'; gap: 4px 8px; }
   .sx-ex-btns { justify-content: stretch; } .sx-ex-btns button { flex: 1; padding: 9px 4px; }
 }
+
+/* 증권시장: 번호 호출 · 안내 · 비밀 대화 */
+.spl-flash.sx-call { top: 40%; padding: 22px 26px; border: 4px solid #ff3b5c; background: radial-gradient(circle at 50% 0%, #5a0f22, #1a0b1c 70%); box-shadow: 0 0 0 6px rgba(255, 59, 92, .25), 0 0 60px rgba(255, 59, 92, .7), 0 16px 40px rgba(0, 0, 0, .6); animation: splFlash .35s cubic-bezier(.3, 1.5, .5, 1), sxCall .5s .35s infinite alternate; }
+.spl-flash.sx-call .sx-call-no { font-family: var(--display); font-size: clamp(34px, 9vw, 64px); line-height: 1.05; color: #fff; text-shadow: 0 0 18px #ff3b5c, 0 4px 0 #8a0f26; }
+.spl-flash.sx-call b { font-size: clamp(18px, 4.6vw, 26px); color: #ffd84d; }
+.spl-flash.sx-call small { font-size: 13px; color: #ffc2cc; }
+@keyframes sxCall { to { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 0 0 10px rgba(255, 59, 92, .35), 0 0 90px rgba(255, 59, 92, .9), 0 16px 40px rgba(0, 0, 0, .6); } }
+.spl-flash.sx-note { font-size: 17px; font-weight: 800; } .spl-flash.sx-note small { display: block; font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.sx-center b.call { color: #ff4f6e; font-size: max(24px, 5.4cqw); animation: pulse .45s infinite alternate; }
+.sx-btns { display: grid; justify-items: end; gap: 8px; }
+.sx-talk { appearance: none; border: 0; display: grid; justify-items: center; padding: 8px 14px; border-radius: 14px; background: #b26bff; color: #fff; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 0 #6a34b0; }
+.sx-talk small { font-size: 10.5px; font-weight: 600; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-talk[hidden] { display: none; }
+.sx-dm { position: fixed; z-index: 70; right: 12px; bottom: 80px; width: min(320px, calc(100vw - 24px)); max-height: 46vh; display: grid; grid-template-rows: auto 1fr auto; border-radius: 16px; background: rgba(28, 18, 52, .97); box-shadow: 0 0 0 2px #b26bff, 0 12px 30px rgba(0, 0, 0, .6); overflow: hidden; animation: amIn .25s ease; }
+.sx-dm[hidden] { display: none; }
+.sx-dm-h { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: rgba(178, 107, 255, .25); font-size: 13.5px; }
+.sx-dm-h button { appearance: none; border: 0; background: none; color: #fff; font-size: 16px; cursor: pointer; }
+.sx-dm-log { display: grid; align-content: start; gap: 4px; padding: 8px 10px; overflow: auto; min-height: 90px; font-size: 13px; }
+.sx-dm-log p { margin: 0; color: var(--muted); font-size: 12px; }
+.sx-dm-log div { display: flex; } .sx-dm-log div.me { justify-content: flex-end; }
+.sx-dm-log span { max-width: 80%; padding: 6px 10px; border-radius: 12px; background: rgba(255, 255, 255, .1); word-break: break-word; }
+.sx-dm-log div.me span { background: #b26bff; }
+.sx-dm form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid rgba(255, 255, 255, .08); }
+.sx-dm input { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .15); background: rgba(0, 0, 0, .3); color: #fff; font: inherit; font-size: 16px; }
+.sx-dm form button { padding: 0 12px; border-radius: 10px; border: 0; background: #b26bff; color: #fff; font: inherit; font-weight: 800; }

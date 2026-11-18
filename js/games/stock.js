@@ -18,11 +18,12 @@ const START_CASH = 10000;
 const START_PRICE = 2000;
 const MAX_HOLD = 7;
 const TICKS = 12;            // 라운드당 주가 변동 횟수 (게임 시각 5분 × 12 = 60분)
-const TICK_MS = 20000;       // 게임 시각 5분 = 실제 20초
-const INFO_MS = 60000;       // 정보 확인 최대 60초
-const WINDOWS = 2;           // 거래소 창구 수
-const CALL_MS = 10000;       // 번호가 불리면 10초 안에 입장
-const STAY_MS = 20000;       // 거래소에 머무는 시간
+const TICK_MS = 50000;       // 게임 시각 5분 = 실제 50초 (라운드당 10분)
+const INFO_MS = 120000;      // 정보 확인 최대 2분
+const WINDOWS = 1;           // 거래소 창구 수
+const CALL_MS = 15000;       // 번호가 불리면 15초 안에 입장
+const STAY_MS = 30000;       // 거래소에 머무는 시간
+const TALK = 125;            // 이만큼 가까우면 '대화하기'
 const W = 1000, H = 700, R = 50;
 const DOOR = { x: 500, y: 92 };
 const KIOSK = { x: 110, y: 560 };
@@ -129,6 +130,7 @@ function teardown() {
   ctl.unwatch?.();
   ctl.live?.close?.(ctl.ctx.me);
   ctl.say?.remove();
+  ctl.dm?.remove();
   ['keydown', 'keyup'].forEach((t) => window.removeEventListener(t, ctl.onKey));
   window.removeEventListener('pointermove', ctl.onPMove);
   window.removeEventListener('pointerup', ctl.onPUp);
@@ -156,7 +158,8 @@ function build(code) {
     <div class="sx-queue"></div>
     <div class="sx-ctrl">
       <div class="am-joy sx-joy"><i></i></div>
-      <button class="am-act sx-act" data-act><b>상호작용</b><small></small></button>
+      <div class="sx-btns"><button class="sx-talk" data-talk hidden>💬 대화하기<small></small></button>
+      <button class="am-act sx-act" data-act><b>상호작용</b><small></small></button></div>
     </div>
     <div class="sx-hint">조이스틱(또는 방향키·WASD)으로 움직이고, 번호표 기계·거래소 문 앞에서 상호작용(스페이스)을 눌러요</div>
     <div class="sx-panel"></div>
@@ -165,10 +168,15 @@ function build(code) {
   say.className = 'am-say sx-say';
   say.innerHTML = '<input maxlength="60" placeholder="채팅 입력 (말풍선으로 떠요)" autocomplete="off" enterkeyhint="send" /><button>보내기</button>';
   document.body.appendChild(say);
+  const dm = document.createElement('div');
+  dm.className = 'sx-dm';
+  dm.hidden = true;
+  dm.innerHTML = '<div class="sx-dm-h"><b></b><button type="button" data-dmclose aria-label="닫기">✕</button></div><div class="sx-dm-log"></div><form><input maxlength="80" placeholder="둘만 보이는 비밀 대화" autocomplete="off" enterkeyhint="send" /><button>전송</button></form>';
+  document.body.appendChild(dm);
   const c = {
     code, root, say, raf: 0, sig: '', exSig: '', $: (q) => root.querySelector(q),
     pos: null, posKey: '', disp: {}, others: {}, lastSend: 0, lastSent: '', joy: { x: 0, y: 0, id: null }, keys: new Set(),
-    lastT: performance.now(), lastTick: 0, chars: {}, live: null, unwatch: null, gone: 0, chatSeen: {}, started: false, calledSeen: '', shake: 0,
+    lastT: performance.now(), lastTick: 0, chars: {}, live: null, unwatch: null, gone: 0, chatSeen: {}, started: false, calledSeen: '', shake: 0, dm, dmWith: null, dmSeen: null, dmSig: '', near: null,
   };
   const moveJoy = (e) => {
     const r = c.joyEl.getBoundingClientRect();
@@ -193,6 +201,16 @@ function build(code) {
   window.addEventListener('keydown', c.onKey);
   window.addEventListener('keyup', c.onKey);
   c.$('[data-act]').addEventListener('click', () => interact());
+  c.$('[data-talk]').addEventListener('click', () => { if (c.near) openDm(c.near, true); });
+  dm.querySelector('[data-dmclose]').addEventListener('click', () => { c.dmWith = null; dm.hidden = true; });
+  dm.querySelector('form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const $i = dm.querySelector('input');
+    const text = $i.value.trim();
+    if (!text || !c.dmWith) return;
+    $i.value = '';
+    c.ctx.sendMove({ type: 'dm', to: c.dmWith, text });
+  });
   say.addEventListener('submit', (e) => {
     e.preventDefault();
     const $i = say.querySelector('input');
@@ -215,6 +233,46 @@ function build(code) {
   return c;
 }
 
+const dmKey = (a, b) => [a, b].sort().join('|');
+function openDm(u, focus) {
+  ctl.dmWith = u;
+  ctl.dm.hidden = false;
+  ctl.dmSig = '';
+  paintDm();
+  if (focus) setTimeout(() => ctl?.dm.querySelector('input').focus({ preventScroll: true }), 30);
+}
+function paintDm() {
+  const c = ctl;
+  if (!c.dmWith) return;
+  const { state, me, players } = c.ctx;
+  const msgs = state.dms?.[dmKey(me, c.dmWith)] || [];
+  const sig = `${c.dmWith}:${msgs.length}`;
+  if (sig === c.dmSig) return;
+  c.dmSig = sig;
+  c.dm.querySelector('.sx-dm-h b').textContent = `🔒 ${players[c.dmWith]?.name || ''}님과 비밀 대화`;
+  const $l = c.dm.querySelector('.sx-dm-log');
+  $l.innerHTML = msgs.length ? msgs.map((m) => `<div class="${m.u === me ? 'me' : ''}"><span>${esc(m.text)}</span></div>`).join('') : '<p>둘만 볼 수 있는 대화예요. 다른 사람에게는 보이지 않아요.</p>';
+  $l.scrollTop = $l.scrollHeight;
+}
+// 새 비밀 대화가 오면 창을 열거나 알려 주기
+function checkDms() {
+  const c = ctl;
+  const { state, me, players } = c.ctx;
+  const mine = Object.entries(state.dms || {}).filter(([k]) => k.split('|').includes(me));
+  if (!c.dmSeen) { c.dmSeen = Object.fromEntries(mine.map(([k, v]) => [k, v.length])); return; }
+  mine.forEach(([k, v]) => {
+    const prev = c.dmSeen[k] || 0;
+    c.dmSeen[k] = v.length;
+    if (v.length <= prev) return;
+    const last = v[v.length - 1];
+    if (last.u === me) return;
+    if (!c.dmWith) openDm(last.u, false);
+    else if (c.dmWith !== last.u) bigFlash(`💬 ${esc(players[last.u]?.name || '')}님의 비밀 대화<small>${esc(last.text)}</small>`, 2200, 'sx-note');
+    soundEvent(c.ctx.room?.code, `sx:dm:${k}:${v.length}`, 'ok');
+  });
+  paintDm();
+}
+
 function nearWhat() {
   const { state, me } = ctl.ctx;
   if (!ctl.pos || myWindow(state, me) >= 0 && state.windows[myWindow(state, me)].st === 'in') return null;
@@ -231,7 +289,14 @@ function interact() {
   const w = nearWhat();
   if (w === 'door') sendMove({ type: 'enter' });
   else if (w === 'kiosk') sendMove({ type: 'ticket' });
-  else ctl.shake = Date.now();
+  else if (w === 'door-closed') {
+    const inW = state.windows.find((x) => x && x.st === 'in' && x.uid !== me);
+    const called = state.windows.find((x) => x && x.st === 'call' && x.uid !== me);
+    const nm = (u) => esc(ctl.ctx.players[u]?.name || '');
+    bigFlash(inW ? `🚪 ${nm(inW.uid)}님이 거래 중입니다<small>번호표를 뽑고 내 번호가 불릴 때까지 기다려 주세요</small>`
+      : called ? `🚪 ${called.no}번 ${nm(called.uid)}님 입장 차례예요<small>번호표를 뽑고 기다려 주세요</small>`
+      : '🎫 번호표를 먼저 뽑아 주세요<small>왼쪽 아래 번호표 기계에서 뽑을 수 있어요</small>', 1800, 'sx-note');
+  } else ctl.shake = Date.now();
 }
 
 function frame() {
@@ -329,7 +394,7 @@ function frame() {
   c.$('.sx-next').textContent = state.phase === 'market' ? `⏱ ${Math.ceil(tickLeft / 1000)}초` : '';
 
   // 문 위 · 번호표 기계 표시
-  const doorTxt = state.windows.map((w, i) => w ? `${w.st === 'call' ? '🔔' : '💱'}${w.no}번 ${esc(players[w.uid]?.name || '')}` : '').filter(Boolean).join(' · ') || '창구 비어 있음';
+  const doorTxt = state.windows.map((w) => w ? (w.st === 'call' ? `🔔 ${w.no}번 ${esc(players[w.uid]?.name || '')}님 호출 중` : `💱 ${esc(players[w.uid]?.name || '')}님이 거래 중입니다`) : '').filter(Boolean).join(' · ') || '비어 있음';
   const $di = c.$('.sx-door-in');
   if ($di.dataset.v !== doorTxt) { $di.dataset.v = doorTxt; $di.innerHTML = doorTxt; }
   c.$('.sx-door').classList.toggle('open', state.windows.some((w) => w && w.st === 'in'));
@@ -345,8 +410,14 @@ function frame() {
   if (state.phase === 'market' && iAmIn) {
     if (near === 'door') { label = '거래소 입장!'; hot = true; }
     else if (near === 'kiosk') { label = wi >= 0 || myQ ? '이미 번호표가 있어요' : '번호표 뽑기'; hot = !(wi >= 0 || myQ); }
-    else if (near === 'door-closed') label = '번호가 불리면 입장';
+    else if (near === 'door-closed') { const inW = state.windows.find((w) => w && w.st === 'in'); label = inW ? `${players[inW.uid]?.name || ''}님 거래 중` : '번호가 불리면 입장'; }
   }
+  let nearU = null, nd = TALK;
+  if (iAmIn && c.pos && !inside && state.phase !== 'done') state.order.forEach((u) => { if (u === me || !c.disp[u] || state.windows.some((w) => w && w.uid === u && w.st === 'in')) return; const d = dist(c.pos, c.disp[u]); if (d < nd) { nd = d; nearU = u; } });
+  c.near = nearU;
+  const $tb = c.$('[data-talk]');
+  $tb.hidden = !nearU;
+  if (nearU) { const t2 = players[nearU]?.name || ''; if ($tb.dataset.u !== nearU) { $tb.dataset.u = nearU; $tb.querySelector('small').textContent = t2; } }
   const $act = c.$('[data-act]');
   $act.classList.toggle('hot', hot);
   $act.classList.toggle('shake', now - c.shake < 300);
@@ -357,7 +428,7 @@ function frame() {
   // 내 번호가 불리면 알림
   if (wi >= 0 && state.windows[wi].st === 'call') {
     const k = `${state.round}:${state.windows[wi].no}`;
-    if (c.calledSeen !== k) { c.calledSeen = k; bigFlash(`🔔 ${state.windows[wi].no}번 고객님!<small>10초 안에 증권거래소 문으로 오세요</small>`, 2400, 'turn'); soundEvent(c.ctx.room?.code, `sx:call:${k}`, 'ok'); }
+    if (c.calledSeen !== k) { c.calledSeen = k; bigFlash(`<span class="sx-call-no">📢 ${state.windows[wi].no}번 고객님!!</span><b>지금 당장 증권거래소로 오세요!</b><small>15초 안에 안 오면 다음 번호로 넘어가요</small>`, 3500, 'sx-call'); soundEvent(c.ctx.room?.code, `sx:call:${k}`, 'ok'); }
   }
   // 거래소 화면 남은 시간
   if (inside) {
@@ -369,7 +440,8 @@ function frame() {
   }
   // 가운데 안내
   let center = '';
-  if (state.phase === 'info') center = `<b>${state.round}라운드 정보 확인</b><small>시계가 멈췄어요 · 아래 내 정보 카드를 확인하고 '확인'을 눌러 주세요</small>`;
+  if (wi >= 0 && state.windows[wi].st === 'call' && state.phase === 'market' && near !== 'door') center = `<b class="call">📢 ${state.windows[wi].no}번! 거래소로!</b><small>${Math.max(0, Math.ceil((state.windows[wi].until - now) / 1000))}초 안에 위쪽 증권거래소 문으로 가서 입장하세요</small>`;
+  else if (state.phase === 'info') center = `<b>${state.round}라운드 정보 확인</b><small>시계가 멈췄어요 · 아래 내 정보 카드를 확인하고 '확인'을 눌러 주세요</small>`;
   else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 2500) center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
   else if (state.phase === 'done') center = '<b>장 마감</b><small>모든 주식을 마지막 주가로 현금화했어요</small>';
   const $c = c.$('.sx-center');
@@ -481,18 +553,18 @@ export default {
   category: 'genius',
   minPlayers: 4,
   maxPlayers: 8,
-  duration: '12~15분',
+  duration: '20~30분',
   ownChat: true,
   rewards: [5, 4, 4, 3, 2, 1],
   rewardLabel: '1등 최대 +5',
   description: '정보를 쥔 자가 시장을 지배한다! 번호표 뽑고 거래소로',
   rules: [
     `모두 현금 ${won(START_CASH)}으로 시작해요. 시장에는 ${COMPANIES.map((c) => c.emoji + c.name).join(', ')} 5개 회사 주식이 있고, 모두 주당 ${won(START_PRICE)}에서 시작해요. (회사마다 8명 기준 15주, 사람 수에 따라 달라져요)`,
-    '게임은 2라운드예요. 1라운드는 게임 시각 1:00~2:00, 2라운드는 2:00~3:00이고, 게임 시각 5분(실제 20초)마다 주가가 바뀌어요.',
+    '게임은 2라운드예요. 1라운드는 게임 시각 1:00~2:00, 2라운드는 2:00~3:00이고, 게임 시각 5분(실제 50초)마다 주가가 바뀌어요. 라운드 전에는 정보를 확인할 시간 2분이 있어요.',
     '라운드 전에 주가 변동 정보(시각 · 회사 · 등락)가 사람 수 × 3개 준비돼요. 제비뽑기 순서로 이웃한 두 사람이 3개씩 함께 받아서, 각자 정보 6개를 알게 돼요. 정보는 모두 진짜예요!',
-    '로비에서 자유롭게 돌아다니며 채팅해요. 정보를 나눌지, 숨길지, 거짓말할지는 자유예요.',
-    '거래는 증권거래소에서만! 번호표 기계에서 번호표를 뽑고, 내 번호가 불리면 10초 안에 거래소 문으로 가서 입장해요 (늦으면 다음 번호로 넘어가요).',
-    '거래소 창구는 2개, 한 번에 20초 동안 머물 수 있어요. 다시 거래하려면 번호표를 새로 뽑아요. 남은 주식 수는 거래소 안에서만 보여요.',
+    '로비에서 자유롭게 돌아다니며 채팅해요. 다른 사람 옆에 가서 💬 대화하기를 누르면 둘만의 비밀 대화를 할 수 있어요. 정보를 나눌지, 숨길지, 거짓말할지는 자유예요.',
+    '거래는 증권거래소에서만! 번호표 기계에서 번호표를 뽑고, 내 번호가 불리면 15초 안에 거래소 문으로 가서 입장해요 (늦으면 다음 번호로 넘어가요).',
+    '거래소 창구는 1개라 한 번에 한 명만 들어가고, 30초 동안 머물 수 있어요. 다시 거래하려면 번호표를 새로 뽑아요. 남은 주식 수는 거래소 안에서만 보여요.',
     `한 회사 주식은 최대 ${MAX_HOLD}주까지 가질 수 있고, 플레이어끼리 주식·돈은 주고받을 수 없어요. 다른 사람의 현금·주식은 비공개예요.`,
     '2라운드가 끝나면 보유 주식을 마지막 주가로 현금화해서, 현금이 많은 순서로 순위를 정해요.',
     '가넷: 4~5명 → 1등 3, 2등 2, 3등 1 / 6~8명 → 1등 5, 2등 4, 3등 4, 4등 3, 5등 2, 6등 1',
@@ -529,6 +601,14 @@ export default {
       const text = String(move.text || '').trim().slice(0, 60);
       if (!text) throw new Error('__noop');
       return { state: { ...s, chat: [...(s.chat || []), { u: uid, text, at: now }].slice(-30) } };
+    }
+    if (t === 'dm') {
+      const to = move.to;
+      const text = String(move.text || '').trim().slice(0, 80);
+      if (!text) throw new Error('__noop');
+      if (!s.order.includes(to) || to === uid) throw new Error('대화할 수 없는 사람이에요');
+      const k = [uid, to].sort().join('|');
+      return { state: { ...s, dms: { ...(s.dms || {}), [k]: [...((s.dms || {})[k] || []), { u: uid, text, at: now }].slice(-40) } } };
     }
     if (t === 'ready') {
       if (s.phase !== 'info') throw new Error('__noop');
@@ -601,6 +681,7 @@ export default {
     if (typeof location !== 'undefined' && location.search.includes('test')) window.__sx = ctl; // 테스트 모드 점검용
     if (ctl.root.parentNode !== el) { el.innerHTML = ''; el.appendChild(ctl.root); }
     const { state, me, finished } = ctx;
+    checkDms();
     const sig = JSON.stringify([state.phase, state.round, state.tick, state.prices, state.stock, state.cash[me], state.hold[me], state.queue, state.windows, state.ready, (state.chat || []).length, state.notes.length, finished]);
     if (sig !== ctl.sig) { ctl.sig = sig; paint(); }
   },
