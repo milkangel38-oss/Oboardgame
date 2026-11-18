@@ -778,6 +778,18 @@ function drawProfile() {
         }).join('')}
       </ul>
       <p class="hint">등수와 관계없이 가넷을 받으면 <b>승</b>, 못 받으면 <b>패</b>예요 · 보유 가넷 수로 티어가 정해져요</p>
+      <div class="ghist">
+        <div class="ghist-t">최근 가넷 내역</div>
+        ${(profile?.ghist || []).length ? `<ul>${profile.ghist.slice(0, 10).map((h) => {
+          const gm = getGame(h.game);
+          const d = new Date(h.at);
+          return `<li><span class="gh-date">${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}</span>
+            <span class="gh-game">${gm ? `${gm.emoji} ${esc(gm.name)}` : esc(h.game)}${h.place && !gm?.coopGame ? ` · ${h.place}등` : gm?.coopGame ? ' · 협동' : ''}</span>
+            <span class="gh-g ${h.g > 0 ? 'plus' : h.g < 0 ? 'minus' : ''}">${h.g > 0 ? `지급 +${h.g}` : h.g < 0 ? `차감 −${Math.abs(h.g)}` : '변동 없음'}</span>
+            <span class="gh-total">${GARNET}${h.total}</span></li>`;
+        }).join('')}</ul>` : '<p class="hint">게임을 마치면 가넷 지급·차감 내역이 여기에 쌓여요</p>'}
+      </div>
+      <p class="hint">가넷은 게임 결과로만 얻는 무료 포인트예요. 돈으로 사거나 바꿀 수 없고, 다른 사람에게 줄 수도 없어요.</p>
     </div>`;
 
   const toggle = () => {

@@ -126,7 +126,9 @@ export function createBackend() {
       g.plays += 1;
       if (garnets > 0) g.wins += 1; // 가넷을 받으면 승, 못 받으면 패
       g.garnets += garnets;
-      saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: Math.max(0, (p.garnets || 0) + garnets), lastMatch: matchKey });
+      const total = Math.max(0, (p.garnets || 0) + garnets);
+      const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30); // 최근 가넷 내역
+      saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: total, ghist, lastMatch: matchKey });
     },
 
     // 실시간 위치 채널 (테스트 모드: 같은 브라우저 탭끼리 BroadcastChannel)

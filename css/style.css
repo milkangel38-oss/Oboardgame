@@ -1497,3 +1497,14 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
 .ud-slot:first-child .ud-tags > span:last-child::after { left: 18px; }
 .ud-bk b.up { color: #4ee07a; } .ud-bk b.dn { color: #ff5c7a; }
 .spl-op-row > :last-child { width: 100%; min-width: 0; justify-self: stretch; }
+
+/* 프로필: 최근 가넷 내역 */
+.ghist { margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(0, 0, 0, .2); }
+.ghist-t { font-weight: 800; font-size: 13px; margin-bottom: 6px; }
+.ghist ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ghist li { display: grid; grid-template-columns: 74px 1fr auto auto; gap: 8px; align-items: center; font-size: 12.5px; padding: 5px 0; border-top: 1px solid rgba(255, 255, 255, .06); }
+.ghist li:first-child { border-top: 0; }
+.gh-date { color: var(--muted); font-size: 11.5px; }
+.gh-game { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gh-g { font-weight: 800; } .gh-g.plus { color: #3ddc84; } .gh-g.minus { color: #ff7a90; }
+.gh-total { color: var(--muted); font-size: 11.5px; }
