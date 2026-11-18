@@ -1711,3 +1711,8 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
 .rk-b.ghost { background: rgba(255, 255, 255, .1); } .rk-b.draw { background: #3d7bff; } .rk-b.go { background: #3ddc84; color: #0d2a1a; }
 .rk-b:disabled { background: rgba(255, 255, 255, .08); color: var(--muted); cursor: default; }
 .rk-left { display: grid; gap: 4px; font-size: 12px; } .rk-left div { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; } .rk-left b { margin-right: 6px; }
+@media (min-width: 800px) {
+  .rk-tile { width: 46px; height: 62px; border-radius: 8px; } .rk-tile b { font-size: 30px; } .rk-tile i { width: 8px; height: 8px; bottom: 7px; }
+  .rk-tile.joker i { width: 32px; height: 32px; font-size: 24px; }
+  .rk-table { min-height: 200px; }
+}
