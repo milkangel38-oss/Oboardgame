@@ -1261,6 +1261,9 @@ a.cat-banner:active { transform: translateY(0); }
 .am-card.on { border-color: #ff3b5c; box-shadow: 0 0 14px rgba(255, 59, 92, .5); }
 .am-card.on small { color: #ff7a90; font-weight: 800; }
 .am-card.dead { opacity: .45; }
+.am-card.advisor.on { border-color: #b26bff; box-shadow: 0 0 14px rgba(178, 107, 255, .5); }
+.am-adv { display: block; margin-top: 3px; padding: 3px 6px; border-radius: 8px; background: rgba(178, 107, 255, .2); color: #d9b8ff; font-style: normal; font-size: 10.5px; font-weight: 700; line-height: 1.35; word-break: keep-all; }
+.am-tip.adv { background: rgba(178, 107, 255, .15); }
 .am-card:disabled { cursor: default; }
 .am-mini { width: 40px; display: block; } .am-mini svg { width: 100%; display: block; }
 .am-next { appearance: none; padding: 13px; border-radius: 14px; border: 0; background: linear-gradient(90deg, #c9a85a, #e8cf8a); color: #1a1033; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
@@ -1286,11 +1289,13 @@ a.cat-banner:active { transform: translateY(0); }
 .am-pts div.me { box-shadow: inset 0 0 0 1.5px var(--gold); }
 .am-pts span { font-weight: 800; } .am-pts small { grid-column: 1; font-size: 11px; color: var(--muted); }
 .am-pts b { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 16px; } .am-pts b.plus { color: #3ddc84; } .am-pts b.minus { color: #ff7a90; }
-.am-chat { display: grid; gap: 6px; width: 100%; max-width: 900px; margin-inline: auto; }
-.am-log { display: grid; gap: 2px; font-size: 12.5px; max-height: 120px; overflow: auto; }
+.am-chat { width: 100%; max-width: 900px; margin-inline: auto; }
+.am-log { display: grid; gap: 3px; font-size: 13px; max-height: 150px; overflow: auto; padding: 8px 10px; border-radius: 12px; background: rgba(0, 0, 0, .25); }
 .am-log:empty { display: none; }
-.am-say { display: flex; gap: 6px; }
-.am-say input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .15); background: rgba(0, 0, 0, .25); color: #fff; font: inherit; }
+.am { padding-bottom: 64px; }
+.am.still .am-ctrl, .am.still .am-hint { display: none; }
+.am-say { position: fixed; z-index: 60; left: 12px; right: 84px; bottom: 14px; max-width: 640px; margin-inline: auto; display: flex; gap: 6px; padding: 6px; border-radius: 16px; background: rgba(20, 14, 40, .92); box-shadow: 0 6px 20px rgba(0, 0, 0, .5); backdrop-filter: blur(6px); }
+.am-say input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .15); background: rgba(0, 0, 0, .3); color: #fff; font: inherit; font-size: 16px; }
 .am-say button { padding: 0 14px; border-radius: 12px; border: 0; background: var(--pink, #ff4f9a); color: #fff; font: inherit; font-weight: 800; }
 .am-say :disabled { opacity: .5; }
 

@@ -8,7 +8,7 @@ const R = 50;                       // 캐릭터 반지름 (화면 폭의 10%)
 const MEET = 120;                   // 이 거리 안이면 "만남"
 const SPEED = 230;                  // 초당 이동 거리
 const SLOW = 0.35;                  // 만났을 때 1초 동안 속도 배율
-const SLOW_MS = 1000;
+const SLOW_MS = 500;
 const INTRO_MS = 6500;              // 마피아 선정 연출
 const HUNT_MS = 180000;             // 암전 상태 최대 3분 (아무도 시체를 못 찾으면 불이 켜짐)
 const VOTE_MS = 180000;             // 회의·투표 3분
@@ -41,18 +41,18 @@ function makeMission(state, mafia) {
   const citizens = shuffle(state.order.filter((u) => u !== mafia));
   const kind = ['targets', 'count', 'frame'][Math.floor(Math.random() * 3)];
   if (kind === 'targets') return { kind, targets: citizens.slice(0, 2 + Math.floor(Math.random() * 2)) };
-  if (kind === 'count') return { kind, n: 2 + Math.floor(Math.random() * 2) };
+  if (kind === 'count') { const max = Math.max(4, citizens.length - 1); return { kind, n: 4 + Math.floor(Math.random() * (max - 3)) }; }
   return { kind, target: citizens[0] };
 }
 export function missionText(m, players) {
   const nm = (u) => `${players[u]?.name || '?'}님`;
   if (!m) return '';
-  if (m.kind === 'targets') return `${m.targets.map(nm).join(', ')}을(를) 모두 공격하세요`;
+  if (m.kind === 'targets') return `${m.targets.map(nm).join(', ')}만 모두 공격하세요 (다른 사람을 공격하면 실패)`;
   if (m.kind === 'count') return `유저를 ${m.n}명 이상 공격하세요`;
   return `${nm(m.target)}이(가) 의심받아 가장 많은 표를 받게 하세요`;
 }
 function missionOk(m, dead, caught) {
-  if (m.kind === 'targets') return m.targets.every((u) => dead[u]);
+  if (m.kind === 'targets') return m.targets.every((u) => dead[u]) && Object.keys(dead).every((u) => m.targets.includes(u));
   if (m.kind === 'count') return Object.keys(dead).length >= m.n;
   return caught === m.target;
 }
@@ -60,12 +60,12 @@ function missionOk(m, dead, caught) {
 function newRound(state, roundNo) {
   return {
     ...state, round: roundNo, phase: 'lobby', ready: {}, spawn: spawns(state.order),
-    mafia: null, mafiaAt: 0, mission: null, dead: {}, found: null, votes: {}, deadline: 0, lastKill: 0, meeting: null,
+    mafia: null, mafiaAt: 0, mission: null, dead: {}, found: null, votes: {}, advice: {}, deadline: 0, lastKill: 0, meeting: null,
   };
 }
 const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u]);
 function toVote(state, now, why) {
-  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, meeting: why };
+  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, advice: {}, meeting: why };
 }
 function resolve(state, players) {
   const tally = {};
@@ -81,10 +81,10 @@ function resolve(state, players) {
     const items = [];
     if (u === state.mafia) {
       items.push(mafiaCaught ? ['마피아 검거됨', -10] : ['마피아 생존', 10]);
-      if (ok) items.push(['미션 성공', 5]);
+      if (ok) items.push(['미션 성공', 3]);
     } else {
       if (mafiaCaught) items.push(['마피아 검거', 10]);
-      items.push(state.dead[u] ? ['공격받음', -3] : ['생존', 3]);
+      items.push(state.dead[u] ? ['공격받음', -1] : ['생존', 1]);
     }
     breakdown[u] = items;
     scores[u] += items.reduce((a, [, p]) => a + p, 0);
@@ -134,6 +134,7 @@ function teardown() {
   cancelAnimationFrame(ctl.raf);
   ctl.unwatch?.();
   ctl.live?.close?.(ctl.ctx.me);
+  ctl.say?.remove();
   window.removeEventListener('keydown', ctl.onKey);
   window.removeEventListener('keyup', ctl.onKey);
   window.removeEventListener('pointermove', ctl.onPMove);
@@ -163,19 +164,22 @@ function build(code) {
         <div class="am-row">
           <button class="am-b" data-readyb>준비</button>
           <button class="am-b" data-pick>마피아 선택</button>
-          <button class="am-b red" data-report>시체발견</button>
         </div>
       </div>
     </div>
     <div class="am-hint">조이스틱(또는 방향키·WASD)으로 움직이고, 상호작용 버튼(또는 스페이스)을 눌러요</div>
-    <div class="am-panel"></div>
-    <div class="am-chat"><div class="am-log"></div><form class="am-say"><input maxlength="60" placeholder="채팅 입력" /><button>보내기</button></form></div>`;
+    <div class="am-chat"><div class="am-log"></div></div>
+    <div class="am-panel"></div>`;
+  const say = document.createElement('form');
+  say.className = 'am-say';
+  say.innerHTML = '<input maxlength="60" placeholder="채팅 입력" autocomplete="off" enterkeyhint="send" /><button>보내기</button>';
+  document.body.appendChild(say);
   const c = {
     code, root, raf: 0, sig: '',
     $: (q) => root.querySelector(q),
     pos: null, posRound: -1, posPhase: '', disp: {}, others: {}, lastSend: 0, lastSent: '',
     enter: {}, joy: { x: 0, y: 0, id: null }, keys: new Set(), lastTick: 0, lastT: performance.now(),
-    chars: {}, live: null, unwatch: null, notice: null, gone: 0, shake: 0,
+    chars: {}, live: null, unwatch: null, notice: null, gone: 0, shake: 0, say, chatSeen: {},
   };
   // 조이스틱 (창 전체에서 손가락을 따라가요 → 화면이 다시 그려져도 끊기지 않음)
   const $joy = c.$('.am-joy'), $knob = $joy.querySelector('i');
@@ -212,10 +216,9 @@ function build(code) {
     if (state.phase === 'lobby') c.ctx.sendMove({ type: 'ready', on: !state.ready[me] });
   });
   c.$('[data-pick]').addEventListener('click', () => c.ctx.sendMove({ type: 'pickMafia' }));
-  c.$('[data-report]').addEventListener('click', () => c.ctx.sendMove({ type: 'report' }));
-  c.$('.am-say').addEventListener('submit', (e) => {
+  say.addEventListener('submit', (e) => {
     e.preventDefault();
-    const $i = c.$('.am-say input');
+    const $i = say.querySelector('input');
     const text = $i.value.trim();
     if (!text) return;
     $i.value = '';
@@ -224,6 +227,8 @@ function build(code) {
   c.$('.am-panel').addEventListener('click', (e) => {
     const v = e.target.closest('[data-vote]');
     if (v && !v.disabled) c.ctx.sendMove({ type: 'vote', target: v.dataset.vote });
+    const a = e.target.closest('[data-advise]');
+    if (a && !a.disabled) c.ctx.sendMove({ type: 'advise', target: a.dataset.advise });
     if (e.target.closest('[data-next]')) c.ctx.sendMove({ type: 'next' });
   });
   return c;
@@ -271,7 +276,7 @@ function interact() {
     if (now - (state.lastKill || 0) < KILL_CD) { ctl.shake = now; return; }
     const p = ctl.disp[s.target];
     sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y) });
-  } else if (s.body && !state.found) {
+  } else if (s.body) {
     sendMove({ type: 'shout', body: s.body });
   } else ctl.shake = now;
 }
@@ -286,7 +291,11 @@ function frame() {
   if (!ctl) return;
   ctl.raf = requestAnimationFrame(frame);
   const c = ctl;
-  if (!c.root.isConnected) { if (!c.gone) c.gone = Date.now(); else if (Date.now() - c.gone > 4000) teardown(); return; }
+  if (!c.root.isConnected) {
+    if (!c.gone) c.gone = Date.now(); else if (Date.now() - c.gone > 4000) { teardown(); return; }
+    if (Date.now() - c.gone > 600) c.say.style.display = 'none'; // 방을 나간 경우
+    return;
+  }
   c.gone = 0;
   const { state, me, players, room, sendMove } = c.ctx;
   const now = Date.now(), t = performance.now();
@@ -333,7 +342,12 @@ function frame() {
   const $under = c.$('.am-under'), $over = c.$('.am-over');
   c.$('.am-dark').classList.toggle('on', dark);
   const chatAt = {};
-  (state.chat || []).forEach((m) => { if (now - m.at < 5000) chatAt[m.u] = m.text; });
+  (state.chat || []).forEach((m) => {
+    const k = `${m.u}:${m.at}`;
+    if (!c.chatSeen[k]) c.chatSeen[k] = c.started && now - m.at < 8000 ? now : 1; // 처음 들어왔을 때 옛 채팅은 말풍선 X
+    if (now - c.chatSeen[k] < 6000) chatAt[m.u] = m.text;
+  });
+  c.started = true;
   state.order.forEach((u, i) => {
     let el = c.chars[u];
     if (!el || !el.isConnected) {
@@ -366,17 +380,15 @@ function frame() {
     if ($fx.dataset.v !== fx) { $fx.dataset.v = fx; $fx.innerHTML = fx; $fx.classList.toggle('knife', fx.startsWith('🗡')); }
     // 말풍선: 시체발견 외침(마피아 제외 모두에게) / 채팅
     let bub = '';
-    if (state.phase === 'hunt' && state.found?.by === u && !isMafia) bub = '시체발견!';
+    if (state.phase === 'vote' && state.found?.by === u && now - state.found.at < 5000) bub = '시체발견!';
     else if (!dark && chatAt[u]) bub = esc(chatAt[u]);
     const $b = el.querySelector('.am-bub');
     if ($b.dataset.v !== bub) { $b.dataset.v = bub; $b.innerHTML = bub; $b.classList.toggle('shout', bub === '시체발견!'); }
-    if (state.phase === 'hunt' && state.found?.by === u && !isMafia && el.style.display === 'none') {
-      el.style.display = ''; el.classList.add('ghost'); // 외친 사람 위치에 말풍선만 보이게
-    } else el.classList.remove('ghost');
   });
 
   // 가운데 안내 문구
   let center = '';
+  if (state.phase === 'vote' && state.found && now - state.found.at < 2500) center = `<b class="red">시체발견!</b><small>${esc(players[state.found.by]?.name || '')}님이 외쳤어요 · 모두 멈추고 불이 켜졌어요</small>`;
   if (c.noLive) center = '<b>실시간 서버 준비 중</b><small>관리자가 Realtime Database를 연결하면 플레이할 수 있어요</small>';
   else if (state.phase === 'dark') center = `<b>불이 꺼졌어요</b><small>${room?.hostId === me ? '마피아 선택 버튼을 눌러 주세요' : '방장이 마피아를 고르길 기다리는 중…'}</small>`;
   if (state.phase === 'hunt' && !c.noLive) {
@@ -390,7 +402,6 @@ function frame() {
       else if (e < INTRO_MS) center = '<b>마피아의 공격으로부터 피하세요</b>';
     }
     if (!center && state.dead[me]) center = '<b class="red">공격당했어요</b><small>움직일 수 없고 채팅도 할 수 없어요</small>';
-    if (!center && state.found && !isMafia && now - state.found.at < 4000) center = `<b>시체발견!</b><small>${esc(players[state.found.by]?.name || '')}님이 외쳤어요 · 시체발견 버튼으로 회의를 열어요</small>`;
   }
   const $c = c.$('.am-center');
   if ($c.dataset.v !== center) { $c.dataset.v = center; $c.innerHTML = center; $c.classList.toggle('on', !!center); }
@@ -413,7 +424,7 @@ function frame() {
   let actLabel = '', actOn = false;
   if (state.phase === 'hunt' && !state.dead[me] && now >= state.mafiaAt + INTRO_MS) {
     if (isMafia && sur.target) { actOn = now - (state.lastKill || 0) >= KILL_CD; actLabel = actOn ? `${players[sur.target]?.name || ''} 공격!` : '잠시 후 공격 가능'; }
-    else if (!isMafia && sur.body && !state.found) { actOn = true; actLabel = '시체발견 외치기'; }
+    else if (!isMafia && sur.body) { actOn = true; actLabel = '시체발견 외치기'; }
   }
   $act.classList.toggle('hot', actOn);
   $act.classList.toggle('mafia', isMafia && state.phase === 'hunt');
@@ -425,15 +436,16 @@ function frame() {
   $rb.textContent = state.ready?.[me] && state.phase === 'lobby' ? '준비 완료 ✔' : '준비';
   $rb.classList.toggle('on', !!state.ready?.[me] && state.phase === 'lobby');
   c.$('[data-pick]').disabled = !(state.phase === 'dark' && room?.hostId === me);
-  c.$('[data-report]').disabled = !(state.phase === 'hunt' && state.found && !isMafia && !state.dead[me] && iAmIn);
   c.$('.am-joy').classList.toggle('off', !canMove(state, me, now));
 
   // 채팅 가능 여부: 암전 중 X, 회의 중 죽은 사람 X
   const canChat = iAmIn && !dark && !(state.phase === 'vote' && state.dead[me]);
-  const $in = c.$('.am-say input');
+  c.say.style.display = state.phase === 'done' || !iAmIn ? 'none' : '';
+  const $in = c.say.querySelector('input');
+  const ph = canChat ? '채팅 입력' : state.dead?.[me] && !dark ? '공격당해 채팅할 수 없어요 · 프로필을 눌러 조언하세요' : '불이 꺼진 동안은 채팅할 수 없어요';
+  if ($in.placeholder !== ph) $in.placeholder = ph;
   if ($in.disabled === canChat) {
-    $in.disabled = !canChat; c.$('.am-say button').disabled = !canChat;
-    $in.placeholder = canChat ? '채팅 입력' : dark ? '불이 꺼진 동안은 채팅할 수 없어요' : '공격당한 사람은 채팅할 수 없어요';
+    $in.disabled = !canChat; c.say.querySelector('button').disabled = !canChat;
   }
 }
 
@@ -479,13 +491,20 @@ function paintPanel() {
   } else if (state.phase === 'vote') {
     const iVote = state.votes[me];
     const canVote = state.order.includes(me) && !state.dead[me];
+    const iAdvise = state.dead[me] ? (state.advice || {})[me] : null;
+    const adviceTo = {};
+    Object.entries(state.advice || {}).forEach(([d, tg]) => (adviceTo[tg] = [...(adviceTo[tg] || []), d]));
     const counts = {};
     Object.values(state.votes).forEach((t) => (counts[t] = (counts[t] || 0) + 1));
-    html = `<div class="am-tip">🔦 불이 켜졌어요! ${state.meeting === 'time' ? '시간이 다 되어 회의가 열렸어요.' : state.meeting === 'auto' ? '살아남은 시민이 1명뿐이라 회의가 열렸어요.' : '시체가 발견됐어요.'} 채팅으로 이야기하고 <b>마피아라고 생각하는 사람의 프로필</b>을 눌러 투표하세요.${canVote ? '' : ' (공격당한 사람은 투표할 수 없어요)'}</div>
+    html = `<div class="am-tip">🔦 불이 켜졌어요! ${state.meeting === 'time' ? '시간이 다 되어 회의가 열렸어요.' : state.meeting === 'auto' ? '살아남은 시민이 1명뿐이라 회의가 열렸어요.' : '시체가 발견됐어요.'} 채팅으로 이야기하고 <b>마피아라고 생각하는 사람의 프로필</b>을 눌러 투표하세요.</div>
+      ${state.dead[me] ? `<div class="am-tip adv">💀 공격당해 채팅과 투표는 할 수 없지만, <b>지목하여 조언할 수 있습니다.</b> 마피아라고 생각하는 사람의 프로필을 눌러 주세요.${iAdvise ? ` (지금 조언: ${nm(iAdvise)}님)` : ''}</div>` : ''}
       <div class="am-votes">${state.order.map((u) => {
         const dead = !!state.dead[u];
-        return `<button class="am-card ${iVote === u ? 'on' : ''} ${dead ? 'dead' : ''}" data-vote="${u}" ${!canVote || dead || u === me ? 'disabled' : ''} style="--pc:${color(u)}">
-          <span class="am-mini">${charSvg(color(u), dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small></button>`;
+        const advisor = state.dead[me] && state.order.includes(me);
+        const off = dead || u === me || !(canVote || advisor);
+        return `<button class="am-card ${(advisor ? iAdvise : iVote) === u ? 'on' : ''} ${advisor ? 'advisor' : ''} ${dead ? 'dead' : ''}" ${advisor ? 'data-advise' : 'data-vote'}="${u}" ${off ? 'disabled' : ''} style="--pc:${color(u)}">
+          <span class="am-mini">${charSvg(color(u), dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small>
+          ${!dead && adviceTo[u] ? `<em class="am-adv">${adviceTo[u].map((d) => `💬 ${nm(d)}님의 조언입니다`).join('<br>')}</em>` : ''}</button>`;
       }).join('')}</div>
       <div class="am-tip sm">투표 ${Object.keys(state.votes).length} / ${state.order.filter((u) => !state.dead[u]).length} · 다 투표하면 바로 결과가 나와요 · 다시 누르면 바꿀 수 있어요</div>`;
   } else if (state.phase === 'result') {
@@ -500,8 +519,11 @@ function paintPanel() {
         <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span></li>`).join('')}</ol>${resultHtml(state.last)}`;
   }
   ctl.$('.am-panel').innerHTML = html;
-  ctl.$('.am-chat').style.display = state.phase === 'done' ? 'none' : '';
-  ctl.$('.am-log').innerHTML = (state.chat || []).slice(-6).map((m) => `<div><b style="color:${color(m.u)}">${nm(m.u)}</b> ${esc(m.text)}</div>`).join('');
+  ctl.$('.am-chat').style.display = state.phase === 'done' || !(state.chat || []).length ? 'none' : '';
+  const $log = ctl.$('.am-log');
+  $log.innerHTML = (state.chat || []).slice(-30).map((m) => `<div><b style="color:${color(m.u)}">${nm(m.u)}</b> ${esc(m.text)}</div>`).join('');
+  $log.scrollTop = $log.scrollHeight;
+  ctl.root.classList.toggle('still', ['vote', 'result', 'done'].includes(state.phase));
 }
 
 export default {
@@ -520,12 +542,12 @@ export default {
   rules: [
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용 버튼(스페이스)을 써요.',
     '모두 준비를 누르면 불이 꺼져요. 방장이 마피아 선택을 누르면 1명이 몰래 마피아가 되고 비밀 미션을 받아요.',
-    '어둠 속에선 내 캐릭터만 보여요. 마피아와 마주치면 둘 다 1초 동안 느려지고, 마피아에겐 🗡+이름, 시민에겐 ❗가 떠요. 시민끼리는 ✋만 떠요.',
+    '어둠 속에선 내 캐릭터만 보여요. 마피아와 마주치면 둘 다 0.5초 동안 느려지고, 마피아에겐 🗡+이름, 시민에겐 ❗가 떠요. 시민끼리는 ✋만 떠요.',
     '마피아는 마주친 순간 상호작용 버튼으로 공격! 공격받은 사람은 그 자리에 쓰러져 움직이거나 채팅할 수 없어요 (💀는 마피아에게만 보여요).',
-    '시민이 쓰러진 사람과 마주치면 🚑가 떠요. 상호작용을 누르면 "시체발견!"을 외치고(마피아 빼고 모두에게 보임), 시체발견 버튼을 누르면 모두 멈추고 불이 켜져요.',
-    '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 최다 득표 1명이 지목돼요 (동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
-    '마피아 미션: 정해진 2~3명 공격 / 2~3명 이상 공격 / 정해진 사람이 가장 많은 표를 받게 하기 중 하나.',
-    '점수 — 마피아: 지목돼도 살아남으면 +10, 미션 성공 +5, 다득표로 잡히면 −10 / 시민: 마피아를 잡으면 모두 +10, 공격받으면 −3, 생존 +3',
+    '시민이 쓰러진 사람과 마주치면 🚑가 떠요. 상호작용을 눌러 "시체발견!"을 외치면 그 자리에서 모두 멈추고 불이 켜져요.',
+    '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 공격받은 사람은 채팅·투표 대신 프로필을 눌러 조언할 수 있어요 (투표란에 "○○님의 조언입니다"로 보여요). 최다 득표 1명이 지목돼요 (동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
+    '마피아 미션: 정해진 2~3명만 공격(다른 사람을 공격하면 실패) / 4명 이상 공격 / 정해진 사람이 가장 많은 표를 받게 하기 중 하나.',
+    '점수 — 마피아: 지목돼도 살아남으면 +10, 미션 성공 +3 (실패해도 감점 없음), 다득표로 잡히면 −10 / 시민: 마피아를 잡으면 모두 +10, 공격받으면 −1, 생존 +1',
     '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
   ],
 
@@ -569,14 +591,14 @@ export default {
     }
     if (t === 'shout') {
       if (state.phase !== 'hunt' || uid === state.mafia || state.dead[uid]) throw new Error('__noop');
-      if (state.found) throw new Error('이미 시체가 발견됐어요');
       if (!state.dead[move.body]) throw new Error('__noop');
-      return { state: { ...state, found: { by: uid, body: move.body, at: now } } };
+      return { state: toVote({ ...state, found: { by: uid, body: move.body, at: now } }, now, 'found') };
     }
-    if (t === 'report') {
-      if (state.phase !== 'hunt' || !state.found) throw new Error('아직 발견된 시체가 없어요');
-      if (uid === state.mafia || state.dead[uid]) throw new Error('__noop');
-      return { state: toVote(state, now, 'found') };
+    if (t === 'advise') {
+      if (state.phase !== 'vote') throw new Error('지금은 조언할 수 없어요');
+      if (!state.dead[uid]) throw new Error('__noop');
+      if (!state.order.includes(move.target) || state.dead[move.target]) throw new Error('조언할 수 없는 사람이에요');
+      return { state: { ...state, advice: { ...(state.advice || {}), [uid]: move.target } } };
     }
     if (t === 'vote') {
       if (state.phase !== 'vote') throw new Error('지금은 투표 시간이 아니에요');
@@ -629,13 +651,13 @@ export default {
     if (typeof location !== 'undefined' && location.search.includes('test')) window.__am = ctl; // 테스트 모드 점검용
     if (ctl.root.parentNode !== el) { el.innerHTML = ''; el.appendChild(ctl.root); }
     const { state, me, room, finished } = ctx;
-    const sig = JSON.stringify([state.phase, state.round, state.ready, state.votes, state.dead, state.scores, state.last?.round, (state.chat || []).length, state.found?.by, state.mafia === me, room?.hostId, finished]);
+    const sig = JSON.stringify([state.phase, state.round, state.ready, state.votes, state.advice, state.dead, state.scores, state.last?.round, (state.chat || []).length, state.found?.by, state.mafia === me, room?.hostId, finished]);
     if (sig !== ctl.sig) {
       ctl.sig = sig;
       paintPanel();
       if (state.mafia === me && state.phase === 'hunt') setTimeout(() => ctl && paintPanel(), 1600); // 미션 줄 표시
     }
-    if (room && state.phase === 'hunt' && state.found && me !== state.mafia) soundEvent(room.code, `am:found:${state.round}`, 'ok');
+    if (room && state.phase === 'vote' && state.found) soundEvent(room.code, `am:found:${state.round}`, 'ok');
     if (room && (state.phase === 'result' || state.phase === 'done') && state.last) {
       const good = me === state.last.mafia ? !state.last.mafiaCaught : state.last.mafiaCaught;
       soundEvent(room.code, `am:res:${state.last.round}`, good ? 'ok' : 'no');

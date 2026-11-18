@@ -974,7 +974,8 @@ function renderRoom(code) {
     recordIfFinished(room);
     setPresence({ state: room.status === 'playing' ? 'playing' : 'waiting', room: room.code, game: room.gameId });
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
-    const sig = JSON.stringify(room, (k, v) => (k === 'seen' || k === 'chat' ? undefined : v));
+    // (방 채팅 room.chat만 빼요 — 게임 안 채팅 room.game.chat은 바뀌면 다시 그려야 해요)
+    const sig = JSON.stringify(room, function (k, v) { return k === 'seen' || (k === 'chat' && this === room) ? undefined : v; });
     if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); return; }
     lastSig = sig;
     drawRoom($main, room, game);
