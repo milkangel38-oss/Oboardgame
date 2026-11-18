@@ -1659,3 +1659,15 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
 .sx-xorder ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
 .sx-xorder li { font-size: 12px; padding: 3px 9px; border-radius: 99px; background: rgba(255, 255, 255, .06); }
 .sx-xorder li.done { opacity: .5; } .sx-xorder li.now { background: #2f6b4f; color: #fff; font-weight: 800; } .sx-xorder li.me { box-shadow: 0 0 0 1.5px #ffd84d; }
+
+/* 정보교환소: 둘만의 대화방 */
+.sx-xc-chat { display: grid; gap: 6px; padding: 8px 10px; border-radius: 12px; background: rgba(178, 107, 255, .12); box-shadow: inset 0 0 0 1px rgba(178, 107, 255, .4); }
+.sx-xc-chat-t { font-weight: 800; font-size: 13px; } .sx-xc-chat-t small { display: block; font-weight: 400; font-size: 11px; color: var(--muted); }
+.sx-xc-log { display: grid; align-content: start; gap: 4px; max-height: 150px; min-height: 60px; overflow: auto; font-size: 13px; }
+.sx-xc-log p { margin: 0; color: var(--muted); font-size: 12px; }
+.sx-xc-log div { display: flex; } .sx-xc-log div.me { justify-content: flex-end; }
+.sx-xc-log span { max-width: 80%; padding: 6px 10px; border-radius: 12px; background: rgba(255, 255, 255, .1); word-break: break-word; }
+.sx-xc-log div.me span { background: #b26bff; }
+.sx-xc-chat .sx-ex-leave { justify-self: end; }
+.am-say.xc { box-shadow: 0 6px 20px rgba(0, 0, 0, .5), 0 0 0 2px #b26bff; }
+.am-say.xc button { background: #b26bff; }

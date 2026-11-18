@@ -246,10 +246,13 @@ function build(code) {
     const text = $i.value.trim();
     if (!text) return;
     $i.value = '';
-    c.ctx.sendMove({ type: 'chat', text });
+    const st = c.ctx.state;
+    const inXc = st.phase === 'info' && !!st.xchg?.in?.[c.ctx.me];
+    c.ctx.sendMove({ type: inXc ? 'xchat' : 'chat', text });
   });
   // 거래소 버튼 · 정보 확인 버튼
   root.addEventListener('click', (e) => {
+    if (e.target.closest('[data-xout]')) { c.ctx.sendMove({ type: 'xleave' }); return; }
     const ev = e.target.closest('[data-env]');
     if (ev && !ev.disabled) { c.ctx.sendMove({ type: 'xpick', env: Number(ev.dataset.env) }); return; }
     const b = e.target.closest('[data-buy],[data-sell],[data-sellall],[data-exout],[data-infook]');
@@ -355,6 +358,9 @@ function frame() {
   const x = state.phase === 'info' ? state.xchg : null;
   const inside = (wi >= 0 && state.windows[wi].st === 'in') || inXc;
   c.say.style.display = iAmIn && state.phase !== 'done' ? '' : 'none';
+  const $si = c.say.querySelector('input');
+  const ph = inXc ? `🔒 ${players[state.xchg.pair.find((u) => u !== me)]?.name || ''}님과 정보교환소 대화 (둘만 보여요)` : '채팅 입력 (말풍선으로 떠요)';
+  if ($si.placeholder !== ph) { $si.placeholder = ph; c.say.classList.toggle('xc', inXc); }
 
   if (!c.pos && state.spawn?.[me]) c.pos = { ...state.spawn[me] };
   // 이동 (거래소 안에서는 멈춤)
@@ -561,7 +567,14 @@ function paint() {
         const mineP = x.pick[me] === i, theirs = x.pick[partner] === i;
         return `<button class="sx-env ${taken ? 'taken' : ''} ${mineP ? 'mine' : ''} ${theirs ? 'theirs' : ''}" data-env="${i}" ${taken || !both ? 'disabled' : ''}>
           <span class="sx-env-i">✉️</span><b>봉투 ${i + 1}</b><small>${taken ? '가져감' : mineP && theirs ? '둘 다 선택!' : mineP ? '내 선택' : theirs ? `${nm(partner)}님 선택` : '정보 3장'}</small></button>`;
-      }).join('')}</div>`;
+      }).join('')}</div>
+      <div class="sx-xc-chat">
+        <div class="sx-xc-chat-t">🔒 ${nm(partner)}님과 둘만의 대화방 <small>아래 채팅창에 쓰면 여기로 와요 · 한 명이 나가면 대화가 사라져요</small></div>
+        <div class="sx-xc-log">${(x.chat || []).length ? x.chat.map((m) => `<div class="${m.u === me ? 'me' : ''}"><span>${esc(m.text)}</span></div>`).join('') : `<p>${both ? '어떤 봉투를 고를지, 정보를 어떻게 나눌지 이야기해 보세요' : `${nm(partner)}님이 들어오면 대화할 수 있어요`}</p>`}</div>
+        <button class="sx-ex-leave" data-xout>정보교환소 나가기</button>
+      </div>`;
+    const $xl = ctl.$('.sx-xc-log');
+    $xl.scrollTop = $xl.scrollHeight;
   } else
   // 거래소 화면 (들어간 사람만)
   if (inside) {
@@ -695,6 +708,22 @@ export default {
       const inn = { ...x.in, [uid]: true };
       const both = x.pair.every((u) => inn[u]);
       return { state: { ...s, xchg: { ...x, in: inn, until: both ? now + XSTAY_MS : 0 } } };
+    }
+    if (t === 'xchat') {
+      const x = s.xchg;
+      const text = String(move.text || '').trim().slice(0, 80);
+      if (!text) throw new Error('__noop');
+      if (s.phase !== 'info' || !x || !x.in[uid]) throw new Error('정보교환소 안에서만 쓸 수 있어요');
+      return { state: { ...s, xchg: { ...x, chat: [...(x.chat || []), { u: uid, text, at: now }].slice(-30) } } };
+    }
+    if (t === 'xleave') {
+      const x = s.xchg;
+      if (s.phase !== 'info' || !x || !x.in[uid]) throw new Error('__noop');
+      const inn = { ...x.in, [uid]: false };
+      const pick = { ...x.pick };
+      delete pick[uid];
+      // 한 명이라도 나가면 대화는 리셋, 20초도 멈추고 다시 둘 다 들어와야 해요 (최소 15초 기다려 줌)
+      return { state: { ...s, xchg: { ...x, in: inn, pick, chat: [], until: 0, callUntil: Math.max(x.callUntil, now + 15000) } } };
     }
     if (t === 'xpick') {
       const x = s.xchg;
