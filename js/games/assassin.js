@@ -2,6 +2,7 @@
 // 차례·투표·점수 같은 "게임 상태"는 방 문서(sendMove)로, 캐릭터 위치는 실시간 채널(backend.live)로 주고받아요.
 import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
+import { personHtml } from './face.js';
 
 const W = 1000, H = 700;           // 맵 크기(좌표)
 const R = 50;                       // 캐릭터 반지름 (화면 폭의 10%)
@@ -373,8 +374,8 @@ function frame() {
     el.style.left = `${(p.x / W) * 100}%`;
     el.style.top = `${(p.y / H) * 100}%`;
     el.style.zIndex = String(Math.round(p.y));
-    const look = `${COLORS[i % COLORS.length]}|${dead}`;
-    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = charSvg(COLORS[i % COLORS.length], dead); }
+    const look = `${COLORS[i % COLORS.length]}|${dead}|${players[u]?.photo || ''}`;
+    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = personHtml(COLORS[i % COLORS.length], players[u], dead); }
     el.querySelector('.am-nm').textContent = players[u]?.name || '나간 사람';
     el.classList.toggle('me', u === me);
     el.classList.toggle('dead', dead);
@@ -479,7 +480,7 @@ function paintPanel() {
     return `<div class="am-res">
       <div class="am-res-t">ROUND ${L.round} 결과${L.runoff ? ' · ⚖️ 결선 투표' : ''}</div>
       <div class="am-reveal ${L.mafiaCaught ? 'caught' : 'escaped'}">
-        <span class="am-mini">${charSvg(color(L.mafia))}</span>
+        <span class="am-mini">${personHtml(color(L.mafia), players[L.mafia])}</span>
         <div><small>마피아는</small><b>${nm(L.mafia)}</b><em>${L.mafiaCaught ? '🚨 검거 성공!' : L.caught ? `🗡 탈출 성공 (${nm(L.caught)}님이 대신 지목됨)` : '🗡 탈출 성공 (최다 득표 동점·투표 없음)'}</em></div>
       </div>
       <div class="am-mis ${L.missionOk ? 'ok' : 'fail'}">🎯 미션: ${esc(mission)} → <b>${L.missionOk ? '성공' : '실패'}</b></div>
@@ -511,7 +512,7 @@ function paintPanel() {
         const advisor = state.dead[me] && state.order.includes(me) && !ro;
         const off = dead || u === me || !(canVote || advisor) || (ro && !ro.includes(u));
         return `<button class="am-card ${ro && !ro.includes(u) ? 'out' : ''} ${(advisor ? iAdvise : iVote) === u ? 'on' : ''} ${advisor ? 'advisor' : ''} ${dead ? 'dead' : ''}" ${advisor ? 'data-advise' : 'data-vote'}="${u}" ${off ? 'disabled' : ''} style="--pc:${color(u)}">
-          <span class="am-mini">${charSvg(color(u), dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small>
+          <span class="am-mini">${personHtml(color(u), players[u], dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small>
           ${!dead && adviceTo[u] ? `<em class="am-adv">${adviceTo[u].map((d) => `💬 ${nm(d)}님의 조언입니다`).join('<br>')}</em>` : ''}</button>`;
       }).join('')}</div>
       <div class="am-tip sm">투표 ${Object.keys(state.votes).length} / ${state.order.filter((u) => !state.dead[u]).length} · 다 투표하면 바로 결과가 나와요 · 다시 누르면 바꿀 수 있어요</div>`;

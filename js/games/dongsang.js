@@ -3,7 +3,7 @@
 // 정답자는 남은 키워드만 보고 제시어를 맞혀요. 맞히면 모두 +10, 틀리면 모두 −10.
 import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
-import { charSvg } from './assassin.js';
+import { personHtml } from './face.js';
 import { WORDS } from './dongsang-words.js';
 
 const WRITE_MS = 30000;
@@ -39,7 +39,7 @@ export function hiddenOf(keywords) {
   return hidden;
 }
 export const isRight = (answer, entry) => [entry.word, ...(entry.alias || [])].some((w) => norm(w) === norm(answer));
-export const garnetsFor = (score, rounds) => (score >= rounds * PTS ? rounds : score < 0 ? -rounds : 0);
+export const garnetsFor = (score) => Math.trunc(score / PTS); // 10점당 가넷 1개 (마이너스면 그만큼 차감)
 
 function newRound(state, now) {
   return { ...state, round: state.round + 1, phase: 'choose', readyAt: now, ready: {}, guesser: null, word: null, keywords: {}, hidden: {}, answer: '', correct: null, deadline: 0 };
@@ -66,11 +66,11 @@ function finish(state, answer, players) {
   return { state: s };
 }
 function finalResult(state) {
-  const g = garnetsFor(state.score, state.rounds);
+  const g = garnetsFor(state.score);
   const ranking = state.order.map((uid) => ({ uid, score: state.score, place: 1, garnets: g }));
   const hits = state.history.filter((h) => h.correct).length;
   return {
-    message: g > 0 ? `협동 성공! ${hits}/${state.rounds} 모두 맞혔어요 🎉` : g < 0 ? `아쉬워요… ${hits}/${state.rounds} 맞혔어요` : `${hits}/${state.rounds} 맞혔어요`,
+    message: g > 0 ? `협동 성공! ${hits}/${state.rounds} 맞혔어요 🎉` : g < 0 ? `아쉬워요… ${hits}/${state.rounds} 맞혔어요` : `${hits}/${state.rounds} 맞혔어요`,
     winners: g > 0 ? [...state.order] : [],
     ranking,
     rewards: Object.fromEntries(state.order.map((u) => [u, g])),
@@ -113,7 +113,7 @@ export default {
   duration: '10~20분',
   coopGame: true,
   rewards: [10],
-  rewardLabel: '전원 성공 시 +라운드 수',
+  rewardLabel: '점수 10점당 ±1',
   description: '같은 제시어, 다른 생각! 안 겹치는 키워드로 정답자를 도와라',
   options: [{ key: 'rounds', label: '라운드 수', choices: [5, 6, 7, 8, 9, 10], default: 5 }],
   rules: [
@@ -123,7 +123,7 @@ export default {
     '다른 사람과 키워드가 겹치면(연속 2글자 이상 같으면) 그 키워드들은 정답자에게 보이지 않아요. 서로 안 겹치게 써야 해요!',
     '모두 제출하면 정답자가 남은 키워드를 보고 30초 안에 정답을 입력해요.',
     `맞히면 모두 +${PTS}점, 틀리면 모두 −${PTS}점 (협동게임이라 점수는 모두 같아요).`,
-    '가넷: 모든 라운드를 맞혀 (라운드 수 × 10)점이 되면 모두 +라운드 수, 최종 점수가 마이너스면 모두 −라운드 수 (가넷 차감이 있어요!)',
+    '가넷: 최종 팀 점수 10점당 모두 가넷 1개 (예: 30점 → +3). 최종 점수가 마이너스면 그만큼 차감돼요 (예: −20점 → −2)',
   ],
 
   setup(players, room) {
@@ -213,7 +213,7 @@ export default {
       return `<${pickable ? 'button' : 'div'} class="dk-p ${pose} ${u === me ? 'me' : ''} ${isG ? 'g' : ''}" ${pickable ? `data-pick="${u}"` : ''} style="--pc:${color(u)}">
         ${bubble}
         <span class="dk-board"><span class="dk-stick"></span><span class="dk-face">${board}</span></span>
-        <span class="dk-char">${charSvg(color(u))}</span>
+        <span class="dk-char">${personHtml(color(u), players[u])}</span>
         <span class="dk-nm">${isG ? '<em>정답자</em>' : ''}${name(u)}${['ready', 'result'].includes(state.phase) && state.ready[u] ? ' ✔' : ''}</span>
       </${pickable ? 'button' : 'div'}>`;
     };
@@ -240,26 +240,26 @@ export default {
     }
 
     const timer = ['write', 'guess'].includes(state.phase) ? `<div class="dk-timer"><span>⏱ <b data-left>30</b>초</span><div class="dk-bar2"><i data-bar></i></div></div>` : '';
-    const target = state.rounds * PTS;
-    const head = `<div class="dk-head"><span>ROUND <b>${Math.max(1, state.round)}</b> / ${state.rounds}</span><span class="dk-score ${state.score < 0 ? 'minus' : ''}">팀 점수 <b>${state.score}</b> / ${target}</span></div>`;
+    const gNow = garnetsFor(state.score);
+    const head = `<div class="dk-head"><span>ROUND <b>${Math.max(1, state.round)}</b> / ${state.rounds}</span><span class="dk-score ${state.score < 0 ? 'minus' : ''}">팀 점수 <b>${state.score}</b> · ${GARNET}${gNow > 0 ? '+' : ''}${gNow}</span></div>`;
     const hist = state.history.length ? `<div class="dk-hist">${state.history.map((h) => `<span class="${h.correct ? 'ok' : 'no'}">${h.round}R ${esc(h.word)} ${h.correct ? '⭕' : '❌'}</span>`).join('')}</div>` : '';
 
     let foot = '';
     if (finished || state.phase === 'done') {
-      const g = garnetsFor(state.score, state.rounds);
-      foot = `<div class="dk-final ${g > 0 ? 'ok' : g < 0 ? 'no' : ''}"><b>${g > 0 ? '🎉 협동 성공!' : g < 0 ? '😢 협동 실패' : '🙂 무승부'}</b>
-        <span>팀 점수 ${state.score}점 (목표 ${target}점) → 모두 ${g ? `${GARNET}${g > 0 ? '+' : '−'}${Math.abs(g)}` : '가넷 변동 없음'}</span></div>`;
+      const g = garnetsFor(state.score);
+      foot = `<div class="dk-final ${g > 0 ? 'ok' : g < 0 ? 'no' : ''}"><b>${g > 0 ? '🎉 협동 성공!' : g < 0 ? '😢 협동 실패' : '🙂 본전'}</b>
+        <span>팀 점수 ${state.score}점 → 모두 ${g ? `${GARNET}${g > 0 ? '+' : '−'}${Math.abs(g)}` : '가넷 변동 없음'}</span></div>`;
     } else if (isPlayer && ['ready', 'result'].includes(state.phase)) {
       const r = state.ready[me];
       foot = `<button class="dk-go" data-ready ${r ? 'disabled' : ''}>${r ? '다른 사람 기다리는 중…' : state.phase === 'ready' ? '준비' : '다음 라운드 준비 →'}</button>`;
     }
 
     // 가넷 차감 안내 (첫 라운드, 모두 준비한 순간)
-    const warn = state.round === 1 && state.phase === 'choose' && now - state.readyAt < 3500
-      ? `<div class="dk-warn"><b>⚠️ 본 게임은 가넷 차감이 있어요</b><small>최종 점수가 마이너스면 모두 가넷 ${state.rounds}개가 차감돼요</small></div>` : '';
+    const warn = state.round === 1 && state.phase === 'choose' && now - state.readyAt < 2000
+      ? '<div class="dk-warn"><b>⚠️ 본 게임은 가넷 차감이 있어요</b><small>최종 점수가 마이너스면 10점당 가넷 1개씩 차감돼요</small></div>' : '';
 
     el.innerHTML = `<div class="dk">${head}${info}${timer}<div class="dk-stage">${state.order.map(person).join('')}${warn}</div>${foot}${hist}</div>`;
-    if (warn) setTimeout(() => el.querySelector('.dk-warn')?.remove(), Math.max(0, 3500 - (Date.now() - state.readyAt)));
+    if (warn) setTimeout(() => el.querySelector('.dk-warn')?.remove(), Math.max(0, 2000 - (Date.now() - state.readyAt)));
 
     el.querySelector('[data-ready]')?.addEventListener('click', () => sendMove({ type: 'ready' }));
     el.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => sendMove({ type: 'pick', target: b.dataset.pick })));

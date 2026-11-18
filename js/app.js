@@ -835,7 +835,7 @@ function recordLine(id) {
   const top = g?.rewards?.[0];
   return r.plays
     ? `<span>${r.plays}전 ${r.wins}승 ${r.losses}패</span><span class="gold">승률 ${r.rate}%</span>`
-    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.coopGame ? `협동 ${GARNET}±라운드` : g?.teamGame ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
+    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.coopGame ? `협동 ${GARNET} 점수 비례` : g?.teamGame ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
   $app.querySelectorAll('[data-rec]').forEach((el) => { el.innerHTML = recordLine(el.dataset.rec); });
