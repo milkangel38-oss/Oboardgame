@@ -7,6 +7,25 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 아발론: 달밤의 성 + 원탁 + 검과 단검
+  avalon: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="avSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1236"/><stop offset="1" stop-color="#3a1f4a"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#avSky)"/>
+  <circle cx="230" cy="70" r="30" fill="#f6eec8"/><circle cx="242" cy="62" r="26" fill="#0d1236" opacity=".25"/>
+  <g fill="#1a1530">
+    <rect x="60" y="120" width="180" height="140"/>
+    ${[60, 90, 120, 150, 180, 210].map((x) => `<rect x="${x}" y="110" width="18" height="14"/>`).join('')}
+    <rect x="40" y="90" width="40" height="170"/><rect x="220" y="90" width="40" height="170"/>
+    <polygon points="40,90 60,50 80,90"/><polygon points="220,90 240,50 260,90"/>
+    <rect x="125" y="70" width="50" height="60"/><polygon points="125,70 150,25 175,70"/>
+  </g>
+  <rect x="138" y="200" width="24" height="60" rx="12" fill="#f2c86a" opacity=".85"/>
+  <ellipse cx="150" cy="335" rx="110" ry="38" fill="#6b4a2a"/><ellipse cx="150" cy="328" rx="110" ry="38" fill="#8a6234"/>
+  <g transform="translate(118 300) rotate(-25)"><rect x="-3" y="-60" width="7" height="62" fill="#dfe6f2"/><rect x="-14" y="0" width="28" height="6" rx="2" fill="#3d7bff"/><rect x="-2.5" y="6" width="5" height="16" fill="#5a3a22"/></g>
+  <g transform="translate(184 300) rotate(25)"><rect x="-3" y="-44" width="6" height="46" fill="#dfe6f2"/><rect x="-11" y="0" width="22" height="5" rx="2" fill="#ff4f6e"/><rect x="-2.5" y="5" width="5" height="12" fill="#3a1a12"/></g>
+</svg>`,
+
   // 루미큐브: 나무 받침대 위 숫자 타일들 (직접 그린 타일)
   rummikub: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

@@ -1716,3 +1716,55 @@ button.dk-p { cursor: pointer; } button.dk-p:hover { background: rgba(255, 255, 
   .rk-tile.joker i { width: 32px; height: 32px; font-size: 24px; }
   .rk-table { min-height: 200px; }
 }
+
+/* ───────── 아발론 ───────── */
+.av { display: grid; gap: 10px; }
+.av-board { display: grid; gap: 6px; padding: 10px; border-radius: 16px; background: linear-gradient(180deg, #2a2038, #1a1428); box-shadow: inset 0 0 0 2px rgba(201, 168, 90, .35); }
+.av-track { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.av-q { display: grid; justify-items: center; gap: 2px; padding: 8px 2px; border-radius: 50%; aspect-ratio: 1; align-content: center; background: radial-gradient(circle at 35% 30%, #3a3050, #241c34); box-shadow: inset 0 0 0 2px rgba(201, 168, 90, .4); }
+.av-q b { font-family: var(--display); font-size: clamp(18px, 5vw, 26px); color: #e8cf8a; line-height: 1; } .av-q small { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+.av-q.now { box-shadow: inset 0 0 0 3px #ffd84d, 0 0 14px rgba(255, 216, 77, .5); }
+.av-q.ok { background: radial-gradient(circle at 35% 30%, #4a8cff, #1f4fb0); } .av-q.no { background: radial-gradient(circle at 35% 30%, #ff6b7a, #a01a30); }
+.av-rej { display: flex; justify-content: center; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.av-rej i { font-style: normal; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(255, 255, 255, .08); font-size: 10.5px; font-weight: 800; }
+.av-rej i.on { background: #ff4f6e; color: #fff; } .av-rej i.last { box-shadow: 0 0 0 1.5px #ff4f6e; }
+.av-table { position: relative; width: 100%; max-width: 560px; margin-inline: auto; aspect-ratio: 1 / .9; }
+.av-round { position: absolute; left: 50%; top: 50%; width: 46%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-content: center; justify-items: center; background: radial-gradient(circle, #8a6234, #5a3a1e 70%); box-shadow: inset 0 0 0 6px #6b4a2a, 0 10px 24px rgba(0, 0, 0, .5); text-align: center; }
+.av-round span { font-size: 34px; } .av-round small { font-size: 12px; color: #ffe7c8; font-weight: 700; }
+.av-seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 1px; width: 84px; appearance: none; border: 0; background: none; color: inherit; font: inherit; padding: 2px; border-radius: 14px; }
+.av-face { position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 3px var(--pc); background: #333; }
+.av-face .pf { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; font-weight: 800; font-size: 20px; color: #fff; border-radius: 50%; } .av-face .pf.char svg { width: 100%; height: 100%; }
+.av-seat b { font-size: 11.5px; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.av-seat.me b { color: var(--gold); }
+.av-seat.team .av-face { box-shadow: 0 0 0 3px #ffd84d, 0 0 16px rgba(255, 216, 77, .7); }
+.av-seat.known .av-face { box-shadow: 0 0 0 3px var(--pc), 0 0 0 6px #b26bff; }
+.av-seat.good .av-face { box-shadow: 0 0 0 3px #3d7bff; } .av-seat.evil .av-face { box-shadow: 0 0 0 3px #ff4f6e; }
+.av-seat.target { cursor: pointer; } .av-seat.target .av-face { animation: pulse .5s infinite alternate; box-shadow: 0 0 0 3px #ff4f6e, 0 0 16px #ff4f6e; }
+.av-seat.shot .av-face::after { content: '🗡️'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 26px; background: rgba(0, 0, 0, .4); }
+button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .av-face { transform: scale(1.06); }
+.av-crown, .av-shield, .av-voted { position: absolute; font-style: normal; font-size: 18px; filter: drop-shadow(0 2px 2px #000); }
+.av-crown { top: -10px; left: 50%; transform: translateX(-50%); } .av-shield { top: 22px; right: 8px; font-size: 16px; } .av-voted { top: 22px; left: 10px; font-size: 13px; color: #3ddc84; }
+.av-vote { font-style: normal; font-size: 10px; font-weight: 800; padding: 0 6px; border-radius: 6px; } .av-vote.y { background: #3ddc84; color: #0d2a1a; } .av-vote.n { background: #ff4f6e; color: #fff; }
+.av-know { font-size: 9.5px; color: #d9b8ff; font-weight: 700; } .av-role { font-size: 10px; font-weight: 800; }
+.av-msg { padding: 10px 12px; border-radius: 12px; background: rgba(255, 216, 77, .1); font-size: 13.5px; line-height: 1.5; text-align: center; word-break: keep-all; }
+.av-msg.evil { background: rgba(255, 79, 110, .15); }
+.av-done { text-align: center; font-size: 13px; color: var(--muted); }
+.av-go { appearance: none; padding: 14px; border-radius: 14px; border: 0; background: linear-gradient(90deg, #c9a85a, #e8cf8a); color: #1a1033; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+.av-go:disabled { background: rgba(255, 255, 255, .1); color: var(--muted); cursor: default; }
+.av-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.av-yes, .av-no { appearance: none; padding: 16px; border-radius: 14px; border: 0; font: inherit; font-size: 17px; font-weight: 800; cursor: pointer; color: #fff; }
+.av-yes { background: #3d7bff; box-shadow: 0 4px 0 #1f4fb0; } .av-no { background: #ff4f6e; box-shadow: 0 4px 0 #a01a30; }
+.av-yes:disabled, .av-no:disabled { background: rgba(255, 255, 255, .08); color: var(--muted); box-shadow: none; cursor: default; }
+.av-role-card { appearance: none; border: 0; display: grid; justify-items: center; gap: 4px; padding: 14px; border-radius: 16px; background: repeating-linear-gradient(45deg, #2a2038 0 10px, #241c32 10px 20px); color: #fff; font: inherit; cursor: pointer; box-shadow: inset 0 0 0 2px rgba(201, 168, 90, .5); text-align: center; }
+.av-role-card.open.good { background: linear-gradient(160deg, #1f3a7a, #142650); box-shadow: inset 0 0 0 2px #4a8cff; }
+.av-role-card.open.evil { background: linear-gradient(160deg, #6a1428, #3a0c18); box-shadow: inset 0 0 0 2px #ff4f6e; }
+.av-rc-icon { font-size: 40px; line-height: 1; } .av-role-card b { font-family: var(--display); font-size: 22px; } .av-role-card small { font-size: 12px; opacity: .8; }
+.av-role-card p { margin: 0; font-size: 12.5px; line-height: 1.5; word-break: keep-all; } .av-rc-know { padding: 6px 10px; border-radius: 10px; background: rgba(0, 0, 0, .25); }
+.av-role-card em { font-style: normal; font-size: 11px; opacity: .6; }
+.av-end { display: grid; justify-items: center; gap: 4px; padding: 16px; border-radius: 16px; text-align: center; }
+.av-end.good { background: linear-gradient(160deg, #1f3a7a, #142650); } .av-end.evil { background: linear-gradient(160deg, #6a1428, #3a0c18); }
+.av-end b { font-family: var(--display); font-size: 26px; } .av-end small { font-size: 13px; opacity: .85; } .av-end span { font-weight: 800; }
+.av-hist { display: grid; gap: 3px; font-size: 11.5px; } .av-hist span { padding: 4px 8px; border-radius: 8px; background: rgba(255, 255, 255, .04); }
+.av-hist .ok { box-shadow: inset 3px 0 0 #3d7bff; } .av-hist .no { box-shadow: inset 3px 0 0 #ff4f6e; }
+.spl-flash.av-ok b, .spl-flash.av-ok { color: #8ab8ff; } .spl-flash.av-no { color: #ff8a9a; }
+@media (max-width: 420px) { .av-seat { width: 70px; } .av-face { width: 42px; height: 42px; } .av-seat b { font-size: 10.5px; } }
