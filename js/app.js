@@ -812,12 +812,13 @@ let nickEdit = null; // 닉네임 수정 중인 값 (null이면 수정 안 함)
 function gameCard(g) {
   return `
     <div class="gcard-wrap">
-      <button class="gcard ${g.comingSoon ? 'soon' : ''} ${g.deathmatch ? 'deathmatch' : ''} ${g.teamGame ? 'teamgame' : ''}" data-game="${g.id}" aria-label="${esc(g.name)} ${g.comingSoon ? '(준비중)' : '방 만들기'}">
+      <button class="gcard ${g.comingSoon ? 'soon' : ''} ${g.deathmatch ? 'deathmatch' : ''} ${g.teamGame ? 'teamgame' : ''} ${g.coopGame ? 'coopgame' : ''}" data-game="${g.id}" aria-label="${esc(g.name)} ${g.comingSoon ? '(준비중)' : '방 만들기'}">
         <div class="gcard-art">${g.art}</div>
         <div class="ribbon"><span><i>◆</i>${esc(g.name)}<i>◆</i></span></div>
         <div class="gcard-top" data-rec="${g.id}">${recordLine(g.id)}</div>
         ${g.deathmatch ? '<div class="dm-stamp">DEATH<br>MATCH</div>' : ''}
         ${g.teamGame ? '<div class="tg-stamp">팀게임</div>' : ''}
+        ${g.coopGame ? '<div class="tg-stamp coop">협동게임</div>' : ''}
         ${g.comingSoon ? '<div class="stamp">준비중</div>' : ''}
         <div class="gcard-bottom">
           <p class="gdesc">${esc(g.description)}</p>
@@ -834,7 +835,7 @@ function recordLine(id) {
   const top = g?.rewards?.[0];
   return r.plays
     ? `<span>${r.plays}전 ${r.wins}승 ${r.losses}패</span><span class="gold">승률 ${r.rate}%</span>`
-    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.teamGame ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
+    : `<span>첫 도전!</span><span class="gold">${g?.deathmatch ? `승자 ${GARNET}+${top}` : g?.coopGame ? `협동 ${GARNET}±라운드` : g?.teamGame ? `승리팀 ${GARNET}+${top}` : top ? `1등 ${GARNET}${top}` : 'NEW'}</span>`;
 }
 function refreshGameRecords() {
   $app.querySelectorAll('[data-rec]').forEach((el) => { el.innerHTML = recordLine(el.dataset.rec); });
@@ -1141,6 +1142,7 @@ function drawRoom($main, room, game) {
     const reward = r.rewards?.[user.uid] || 0;
     const tag = r.aborted ? ''
       : r.draw && mineRank ? '<span class="res-tag draw">DRAW</span>'
+      : mineRank && game.coopGame ? `<span class="res-tag ${reward > 0 ? 'win' : reward < 0 ? 'lose' : 'draw'}">${reward > 0 ? 'CLEAR' : reward < 0 ? 'FAIL' : 'DRAW'}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
       : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
       : r.draw ? '<span class="res-tag draw">DRAW</span>'
       : (r.winners || []).includes(user.uid) ? '<span class="res-tag win">WIN</span>' : '<span class="res-tag lose">LOSE</span>';
@@ -1170,7 +1172,7 @@ function drawRoom($main, room, game) {
   $main.innerHTML = `
     <div class="room-head">
       <div>
-        <div class="eyebrow">${game.deathmatch ? '<span class="dm-chip">⚔ DEATH MATCH</span> ' : ''}${game.teamGame ? '<span class="tg-chip">👥 팀게임</span> ' : ''}${game.emoji} ${esc(game.name)} · ${room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '게임 중' : '게임 종료'}</div>
+        <div class="eyebrow">${game.deathmatch ? '<span class="dm-chip">⚔ DEATH MATCH</span> ' : ''}${game.teamGame ? '<span class="tg-chip">👥 팀게임</span> ' : ''}${game.coopGame ? '<span class="tg-chip coop">🤝 협동게임</span> ' : ''}${game.emoji} ${esc(game.name)} · ${room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '게임 중' : '게임 종료'}</div>
         <h2 class="room-code">방 코드 <span class="code">${esc(room.code)}</span></h2>
       </div>
       <div class="row">

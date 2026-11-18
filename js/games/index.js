@@ -22,6 +22,7 @@ import lexio from './lexio.js';
 import splendor from './splendor.js';
 import memorypoker from './memorypoker.js';
 import assassin from './assassin.js';
+import dongsang from './dongsang.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -42,6 +43,7 @@ export const GAMES = [
   memorypoker,
   typing,
   assassin,
+  dongsang,
   underdog,
   tichu,
   chosung,

@@ -7,6 +7,22 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 동상이몽퀴즈: 화이트보드를 든 세 사람 + 가운데 물음표
+  dongsang: `
+<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" fill="#123a2a"/>
+  <circle cx="150" cy="150" r="160" fill="#1c5a40" opacity=".6"/>
+  ${[[60, '#ff4f6e', '빨강'], [150, '#3d7bff', '사과'], [240, '#ffb02e', '과일']].map(([x, c, w], i) => `<g transform="translate(${x} ${i === 1 ? 250 : 270})">
+    <rect x="-38" y="-150" width="76" height="46" rx="5" fill="#fdfdfb" stroke="#b9bcc4" stroke-width="3"/>
+    <text y="-119" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="20" fill="#1a1033">${i === 1 ? '✖' : w}</text>
+    <path d="M-22 -104 L-16 -60 M22 -104 L16 -60" stroke="#ffe0bd" stroke-width="6" stroke-linecap="round"/>
+    <path d="M-30 40 Q-30 -10 0 -10 Q30 -10 30 40Z" fill="${c}"/>
+    <circle cy="-32" r="24" fill="#ffe0bd"/>
+    <path d="M-25 -28 Q-26 -60 0 -60 Q26 -60 25 -28 Q20 -46 0 -46 Q-20 -46 -25 -28Z" fill="${c}"/>
+    <circle cx="-8" cy="-30" r="3" fill="#2a2030"/><circle cx="8" cy="-30" r="3" fill="#2a2030"/></g>`).join('')}
+  <text x="150" y="380" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="64" fill="#3ddc84" opacity=".9">?</text>
+</svg>`,
+
   // 자객 마피아: 어두운 저택 바닥 + 손전등 빛 + 두건 쓴 자객 실루엣
   assassin: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
