@@ -6,6 +6,7 @@ import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
 import { personHtml } from './face.js';
 import { bigFlash } from './turn-alert.js';
+import { ding } from '../sound.js';
 
 export const COMPANIES = [
   { name: '태양전자', emoji: '☀️', color: '#ffb02e' },
@@ -18,15 +19,17 @@ const START_CASH = 10000;
 const START_PRICE = 2000;
 const MAX_HOLD = 7;
 const TICKS = 12;            // 라운드당 주가 변동 횟수 (게임 시각 5분 × 12 = 60분)
-const TICK_MS = 50000;       // 게임 시각 5분 = 실제 50초 (라운드당 10분)
-const INFO_MS = 120000;      // 정보 확인 최대 2분
+const TICK_MS = 60000;       // 게임 시각 5분 = 실제 1분 (라운드당 12분)
+const XCALL_MS = 30000;      // 정보교환소: 차례가 되면 30초 안에 둘 다 입장
+const XSTAY_MS = 20000;      // 정보교환소에 머무는 시간 (봉투 고르기)
 const WINDOWS = 1;           // 거래소 창구 수
-const CALL_MS = 15000;       // 번호가 불리면 15초 안에 입장
+const CALL_MS = 10000;       // 번호가 불리면 10초 안에 입장
 const STAY_MS = 30000;       // 거래소에 머무는 시간
 const TALK = 125;            // 이만큼 가까우면 '대화하기'
 const W = 1000, H = 700, R = 50;
 const DOOR = { x: 500, y: 92 };
 const KIOSK = { x: 110, y: 560 };
+const XCHG = { x: 140, y: 250 };
 const NEAR = 95;
 const SPEED = 260;
 const SEND_MS = 100;
@@ -52,16 +55,41 @@ export function makeEvents(prices, n) {
 }
 function dealInfo(state, round, now) {
   const n = state.order.length;
-  const events = makeEvents(state.prices, n);
-  const seats = state.seats; // 제비뽑기 순서 (게임 시작 때 정함)
-  const info = events.map((e, i) => { const k = Math.floor(i / 3); return { ...e, pair: [seats[k], seats[(k + 1) % n]] }; });
-  return { ...state, round, phase: 'info', info, tick: 0, nextAt: 0, deadline: now + INFO_MS, ready: {}, queue: [], windows: Array(WINDOWS).fill(null), notes: [] };
+  const events = makeEvents(state.prices, n); // 이미 고르게 섞여 있음
+  const info = events.map((e, i) => ({ ...e, env: Math.floor(i / 3), pair: null }));
+  return { ...state, round, phase: 'info', info, taken: [], tick: 0, nextAt: 0, deadline: 0, ready: {}, queue: [], windows: Array(WINDOWS).fill(null), notes: [], xchg: newXchg(state, 0, now) };
 }
+// k번째 차례: 순서 k+1번, k+2번 (마지막은 n번과 1번)
+function newXchg(state, k, now) {
+  const n = state.order.length;
+  return { k, pair: [state.seats[k], state.seats[(k + 1) % n]], in: {}, pick: {}, callUntil: now + XCALL_MS, until: 0 };
+}
+function giveEnvelope(s, env, now, note) {
+  const x = s.xchg;
+  const info = s.info.map((e) => (e.env === env ? { ...e, pair: x.pair } : e));
+  const taken = [...s.taken, env];
+  const notes = note ? [...s.notes, { at: now, text: note }].slice(-5) : s.notes;
+  const k = x.k + 1;
+  const got = { at: now, env, pair: x.pair };
+  if (k >= s.order.length) return startMarket({ ...s, info, taken, notes, xchg: null, lastGot: got }, now);
+  return { ...s, info, taken, notes, xchg: newXchg(s, k, now), lastGot: got };
+}
+const freeEnvs = (s) => Array.from({ length: s.order.length }, (_, i) => i).filter((i) => !s.taken.includes(i));
 
 // 시간이 지나면 처리할 것들: 주가 변동, 창구 시간 초과, 다음 번호 부르기
 export function advance(state, now, players) {
   let s = state;
-  if (s.phase === 'info' && now >= s.deadline) s = startMarket(s, now);
+  if (s.phase === 'info' && s.xchg) {
+    const x = s.xchg;
+    const free = freeEnvs(s);
+    const rnd = () => free[Math.floor(Math.random() * free.length)];
+    if (x.until && now > x.until) {
+      const picks = Object.values(x.pick).filter((e) => free.includes(e));
+      s = giveEnvelope(s, picks.length ? picks[Math.floor(Math.random() * picks.length)] : rnd(), now, '시간이 다 되어 봉투가 정해졌어요');
+    } else if (!x.until && now > x.callUntil) {
+      s = giveEnvelope(s, rnd(), now, '정보교환소에 제때 오지 않아 무작위 봉투가 배정됐어요');
+    }
+  }
   if (s.phase === 'market') {
     const prices = [...s.prices];
     const hist = s.hist.map((h) => [...h]);
@@ -92,7 +120,7 @@ export function advance(state, now, players) {
   return { state: s };
 }
 function startMarket(s, now) {
-  return { ...s, phase: 'market', tick: 0, nextAt: now + TICK_MS, ready: {}, deadline: 0 };
+  return { ...s, phase: 'market', tick: 0, nextAt: now + TICK_MS, ready: {}, deadline: 0, xchg: null, marketAt: now, notes: [] };
 }
 function endRound(s, now, players) {
   const done = { ...s, windows: Array(WINDOWS).fill(null), queue: [], history: [...s.history, { round: s.round, info: s.info }] };
@@ -143,13 +171,14 @@ function build(code) {
   root.className = 'sx';
   root.innerHTML = `
     <div class="sx-top"><span class="sx-round"></span><span class="sx-phase"></span><span class="sx-next"></span></div>
+    <div class="sx-ticker"></div>
     <div class="sx-stage">
       <div class="sx-arena">
         <div class="sx-floor"></div>
         <div class="sx-door" style="left:${DOOR.x / 10}%;top:${DOOR.y / 7}%"><b>증권거래소</b><span class="sx-door-in"></span><i></i></div>
         <div class="sx-kiosk" style="left:${KIOSK.x / 10}%;top:${KIOSK.y / 7}%"><b>번호표</b><span class="sx-kiosk-no"></span></div>
+        <div class="sx-xc" style="left:${XCHG.x / 10}%;top:${XCHG.y / 7}%"><b>정보교환소</b><i>📨</i><span class="sx-xc-in"></span></div>
         <div class="sx-clock"><div class="sx-dial"><i class="h"></i><i class="m"></i></div><b class="sx-time"></b><small class="sx-tick"></small></div>
-        <div class="sx-board"></div>
         <div class="sx-chars"></div>
         <div class="sx-center"></div>
       </div>
@@ -221,6 +250,8 @@ function build(code) {
   });
   // 거래소 버튼 · 정보 확인 버튼
   root.addEventListener('click', (e) => {
+    const ev = e.target.closest('[data-env]');
+    if (ev && !ev.disabled) { c.ctx.sendMove({ type: 'xpick', env: Number(ev.dataset.env) }); return; }
     const b = e.target.closest('[data-buy],[data-sell],[data-sellall],[data-exout],[data-infook]');
     if (!b || b.disabled) return;
     const s = c.ctx.sendMove;
@@ -234,6 +265,7 @@ function build(code) {
 }
 
 const dmKey = (a, b) => [a, b].sort().join('|');
+const seatNo = (s, u) => s.seats.indexOf(u) + 1;
 function openDm(u, focus) {
   ctl.dmWith = u;
   ctl.dm.hidden = false;
@@ -275,6 +307,7 @@ function checkDms() {
 
 function nearWhat() {
   const { state, me } = ctl.ctx;
+  if (state.phase === 'info' && state.xchg && ctl.pos && dist(ctl.pos, XCHG) < NEAR + 10) return state.xchg.pair.includes(me) && !state.xchg.in[me] ? 'xchg' : state.xchg.in[me] ? null : 'xchg-closed';
   if (!ctl.pos || myWindow(state, me) >= 0 && state.windows[myWindow(state, me)].st === 'in') return null;
   const wi = myWindow(state, me);
   if (wi >= 0 && state.windows[wi].st === 'call' && dist(ctl.pos, DOOR) < NEAR + 20) return 'door';
@@ -285,8 +318,11 @@ function nearWhat() {
 function interact() {
   if (!ctl) return;
   const { state, me, sendMove } = ctl.ctx;
-  if (state.phase !== 'market' || !state.order.includes(me)) { ctl.shake = Date.now(); return; }
   const w = nearWhat();
+  const nm0 = (u) => esc(ctl.ctx.players[u]?.name || '');
+  if (w === 'xchg') { sendMove({ type: 'xenter' }); return; }
+  if (w === 'xchg-closed') { const x = state.xchg; bigFlash(`📨 지금은 ${seatNo(state, x.pair[0])}번 ${nm0(x.pair[0])}님 · ${seatNo(state, x.pair[1])}번 ${nm0(x.pair[1])}님 차례예요<small>내 차례가 되면 알려 드릴게요</small>`, 1800, 'sx-note'); return; }
+  if (state.phase !== 'market' || !state.order.includes(me)) { ctl.shake = Date.now(); return; }
   if (w === 'door') sendMove({ type: 'enter' });
   else if (w === 'kiosk') sendMove({ type: 'ticket' });
   else if (w === 'door-closed') {
@@ -315,7 +351,9 @@ function frame() {
   c.lastT = t;
   const iAmIn = state.order.includes(me);
   const wi = myWindow(state, me);
-  const inside = wi >= 0 && state.windows[wi].st === 'in';
+  const inXc = state.phase === 'info' && !!state.xchg?.in?.[me];
+  const x = state.phase === 'info' ? state.xchg : null;
+  const inside = (wi >= 0 && state.windows[wi].st === 'in') || inXc;
   c.say.style.display = iAmIn && state.phase !== 'done' ? '' : 'none';
 
   if (!c.pos && state.spawn?.[me]) c.pos = { ...state.spawn[me] };
@@ -363,7 +401,7 @@ function frame() {
       c.chars[u] = el;
     }
     const p = c.disp[u];
-    const inEx = state.windows.some((w) => w && w.uid === u && w.st === 'in');
+    const inEx = state.windows.some((w) => w && w.uid === u && w.st === 'in') || (state.phase === 'info' && !!state.xchg?.in?.[u]);
     el.style.display = p && !inEx ? '' : 'none';
     if (!p) return;
     el.style.left = `${(p.x / W) * 100}%`;
@@ -388,7 +426,7 @@ function frame() {
   const tt = state.phase === 'done' ? '3:00' : state.phase === 'info' ? `${state.round}:00` : clockOf(state.round, state.tick);
   const $tm = c.$('.sx-time');
   if ($tm.textContent !== tt) $tm.textContent = tt;
-  const nx = state.phase === 'market' ? `다음 변동까지 ${Math.ceil(tickLeft / 1000)}초` : state.phase === 'info' ? `시계 정지 · 정보 확인 ${Math.max(0, Math.ceil((state.deadline - now) / 1000))}초` : '장 마감';
+  const nx = state.phase === 'market' ? `다음 변동까지 ${Math.ceil(tickLeft / 1000)}초` : state.phase === 'info' ? '시계 정지 · 정보교환 중' : '장 마감';
   const $tk = c.$('.sx-tick');
   if ($tk.textContent !== nx) $tk.textContent = nx;
   c.$('.sx-next').textContent = state.phase === 'market' ? `⏱ ${Math.ceil(tickLeft / 1000)}초` : '';
@@ -399,6 +437,11 @@ function frame() {
   if ($di.dataset.v !== doorTxt) { $di.dataset.v = doorTxt; $di.innerHTML = doorTxt; }
   c.$('.sx-door').classList.toggle('open', state.windows.some((w) => w && w.st === 'in'));
   c.$('.sx-door').classList.toggle('mine', wi >= 0 && state.windows[wi].st === 'call');
+  const xcTxt = x ? `${x.pair.map((u) => `${seatNo(state, u)}번 ${esc(players[u]?.name || '')}${x.in[u] ? ' ✔' : ''}`).join(' · ')}` : '';
+  const $xi = c.$('.sx-xc-in');
+  if ($xi.dataset.v !== xcTxt) { $xi.dataset.v = xcTxt; $xi.innerHTML = xcTxt; }
+  c.$('.sx-xc').classList.toggle('mine', !!(x && x.pair.includes(me) && !x.in[me]));
+  c.$('.sx-xc').classList.toggle('on', !!x);
   const kio = state.phase === 'market' ? `다음 ${state.nextNo}번` : '';
   const $ki = c.$('.sx-kiosk-no');
   if ($ki.textContent !== kio) $ki.textContent = kio;
@@ -407,6 +450,8 @@ function frame() {
   const near = nearWhat();
   let label = '', hot = false;
   const myQ = state.queue.find((q) => q.uid === me);
+  if (near === 'xchg') { label = '정보교환소 입장!'; hot = true; }
+  else if (near === 'xchg-closed') label = '다른 사람 차례';
   if (state.phase === 'market' && iAmIn) {
     if (near === 'door') { label = '거래소 입장!'; hot = true; }
     else if (near === 'kiosk') { label = wi >= 0 || myQ ? '이미 번호표가 있어요' : '번호표 뽑기'; hot = !(wi >= 0 || myQ); }
@@ -428,10 +473,19 @@ function frame() {
   // 내 번호가 불리면 알림
   if (wi >= 0 && state.windows[wi].st === 'call') {
     const k = `${state.round}:${state.windows[wi].no}`;
-    if (c.calledSeen !== k) { c.calledSeen = k; bigFlash(`<span class="sx-call-no">📢 ${state.windows[wi].no}번 고객님!!</span><b>지금 당장 증권거래소로 오세요!</b><small>15초 안에 안 오면 다음 번호로 넘어가요</small>`, 3500, 'sx-call'); soundEvent(c.ctx.room?.code, `sx:call:${k}`, 'ok'); }
+    if (c.calledSeen !== k) { c.calledSeen = k; ding(); setTimeout(ding, 550); bigFlash(`<span class="sx-call-no">📢 ${state.windows[wi].no}번 고객님!!</span><b>지금 당장 증권거래소로 오세요!</b><small>15초 안에 안 오면 다음 번호로 넘어가요</small>`, 3500, 'sx-call'); soundEvent(c.ctx.room?.code, `sx:call:${k}`, 'ok'); }
+  }
+  // 정보교환소 차례 알림 (띵동!)
+  if (x && x.pair.includes(me) && !x.in[me]) {
+    const k = `x:${state.round}:${x.k}`;
+    if (c.calledSeen !== k) { c.calledSeen = k; ding(); setTimeout(ding, 550); bigFlash(`<span class="sx-call-no">📨 ${seatNo(state, me)}번 차례!!</span><b>정보교환소로 입장하세요!</b><small>${esc(players[x.pair.find((u) => u !== me)]?.name || '')}님과 함께 봉투 1개를 골라요 · 30초 안에 입장</small>`, 3500, 'sx-call'); }
+  }
+  if (inXc) {
+    const $xl = c.$('[data-xleft]');
+    if ($xl) $xl.textContent = Math.max(0, Math.ceil(((x.until || x.callUntil) - now) / 1000));
   }
   // 거래소 화면 남은 시간
-  if (inside) {
+  if (inside && !inXc) {
     const left = Math.max(0, state.windows[wi].until - now);
     const $l = c.$('[data-stay]');
     if ($l) { $l.textContent = Math.ceil(left / 1000); $l.closest('.sx-ex-stay')?.classList.toggle('hurry', left < 5000); }
@@ -441,8 +495,9 @@ function frame() {
   // 가운데 안내
   let center = '';
   if (wi >= 0 && state.windows[wi].st === 'call' && state.phase === 'market' && near !== 'door') center = `<b class="call">📢 ${state.windows[wi].no}번! 거래소로!</b><small>${Math.max(0, Math.ceil((state.windows[wi].until - now) / 1000))}초 안에 위쪽 증권거래소 문으로 가서 입장하세요</small>`;
-  else if (state.phase === 'info') center = `<b>${state.round}라운드 정보 확인</b><small>시계가 멈췄어요 · 아래 내 정보 카드를 확인하고 '확인'을 눌러 주세요</small>`;
-  else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 2500) center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
+  else if (state.phase === 'info' && x && x.pair.includes(me) && !x.in[me]) center = `<b class="call">📨 내 차례! 정보교환소로!</b><small>${Math.max(0, Math.ceil((x.callUntil - now) / 1000))}초 안에 왼쪽 정보교환소 앞에서 상호작용을 눌러 입장하세요</small>`;
+  else if (state.phase === 'info' && x) center = `<b>📨 정보교환 ${x.k + 1} / ${state.order.length}</b><small>${seatNo(state, x.pair[0])}번 ${esc(players[x.pair[0]]?.name || '')}님 · ${seatNo(state, x.pair[1])}번 ${esc(players[x.pair[1]]?.name || '')}님 정보교환소로 입장해 주세요</small>`;
+  else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 3000) center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
   else if (state.phase === 'done') center = '<b>장 마감</b><small>모든 주식을 마지막 주가로 현금화했어요</small>';
   const $c = c.$('.sx-center');
   if ($c.dataset.v !== center) { $c.dataset.v = center; $c.innerHTML = center; $c.classList.toggle('on', !!center); }
@@ -450,7 +505,7 @@ function frame() {
   // 시간 진행 신호 (변동·창구 시간 초과·정보 확인 시간)
   const dues = [];
   if (state.phase === 'market') { dues.push(state.nextAt); state.windows.forEach((w) => w && dues.push(w.until)); }
-  if (state.phase === 'info') dues.push(state.deadline);
+  if (state.phase === 'info' && state.xchg) dues.push(state.xchg.until || state.xchg.callUntil);
   const due = dues.length ? Math.min(...dues) : 0;
   if (due && now > due + 300 + Math.max(0, state.order.indexOf(me)) * 250 && now - c.lastTick > 1500) {
     c.lastTick = now;
@@ -476,11 +531,11 @@ function paint() {
   const inside = wi >= 0 && state.windows[wi].st === 'in';
   ctl.$('.sx-round').innerHTML = `ROUND <b>${state.round}</b> / 2`;
   ctl.$('.sx-phase').textContent = { info: '정보 확인 · 시계 정지', market: '장 운영 중', done: '장 마감' }[state.phase] || '';
-  ctl.root.classList.toggle('inside', inside);
+  ctl.root.classList.toggle('inside', inside || !!(state.phase === 'info' && state.xchg?.in?.[me]));
   ctl.root.classList.toggle('done', state.phase === 'done' || !!finished);
 
   // 로비 전광판 (현재가)
-  ctl.$('.sx-board').innerHTML = COMPANIES.map((co, c) => `<span style="--cc:${co.color}"><i>${co.emoji}</i><b>${co.name}</b><strong>${state.prices[c].toLocaleString()}</strong>${arrow(chg(state, c))}</span>`).join('');
+  ctl.$('.sx-ticker').innerHTML = COMPANIES.map((co, c) => `<div style="--cc:${co.color}"><b><i>${co.emoji}</i>${co.name}</b><strong>${state.prices[c].toLocaleString()}</strong>${arrow(chg(state, c))}</div>`).join('');
 
   // 번호표 대기판
   const myQ = state.queue.find((q) => q.uid === me);
@@ -490,6 +545,24 @@ function paint() {
        ${myQ ? `<div class="mine">내 번호 <b>${myQ.no}</b> · 앞에 ${state.queue.indexOf(myQ)}명</div>` : ''}`
     : '';
 
+  // 정보교환소 화면 (차례인 두 사람만)
+  const x = state.phase === 'info' ? state.xchg : null;
+  if (x && x.in[me]) {
+    const partner = x.pair.find((u) => u !== me);
+    const both = !!x.until;
+    ctl.root.classList.add('inside');
+    ctl.$('.sx-exch').innerHTML = `
+      <div class="sx-ex-head"><b>📨 정보교환소</b><span class="sx-ex-stay">${both ? '남은 시간' : '기다리는 중'} <b data-xleft>20</b>초</span></div>
+      <div class="sx-xc-guide">${both
+        ? `<b>${nm(partner)}님과 의논해서 봉투 1개를 골라요.</b> 둘이 <u>같은 봉투</u>를 누르면 그 봉투의 정보 3장을 함께 받아요. (20초가 지나면 고른 봉투 중 하나, 없으면 무작위)`
+        : `<b>${nm(partner)}님이 들어오길 기다리는 중…</b> 둘 다 들어오면 봉투를 고를 수 있어요.`}</div>
+      <div class="sx-envs">${Array.from({ length: state.order.length }, (_, i) => i).map((i) => {
+        const taken = state.taken.includes(i);
+        const mineP = x.pick[me] === i, theirs = x.pick[partner] === i;
+        return `<button class="sx-env ${taken ? 'taken' : ''} ${mineP ? 'mine' : ''} ${theirs ? 'theirs' : ''}" data-env="${i}" ${taken || !both ? 'disabled' : ''}>
+          <span class="sx-env-i">✉️</span><b>봉투 ${i + 1}</b><small>${taken ? '가져감' : mineP && theirs ? '둘 다 선택!' : mineP ? '내 선택' : theirs ? `${nm(partner)}님 선택` : '정보 3장'}</small></button>`;
+      }).join('')}</div>`;
+  } else
   // 거래소 화면 (들어간 사람만)
   if (inside) {
     const holdSum = state.hold[me].reduce((a, b) => a + b, 0);
@@ -526,19 +599,22 @@ function paint() {
       ${state.history.map((h) => `<details class="sx-allinfo"><summary>${h.round}라운드 전체 정보 ${h.info.length}개 보기</summary>
         <div>${[...h.info].sort((a, b) => a.t - b.t || a.c - b.c).map((e) => `<span style="--cc:${COMPANIES[e.c].color}">${clockOf(h.round, e.t)} ${COMPANIES[e.c].emoji}${COMPANIES[e.c].name} <b class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '+' : ''}${e.d}</b> <small>${e.pair.map(nm).join('·')}</small></span>`).join('')}</div></details>`).join('')}`;
   } else if (iAmIn) {
-    const mine = state.info.filter((e) => e.pair.includes(me)).sort((a, b) => a.t - b.t);
+    const mine = state.info.filter((e) => e.pair && e.pair.includes(me)).sort((a, b) => a.t - b.t);
+    const n = state.order.length;
+    const order = state.phase === 'info' && state.xchg ? `<div class="sx-xorder"><div class="sx-info-t">📨 정보교환 순서 <small>내 순서는 <b>${seatNo(state, me)}번</b> · 두 명씩 차례로 정보교환소에 들어가 봉투를 골라요</small></div>
+      <ol>${Array.from({ length: n }, (_, k) => [state.seats[k], state.seats[(k + 1) % n]]).map((pr, k) => `<li class="${k < state.xchg.k ? 'done' : k === state.xchg.k ? 'now' : ''} ${pr.includes(me) ? 'me' : ''}">${k < state.xchg.k ? '✔' : k === state.xchg.k ? '▶ 지금' : `${k + 1}차`} · ${pr.map((u) => `${seatNo(state, u)}번 ${nm(u)}`).join(' + ')}</li>`).join('')}</ol></div>` : '';
     const holdTxt = COMPANIES.map((co, c) => state.hold[me][c] ? `${co.emoji}${co.name} ${state.hold[me][c]}주` : '').filter(Boolean).join(' · ') || '보유 주식 없음';
     html = `
       <div class="sx-wallet"><div><small>현금</small><b>${won(state.cash[me])}</b></div><div><small>보유 주식</small><span>${holdTxt}</span></div><div><small>총자산</small><b class="gold">${won(totalOf(state, me))}</b></div></div>
-      <div class="sx-info"><div class="sx-info-t">🔒 ${state.round}라운드 내 정보 카드 ${mine.length}장 <small>다른 사람에게 말할지, 숨길지, 거짓말할지는 자유!</small></div>
+      ${order}
+      <div class="sx-info"><div class="sx-info-t">🔒 ${state.round}라운드 내 정보 카드 ${mine.length}장 <small>${mine.length ? '다른 사람에게 말할지, 숨길지, 거짓말할지는 자유!' : '정보교환소에서 봉투를 고르면 여기에 저장돼요'}</small></div>
         <div class="sx-cards">${mine.map((e) => {
           const co = COMPANIES[e.c], partner = e.pair.find((u) => u !== me);
           const past = state.phase === 'market' && e.t <= state.tick;
           return `<div class="sx-card ${past ? 'past' : ''}" style="--cc:${co.color}"><small>${clockOf(state.round, e.t)}</small><b>${co.emoji} ${co.name}</b><strong class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '▲ +' : '▼ '}${e.d}</strong><em>${nm(partner)}님도 알아요</em></div>`;
         }).join('')}</div>
-        ${state.phase === 'info' ? `<button class="sx-ok" data-infook ${state.ready[me] ? 'disabled' : ''}>${state.ready[me] ? `다른 사람 기다리는 중… (${Object.keys(state.ready).length}/${state.order.length})` : '확인했어요 →'}</button>` : ''}
       </div>
-      ${state.notes.length && state.phase === 'market' ? `<div class="sx-notes">${state.notes.slice(-2).map((n) => `<span>📢 ${esc(n.text)}</span>`).join('')}</div>` : ''}`;
+      ${state.notes.length ? `<div class="sx-notes">${state.notes.slice(-2).map((n) => `<span>📢 ${esc(n.text)}</span>`).join('')}</div>` : ''}`;
   }
   ctl.$('.sx-panel').innerHTML = html;
   ctl.$('.sx-log').innerHTML = (state.chat || []).slice(-30).map((m) => `<div><b style="color:${COLORS[state.order.indexOf(m.u) % COLORS.length]}">${nm(m.u)}</b> ${esc(m.text)}</div>`).join('');
@@ -553,17 +629,18 @@ export default {
   category: 'genius',
   minPlayers: 4,
   maxPlayers: 8,
-  duration: '20~30분',
+  duration: '25~35분',
   ownChat: true,
   rewards: [5, 4, 4, 3, 2, 1],
   rewardLabel: '1등 최대 +5',
   description: '정보를 쥔 자가 시장을 지배한다! 번호표 뽑고 거래소로',
   rules: [
     `모두 현금 ${won(START_CASH)}으로 시작해요. 시장에는 ${COMPANIES.map((c) => c.emoji + c.name).join(', ')} 5개 회사 주식이 있고, 모두 주당 ${won(START_PRICE)}에서 시작해요. (회사마다 8명 기준 15주, 사람 수에 따라 달라져요)`,
-    '게임은 2라운드예요. 1라운드는 게임 시각 1:00~2:00, 2라운드는 2:00~3:00이고, 게임 시각 5분(실제 50초)마다 주가가 바뀌어요. 라운드 전에는 정보를 확인할 시간 2분이 있어요.',
-    '라운드 전에 주가 변동 정보(시각 · 회사 · 등락)가 사람 수 × 3개 준비돼요. 제비뽑기 순서로 이웃한 두 사람이 3개씩 함께 받아서, 각자 정보 6개를 알게 돼요. 정보는 모두 진짜예요!',
+    '게임은 2라운드예요. 1라운드는 게임 시각 1:00~2:00, 2라운드는 2:00~3:00이고, 게임 시각 5분(실제 1분)마다 주가가 바뀌어요.',
+    '라운드 전 시계가 멈춘 동안 정보교환을 해요. 처음에 무작위로 순서를 정하고, 1·2번 → 2·3번 → 3·4번 … → 마지막 번호·1번 순서로 두 명씩 정보교환소에 들어가요.',
+    '정보교환소에는 주가 변동 정보(시각 · 회사 · 등락) 3장씩 든 봉투가 놓여 있어요. 둘이 의논해서 같은 봉투를 고르면 그 정보 3장을 함께 받아요 (20초 안에). 그래서 각자 정보 6장을 갖게 돼요. 정보는 모두 진짜예요!',
     '로비에서 자유롭게 돌아다니며 채팅해요. 다른 사람 옆에 가서 💬 대화하기를 누르면 둘만의 비밀 대화를 할 수 있어요. 정보를 나눌지, 숨길지, 거짓말할지는 자유예요.',
-    '거래는 증권거래소에서만! 번호표 기계에서 번호표를 뽑고, 내 번호가 불리면 15초 안에 거래소 문으로 가서 입장해요 (늦으면 다음 번호로 넘어가요).',
+    '거래는 증권거래소에서만! 번호표 기계에서 번호표를 뽑고, 내 번호가 불리면 10초 안에 거래소 문으로 가서 입장해요 (늦으면 다음 번호로 넘어가요).',
     '거래소 창구는 1개라 한 번에 한 명만 들어가고, 30초 동안 머물 수 있어요. 다시 거래하려면 번호표를 새로 뽑아요. 남은 주식 수는 거래소 안에서만 보여요.',
     `한 회사 주식은 최대 ${MAX_HOLD}주까지 가질 수 있고, 플레이어끼리 주식·돈은 주고받을 수 없어요. 다른 사람의 현금·주식은 비공개예요.`,
     '2라운드가 끝나면 보유 주식을 마지막 주가로 현금화해서, 현금이 많은 순서로 순위를 정해요.',
@@ -610,11 +687,24 @@ export default {
       const k = [uid, to].sort().join('|');
       return { state: { ...s, dms: { ...(s.dms || {}), [k]: [...((s.dms || {})[k] || []), { u: uid, text, at: now }].slice(-40) } } };
     }
-    if (t === 'ready') {
-      if (s.phase !== 'info') throw new Error('__noop');
-      const ready = { ...s.ready, [uid]: true };
-      if (s.order.every((u) => ready[u])) return { state: startMarket({ ...s, ready }, now) };
-      return { state: { ...s, ready } };
+    if (t === 'xenter') {
+      const x = s.xchg;
+      if (s.phase !== 'info' || !x) throw new Error('지금은 정보교환소에 들어갈 수 없어요');
+      if (!x.pair.includes(uid)) throw new Error('지금은 다른 사람 차례예요');
+      if (x.in[uid]) throw new Error('__noop');
+      const inn = { ...x.in, [uid]: true };
+      const both = x.pair.every((u) => inn[u]);
+      return { state: { ...s, xchg: { ...x, in: inn, until: both ? now + XSTAY_MS : 0 } } };
+    }
+    if (t === 'xpick') {
+      const x = s.xchg;
+      if (s.phase !== 'info' || !x || !x.pair.includes(uid) || !x.in[uid]) throw new Error('__noop');
+      if (!x.until) throw new Error('두 사람이 모두 들어와야 봉투를 고를 수 있어요');
+      const env = Number(move.env);
+      if (!freeEnvs(s).includes(env)) throw new Error('이미 가져간 봉투예요');
+      const pick = { ...x.pick, [uid]: env };
+      if (x.pair.every((u) => pick[u] === env)) return { state: giveEnvelope(s, env, now) };
+      return { state: { ...s, xchg: { ...x, pick } } };
     }
     if (t === 'ticket') {
       if (s.phase !== 'market') throw new Error('지금은 번호표를 뽑을 수 없어요');
@@ -682,7 +772,13 @@ export default {
     if (ctl.root.parentNode !== el) { el.innerHTML = ''; el.appendChild(ctl.root); }
     const { state, me, finished } = ctx;
     checkDms();
-    const sig = JSON.stringify([state.phase, state.round, state.tick, state.prices, state.stock, state.cash[me], state.hold[me], state.queue, state.windows, state.ready, (state.chat || []).length, state.notes.length, finished]);
+    const g = state.lastGot;
+    if (g && g.pair.includes(me) && ctl.gotSeen !== `${state.round}:${g.env}`) {
+      const first = ctl.gotSeen === undefined;
+      ctl.gotSeen = `${state.round}:${g.env}`;
+      if (!first && Date.now() - g.at < 8000) bigFlash(`✉️ 봉투 ${g.env + 1}번을 열었어요!<small>정보 3장이 내 정보 카드에 저장됐어요</small>`, 2400, 'sx-note');
+    }
+    const sig = JSON.stringify([state.xchg, state.taken, state.phase, state.round, state.tick, state.prices, state.stock, state.cash[me], state.hold[me], state.queue, state.windows, state.ready, (state.chat || []).length, state.notes.length, finished]);
     if (sig !== ctl.sig) { ctl.sig = sig; paint(); }
   },
 };
