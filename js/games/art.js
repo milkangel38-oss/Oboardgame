@@ -1,4 +1,3 @@
-import { charSvg as mergeChar } from './merge.js';
 // 게임 카드 일러스트 (직접 그린 SVG) — 게임을 추가하면 여기에 그림도 추가하세요.
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
@@ -10,7 +9,7 @@ const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<sv
 export const ART = {
   // 동글동글 합체: 별이 빛나는 상자 속에 쌓인 행성들
   merge: (() => {
-    const put = (lv, x, y, sz) => `<g transform="translate(${x - sz / 2} ${y - sz / 2}) scale(${sz / 116})"><g transform="translate(8 8)">${mergeChar(lv).replace(/<svg[^>]*>|<\/svg>/g, '')}</g></g>`;
+    const put = (lv, x, y, sz) => { const S = sz * 1.6; return `<image href="img/planets/p${lv}.webp" x="${x - S / 2}" y="${y - S / 2}" width="${S}" height="${S}"/>`; };
     const stars = [[30, 40], [80, 20], [250, 30], [270, 120], [20, 160], [120, 110], [200, 90], [60, 260], [280, 260]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1.2 : 2}" fill="#fff" opacity=".8"/>`).join('');
     return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
   <rect width="300" height="420" fill="#120c2e"/><circle cx="90" cy="120" r="150" fill="#5a2a8a" opacity=".35"/><circle cx="230" cy="320" r="150" fill="#1e4a9a" opacity=".35"/>${stars}

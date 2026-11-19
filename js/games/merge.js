@@ -40,44 +40,11 @@ export function pickSpawn(rand = Math.random) {
   return 0;
 }
 
-// ── 캐릭터 그림 (오리지널, SVG) ──
-export function charSvg(lv) {
-  const c = CHARS[lv];
-  const eye = (x, y, s = 1, col = '#2a1f2e') => `<ellipse cx="${x}" cy="${y}" rx="${4.2 * s}" ry="${5.4 * s}" fill="${col}"/><circle cx="${x + 1.4 * s}" cy="${y - 1.8 * s}" r="${1.6 * s}" fill="#fff"/>`;
-  const blush = (op = 0.55) => `<ellipse cx="30" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity="${op}"/><ellipse cx="70" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity="${op}"/>`;
-  const smile = (y = 60, col = '#2a1f2e') => `<path d="M44 ${y} Q50 ${y + 6} 56 ${y}" stroke="${col}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
-  const face = (ey = 50, s = 1) => `${eye(38, ey, s)}${eye(62, ey, s)}${blush()}${smile(ey + 10)}`;
-  // 둥근 몸통 + 입체 그림자/하이라이트 (몸통 원 반지름 46 = 물리 반지름)
-  const shade = `<defs><radialGradient id="mgShade" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient><clipPath id="mgClip"><circle cx="50" cy="50" r="46"/></clipPath></defs>`;
-  const base = (inner = '') => `<circle cx="50" cy="50" r="46" fill="${c.body}"/><g clip-path="url(#mgClip)">${inner}</g><circle cx="50" cy="50" r="46" fill="url(#mgShade)"/><circle cx="50" cy="50" r="46" fill="none" stroke="${c.dark}" stroke-width="3"/>`;
-  const star = (x, y, r, col) => `<path d="M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z" fill="${col}"/>`;
-  let g = '';
-  switch (lv) {
-    case 0: // 별가루: 반짝이는 작은 빛뭉치
-      g = `${star(50, 50, 56, '#fff7c4')}${base(`<circle cx="50" cy="50" r="30" fill="#fffbe0"/>`)}${star(80, 18, 12, '#fff')}${star(18, 82, 8, '#fff')}${face(48, 1.25)}`; break;
-    case 1: // 운석: 울퉁불퉁 돌멩이
-      g = `${base(`<circle cx="24" cy="30" r="9" fill="${c.dark}" opacity=".5"/><circle cx="74" cy="74" r="12" fill="${c.dark}" opacity=".45"/><circle cx="78" cy="28" r="6" fill="${c.dark}" opacity=".5"/><circle cx="22" cy="72" r="5" fill="${c.dark}" opacity=".5"/>`)}${eye(38, 50, 1.1)}${eye(62, 50, 1.1)}${blush()}<path d="M44 64 Q50 60 56 64" stroke="#2a1f2e" stroke-width="2.4" fill="none" stroke-linecap="round"/>`; break;
-    case 2: // 달: 크레이터 + 졸린 눈
-      g = `${base(`<circle cx="28" cy="28" r="10" fill="${c.dark}" opacity=".45"/><circle cx="74" cy="72" r="13" fill="${c.dark}" opacity=".4"/><circle cx="76" cy="30" r="6" fill="${c.dark}" opacity=".45"/><circle cx="30" cy="78" r="7" fill="${c.dark}" opacity=".4"/>`)}<path d="M32 50 Q38 55 44 50 M56 50 Q62 55 68 50" stroke="#2a1f2e" stroke-width="2.8" fill="none" stroke-linecap="round"/>${blush()}${smile(60)}`; break;
-    case 3: // 화성: 붉은 땅 + 극관
-      g = `${base(`<ellipse cx="50" cy="6" rx="26" ry="10" fill="#fff"/><path d="M4 70 Q30 60 50 74 T96 68 L96 100 L4 100Z" fill="${c.dark}" opacity=".55"/><circle cx="76" cy="34" r="7" fill="${c.dark}" opacity=".5"/>`)}${face(48)}`; break;
-    case 4: // 금성: 소용돌이 구름
-      g = `${base(`<path d="M0 30 Q30 20 50 32 T100 28 M0 52 Q26 44 50 56 T100 50 M0 76 Q30 68 50 80 T100 74" stroke="#fff4d0" stroke-width="7" fill="none" opacity=".7"/>`)}${face(48)}`; break;
-    case 5: // 지구: 바다 + 대륙 + 구름
-      g = `${base(`<path d="M12 22 Q30 10 40 24 Q36 40 22 42 Q8 38 12 22Z M60 58 Q80 50 90 64 Q86 86 68 88 Q54 78 60 58Z M64 10 Q78 8 82 20 Q72 26 64 10Z" fill="#5cc86a"/><path d="M10 64 Q24 58 34 66 M58 36 Q72 30 86 38" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".85"/>`)}${face(48)}`; break;
-    case 6: // 해왕성: 짙은 파랑 줄무늬 + 반짝 눈
-      g = `${base(`<path d="M0 26 H100 M0 74 H100" stroke="#7aa0ff" stroke-width="6" opacity=".55"/><ellipse cx="72" cy="80" rx="12" ry="6" fill="#22307a" opacity=".6"/>`)}${star(36, 48, 8, '#fff')}${star(64, 48, 8, '#fff')}${blush(0.7)}${smile(60, '#fff')}`; break;
-    case 7: // 토성: 고리! (뒤쪽 반 → 몸통 → 앞쪽 반)
-      g = `<g transform="rotate(-14 50 54)"><path d="M-6 54 A56 13 0 0 1 106 54" stroke="#b8975a" stroke-width="7" fill="none"/></g>${base(`<path d="M0 28 H100 M0 70 H100" stroke="${c.dark}" stroke-width="5" opacity=".45"/>`)}${face(42)}<g transform="rotate(-14 50 54)"><path d="M-6 54 A56 13 0 0 0 106 54" stroke="#e8cf8a" stroke-width="7" fill="none" stroke-linecap="round"/></g>`; break;
-    case 8: // 목성: 띠 + 대적점
-      g = `${base(`<path d="M0 22 H100 M0 40 H100 M0 80 H100" stroke="#fff0d8" stroke-width="7" opacity=".75"/><path d="M0 31 H100 M0 88 H100" stroke="${c.dark}" stroke-width="5" opacity=".6"/><ellipse cx="70" cy="74" rx="12" ry="7" fill="#c8402a"/>`)}${face(52)}`; break;
-    case 9: // 태양: 이글이글 빛살
-      g = `${Array.from({ length: 12 }, (_, i) => `<path d="M50 -4 L56 8 L44 8Z" fill="#ffb020" transform="rotate(${i * 30} 50 50)"/>`).join('')}${base(`<circle cx="50" cy="50" r="34" fill="#ffe066"/>`)}<path d="M30 46 Q36 40 42 46 M58 46 Q64 40 70 46" stroke="#a04010" stroke-width="3" fill="none" stroke-linecap="round"/>${blush(0.7)}<path d="M40 58 Q50 72 60 58Z" fill="#a04010"/>`; break;
-    case 10: // 블랙홀: 빛나는 원반 + 반짝이는 눈
-      g = `<g transform="rotate(-12 50 58)"><path d="M-6 58 A56 12 0 0 1 106 58" stroke="#ff9a3a" stroke-width="6" fill="none"/></g>${base(`<circle cx="50" cy="50" r="40" fill="#08040f"/><circle cx="50" cy="50" r="44" fill="none" stroke="#b06cff" stroke-width="6" opacity=".7"/>`)}${eye(38, 38, 1.2, '#ffffff')}${eye(62, 38, 1.2, '#ffffff')}<circle cx="38" cy="39.5" r="3" fill="#b06cff"/><circle cx="62" cy="39.5" r="3" fill="#b06cff"/><ellipse cx="29" cy="50" rx="6" ry="3.6" fill="#ff8aa8" opacity=".5"/><ellipse cx="71" cy="50" rx="6" ry="3.6" fill="#ff8aa8" opacity=".5"/>${smile(49, '#ffffff')}<g transform="rotate(-12 50 58)"><path d="M-6 58 A56 12 0 0 0 106 58" stroke="#ffd06a" stroke-width="6" fill="none" stroke-linecap="round"/></g>${star(80, 14, 7, '#fff')}`; break;
-  }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 116 116">${shade}${g}</svg>`;
-}
+// ── 천체 그림 (코드로 그린 실사풍 이미지, img/planets) ──
+// p{n}-s: 굴러갈 때 도는 표면 · p{n}-o: 고정 조명·대기·앞쪽 고리 · p{n}-u: 뒤쪽 고리 · p{n}: 아이콘용 완성본
+export const PLANET_K = 1.6; // 덮개 그림은 표면 지름의 1.6배
+const UNDER = new Set([7, 10]); // 뒤쪽 고리가 있는 천체 (토성·블랙홀)
+export const planetIcon = (lv) => `img/planets/p${lv}.webp`;
 
 // ── 물리 (커질 때는 반지름이 서서히 자라며 옆 캐릭터를 미끄러지듯 밀어내고, 구를 때는 회전) ──
 export function newWorld() {
@@ -171,8 +138,7 @@ export function mergeOnce(w, a, b, now) {
 // ── 화면 ──
 let ctl = null;
 function teardown() { if (!ctl) return; cancelAnimationFrame(ctl.raf); window.removeEventListener('keydown', ctl.onKey); ctl = null; }
-const urlCache = {};
-function dataUrl(lv) { return (urlCache[lv] ||= `data:image/svg+xml;charset=utf-8,${encodeURIComponent(charSvg(lv))}`); }
+const dataUrl = planetIcon;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
 function build() {
@@ -187,11 +153,12 @@ function build() {
     </div>
     <div class="mg-goal" data-goal>${goalText(0)}</div>
     <div class="mg-box"><canvas></canvas><div class="mg-banner" hidden></div><div class="mg-over" hidden></div></div>
-    <div class="mg-chain">${CHARS.map((c, i) => `<img src="${dataUrl(i)}" title="${c.name}" alt="${c.name}" style="width:${14 + i * 2.6}px">`).join('<i>›</i>')}</div>
+    <div class="mg-chain">${CHARS.map((c, i) => `<img src="${dataUrl(i)}" title="${c.name}" alt="${c.name}" style="width:${20 + i * 3.4}px">`).join('<i>›</i>')}</div>
     <div class="mg-hint">화면을 누른 채로 좌우로 움직이고, 손을 떼면 떨어져요 · 모두 멈춰야 다음 천체를 떨어뜨릴 수 있어요 (PC: 마우스 · ←→ + 스페이스)</div>
     <div class="mg-rank"><div class="mg-rank-t">🏆 랭킹 TOP 10</div><ol data-rank><li class="muted">불러오는 중…</li></ol></div>`;
   const c = { root, $: (q) => root.querySelector(q), canvas: root.querySelector('canvas'), w: newWorld(), raf: 0, last: performance.now(), sprites: [], aim: false, shownScore: 0 };
-  c.sprites = CHARS.map((_, i) => { const im = new Image(); im.src = dataUrl(i); return im; });
+  const img = (src) => { const im = new Image(); im.decoding = 'async'; im.src = src; return im; };
+  c.sprites = CHARS.map((_, i) => ({ s: img(`img/planets/p${i}-s.webp`), o: img(`img/planets/p${i}-o.webp`), u: UNDER.has(i) ? img(`img/planets/p${i}-u.webp`) : null }));
   const cv = c.canvas;
   const toX = (e) => { const r = cv.getBoundingClientRect(); return ((e.clientX - r.left) / r.width) * W; };
   cv.addEventListener('pointerdown', (e) => { if (c.w.over) return; c.aim = true; c.w.dropX = toX(e); cv.setPointerCapture?.(e.pointerId); e.preventDefault(); });
@@ -362,12 +329,15 @@ function drawStar(g, x, y, r, rot) {
   g.closePath(); g.fill();
 }
 function drawChar(g, c, lv, x, y, r, s, ang) {
-  const im = c.sprites[lv];
-  const size = r * 2 * (116 / 92) * s; // 그림의 몸통 원(반지름 46/116) = 물리 반지름
-  if (!im.complete) { g.fillStyle = CHARS[lv].body; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); return; }
+  const sp = c.sprites[lv];
+  const ok = (im) => im && im.complete && im.naturalWidth;
+  if (!ok(sp.s)) { g.fillStyle = CHARS[lv].body; g.beginPath(); g.arc(x, y, r * s, 0, Math.PI * 2); g.fill(); return; }
+  const d = r * 2 * s, D = d * PLANET_K;
+  if (ok(sp.u)) g.drawImage(sp.u, x - D / 2, y - D / 2, D, D); // 뒤쪽 고리
   g.save(); g.translate(x, y); g.rotate(ang || 0);
-  g.drawImage(im, -size / 2, -size / 2, size, size);
+  g.drawImage(sp.s, -d / 2, -d / 2, d, d); // 굴러가며 도는 표면
   g.restore();
+  if (ok(sp.o)) g.drawImage(sp.o, x - D / 2, y - D / 2, D, D); // 고정된 조명·대기·앞쪽 고리
 }
 
 export default {
