@@ -131,7 +131,7 @@ export default {
           ${state.order.filter((u) => roles[u] && ROLES[roles[u]].team === tm).map((u) => `<div class="av-rv ${u === me ? 'me' : ''} ${state.target === u ? 'shot' : ''}">
             <span class="av-rv-face" style="--pc:${color(u)}">${faceHtml(players[u] || { name: '?' })}</span>
             <span class="av-rv-name">${name(u)}${u === me ? ' (나)' : ''}</span>
-            <span class="av-rv-role">${ROLES[roles[u]].icon} ${ROLES[roles[u]].name}${state.target === u ? ' · 🎯 암살 지목' : ''}</span></div>`).join('')}
+            <span class="av-rv-role"><img class="av-rv-art" src="img/avalon/${roles[u]}.webp" alt="" />${ROLES[roles[u]].name}${state.target === u ? ' · 🎯 암살 지목' : ''}</span></div>`).join('')}
         </div>`).join('')}</div>`;
     } else if (state.phase === 'role') {
       const waiting = state.order.filter((u) => !state.seen[u]).length;
@@ -157,7 +157,7 @@ export default {
       action = `<div class="av-msg">⚔️ 원정 중! ${state.team.map(name).join(', ')} · 카드를 낸 사람 ${state.team.length - left}/${state.team.length}</div>
         <div class="av-rule">📜 원정대가 몰래 성공/실패 카드를 내요. <b>실패 카드가 ${fn}장 이상</b>이면 <b class="no">원정 실패</b>, ${fn > 1 ? '실패 카드가 1장 이하' : '모두 성공 카드'}면 <b class="ok">원정 성공</b>이에요. 누가 냈는지는 공개되지 않아요.<br>정의 팀은 성공만 낼 수 있어요 · 원정 3번 성공하면 정의 팀, 3번 실패하면 악 팀이 이겨요</div>
         ${inTeam ? (playedMap[me] ? '<div class="av-done">카드를 냈어요 · 결과를 기다리는 중…</div>'
-          : `<div class="av-two"><button class="av-yes" data-play="0">✨ 성공</button><button class="av-no" data-play="1" ${R?.team !== 'evil' ? 'disabled title="정의 팀은 성공만 낼 수 있어요"' : ''}>💥 실패</button></div>${R?.team !== 'evil' ? '<small class="hint">정의 팀은 성공만 낼 수 있어요</small>' : ''}`) : ''}`;
+          : `<div class="av-two"><button class="av-yes" data-play="0"><img src="img/avalon/good.webp" alt="" />성공</button><button class="av-no" data-play="1" ${R?.team !== 'evil' ? 'disabled title="정의 팀은 성공만 낼 수 있어요"' : ''}><img src="img/avalon/evil.webp" alt="" />실패</button></div>${R?.team !== 'evil' ? '<small class="hint">정의 팀은 성공만 낼 수 있어요</small>' : ''}`) : ''}`;
     } else if (state.phase === 'assassin') {
       action = myRole === 'assassin'
         ? '<div class="av-msg evil">🗡️ 정의 팀이 원정 3번을 성공했어요. <b>멀린이라고 생각하는 사람</b>을 원탁에서 눌러 암살하세요! (악 팀 동료와 의논해도 좋아요)</div>'
@@ -166,9 +166,9 @@ export default {
 
     // 내 역할 카드 (누르면 보였다 숨겼다)
     const roleCard = R && !over ? `<button class="av-role-card ${R.team} ${ui.show ? 'open' : ''}" data-toggle>
-      ${ui.show ? `<span class="av-rc-icon">${R.icon}</span><b>${R.name}</b><small>${R.team === 'good' ? '정의 팀' : '악 팀'}</small><p>${R.desc}</p>
+      ${ui.show ? `<img class="av-rc-art" src="img/avalon/${myRole}.webp" alt="" /><b>${R.name}</b><small>${R.team === 'good' ? '정의 팀' : '악 팀'}</small><p>${R.desc}</p>
         ${know.who.length ? `<p class="av-rc-know">${know.label}: <b>${know.who.map(name).join(', ')}</b></p>` : myRole === 'oberon' ? '<p class="av-rc-know">동료를 모르는 외톨이예요</p>' : ''}<em>눌러서 숨기기</em>`
-        : '<span class="av-rc-icon">🂠</span><b>내 역할 보기</b><em>다른 사람이 못 보게 조심!</em>'}
+        : '<b>내 역할 보기</b><em>다른 사람이 못 보게 조심!</em>'}
     </button>` : '';
 
     const hist = state.history.filter((h) => h.kind === 'quest').map((h) => `<span class="${h.ok ? 'ok' : 'no'}">${h.quest + 1}번째 ${h.ok ? '성공' : '실패'} · ${h.team.map(name).join(', ')} · 실패 ${h.fails}장</span>`).join('');

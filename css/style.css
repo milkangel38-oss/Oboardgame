@@ -1886,3 +1886,17 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .am-confirm:disabled { opacity: .5; }
 
 .sp-card.back { background: #1c2f5e url('../img/cards/back.webp') center / 100% 100%; color: transparent; } /* 시드포커: 안 보이는 카드는 뒷면 */
+/* 아발론 역할 카드 그림 (v7.7) */
+.av-role-card { background: #141a33 url(../img/avalon/back.webp) center / cover; min-height: 150px; align-content: center; }
+.av-role-card:not(.open) b { padding: 6px 14px; border-radius: 12px; background: rgba(10, 12, 28, .78); box-shadow: 0 0 0 1.5px #c9a85a; font-size: 18px; }
+.av-role-card:not(.open) em { padding: 2px 10px; border-radius: 8px; background: rgba(10, 12, 28, .7); opacity: .9; }
+.av-rc-art { width: min(200px, 56vw); aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; box-shadow: 0 0 0 3px #c9a85a, 0 0 0 5px #3a2a10, 0 8px 22px rgba(0, 0, 0, .6); margin-bottom: 6px; }
+.av-rv-role { display: flex; align-items: center; gap: 5px; }
+.av-rv-art { width: 22px; height: 29px; object-fit: cover; border-radius: 4px; box-shadow: 0 0 0 1px #c9a85a; flex: none; }
+.av-q.ok, .av-q.no { background: center / 100% no-repeat; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+.av-q.ok { background-image: url(../img/avalon/good.webp); } .av-q.no { background-image: url(../img/avalon/evil.webp); }
+.av-q.ok b.word, .av-q.no b.word { font-size: clamp(13px, 3.6vw, 17px); padding: 1px 6px; border-radius: 6px; background: rgba(0, 0, 0, .55); }
+.av-q.ok small, .av-q.no small { color: #fff; text-shadow: 0 1px 3px #000; }
+.av-yes, .av-no { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.av-yes img, .av-no img { width: 34px; height: 34px; border-radius: 50%; }
+.av-yes:disabled img, .av-no:disabled img { filter: grayscale(1) opacity(.5); }
