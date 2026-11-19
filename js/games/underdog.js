@@ -224,7 +224,7 @@ function raceTrack(state, me) {
         const tags = (a === state.darkHorse ? '<span class="ud-dhb">다크호스</span>' : '') + (cnt ? `<span class="ud-myt">내 티켓${cnt > 1 ? '×' + cnt : ''}</span>` : '');
         return tags ? `<span class="ud-tags">${tags}</span>` : '';
       })()}
-      <span class="ud-stand">${animalSvg(a)}</span>
+      <span class="ud-stand">${animalSvg(a, '', true)}</span>
       <span class="ud-base"></span>
       <span class="ud-rk">${i + 1}<small>등</small></span>
     </div>`;

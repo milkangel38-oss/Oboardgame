@@ -1942,3 +1942,9 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .spl .spl-card .spl-cost { gap: 1cqw; padding: 0 0 3cqw 3cqw; }
 .spl .spl-card .spl-cost .spl-cg { width: 22cqw; height: 22cqw; }
 .spl .spl-card .spl-cost .spl-cg b { right: -15cqw; bottom: 1cqw; min-width: 15cqw; height: 15cqw; font-size: 12cqw; }
+/* 언더독레이스 v8.5: 체크무늬 금테 경주판 */
+.ud-race { background: #1f4a2e url(../img/underdog/board.webp) center / 100% 100%; box-shadow: 0 4px 10px rgba(0, 0, 0, .4); padding: 40px 12px 14px 14px; }
+.ud-race::before { content: ''; position: absolute; inset: 9% 3.5%; top: auto; height: auto; bottom: 8%; height: 46%; background: linear-gradient(180deg, rgba(20, 50, 30, 0), rgba(20, 50, 30, .45)); border-radius: 10px; opacity: 1; pointer-events: none; }
+.ud-base { background: #c9a24a; box-shadow: 0 2px 0 #7a5a1a; }
+.ud-rk { color: #fff7dc; text-shadow: 0 1px 0 #1c3a20, 0 0 4px #1c3a20; }
+.ud-finish { margin: 0 0 0 2px; border-radius: 3px; }
