@@ -106,7 +106,48 @@ function tick(time, hi) { // 시계 똑딱
   src.connect(bp); bp.connect(g); g.connect(musicBus);
   src.start(time);
 }
+// ── 신나고 발랄한 BGM (동글동글 합체): C장조 I–V–vi–IV, 132 BPM, 통통 튀는 베이스 + 짧은 코드 + 밝은 멜로디 ──
+let style = 'calm';
+const HB = 132, H8 = 60 / HB / 2;
+const HCH = [[60, 64, 67], [55, 59, 62], [57, 60, 64], [53, 57, 60]];
+const HBASS = [36, 31, 33, 29];
+const HMEL = [
+  [72, null, 76, 79, null, 76, 74, null, 72, null, 74, 76, null, 74, 72, null],
+  [71, null, 74, 79, null, 74, 71, null, 74, null, 72, 71, null, 67, null, null],
+  [69, null, 72, 76, null, 72, 69, null, 72, null, 76, 77, null, 76, 74, null],
+  [69, null, 72, 77, null, 76, 74, null, 72, null, 71, 72, null, 74, null, null],
+];
+function kick(time) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(150, time); o.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+  g.gain.setValueAtTime(0.32, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+  o.connect(g); g.connect(musicBus); o.start(time); o.stop(time + 0.18);
+}
+function hat(time, open) {
+  if (!noiseBuf) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const src = ctx.createBufferSource(), g = ctx.createGain(), hp = ctx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 7000; src.buffer = noiseBuf; src.loop = open;
+  g.gain.setValueAtTime(open ? 0.05 : 0.06, time); g.gain.exponentialRampToValueAtTime(0.0001, time + (open ? 0.12 : 0.03));
+  src.connect(hp); hp.connect(g); g.connect(musicBus); src.start(time); src.stop(time + 0.15);
+}
+function scheduleHappy() {
+  while (nextTime < ctx.currentTime + 0.3) {
+    const i = step % 16, c = Math.floor(step / 16) % 4, loop = Math.floor(step / 64);
+    const ch = HCH[c];
+    if (i % 4 === 0) kick(nextTime);
+    hat(nextTime, i % 4 === 2);
+    if (i % 4 === 0) tone(nextTime, f(HBASS[c]), H8 * 1.6, 'triangle', 0.24, musicBus, 0.005);
+    if (i % 4 === 2) tone(nextTime, f(HBASS[c] + 12), H8 * 1.2, 'triangle', 0.16, musicBus, 0.005);
+    if (i % 4 === 2) ch.forEach((n) => tone(nextTime, f(n + 12), H8 * 0.7, 'square', 0.018, musicBus, 0.004));
+    const m = HMEL[c][i];
+    if (m && loop % 4 !== 0) { tone(nextTime, f(m), H8 * 1.3, 'triangle', 0.09, musicBus, 0.005); tone(nextTime, f(m + 12), H8 * 0.6, 'sine', 0.025, musicBus, 0.003); }
+    if (m && loop % 4 === 0 && i % 2 === 0) tone(nextTime, f(m), H8 * 0.9, 'sine', 0.05, musicBus, 0.005);
+    nextTime += H8;
+    step++;
+  }
+}
 function schedule() {
+  if (style === 'happy') return scheduleHappy();
   while (nextTime < ctx.currentTime + 0.3) {
     const i = step % 16;                       // 2마디 안에서의 위치
     const c = Math.floor(step / 16) % 4;       // 지금 코드
@@ -126,8 +167,11 @@ function schedule() {
     step++;
   }
 }
-export function startGameBgm() {
-  if (timer || !ensure()) return;
+export function startGameBgm(st = 'calm') {
+  if (timer && style === st) return;
+  if (timer) { clearInterval(timer); timer = null; }
+  if (!ensure()) return;
+  style = st;
   resume();
   step = 0;
   nextTime = ctx.currentTime + 0.1;
@@ -145,6 +189,30 @@ export function stopGameBgm() {
 }
 
 // ── 효과음 ──
+// 동글동글 합체: 떨어뜨리기 '퐁' · 합체 '뾰로롱'(클수록 높고 화려하게) · 보너스
+export function sfxDrop() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'sine'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(260, t + 0.12);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.18);
+}
+export function sfxMerge(lv) {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  const base = 64 + Math.min(lv, 10) * 2;
+  const notes = lv >= 7 ? [0, 4, 7, 12, 16] : lv >= 4 ? [0, 4, 7, 12] : [0, 7];
+  notes.forEach((n, k) => { tone(t + k * 0.045, f(base + n), 0.22 + (lv >= 7 ? 0.2 : 0), 'triangle', 0.16, sfxBus, 0.004); tone(t + k * 0.045, f(base + n + 12), 0.12, 'sine', 0.05, sfxBus, 0.003); });
+  if (lv >= 6) { // 반짝이 꼬리
+    for (let k = 0; k < 6; k++) tone(t + 0.2 + k * 0.05, f(base + 24 + (k % 3) * 4), 0.15, 'sine', 0.05, sfxBus, 0.003);
+  }
+}
+export function sfxBonus() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  [72, 76, 79, 84, 88, 91].forEach((m, k) => tone(t + k * 0.07, f(m), 0.3, 'triangle', 0.15, sfxBus, 0.004));
+}
 export function ding() { // 띵동 (정답)
   if (!ensure()) return;
   resume();

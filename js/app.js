@@ -966,7 +966,7 @@ function renderRoom(code) {
   const vol = mountVolume();
   const unsub = backend.watchRoom(code, (room, err) => {
     latest = room;
-    if (room?.status === 'playing' && room.players?.[user.uid]) startGameBgm(); else stopGameBgm();
+    if (room?.status === 'playing' && room.players?.[user.uid]) startGameBgm(getGame(room.gameId)?.bgm || 'calm'); else stopGameBgm();
     if (err) return message('방을 불러오지 못했어요', err.message);
     if (!room) return message('방을 찾을 수 없어요', '코드가 맞는지, 방이 아직 있는지 확인해 주세요.');
     const game = getGame(room.gameId);
