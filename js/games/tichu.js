@@ -590,20 +590,6 @@ const PIPS = {
   9: [[18, 15], [32, 15], [18, 28], [32, 28], [25, 35], [18, 42], [32, 42], [18, 55], [32, 55]],
   10: [[18, 15], [32, 15], [25, 21.5], [18, 28], [32, 28], [18, 42], [32, 42], [25, 48.5], [18, 55], [32, 55]],
 };
-const HATS = {
-  11: (c) => `<path d="M16 26 Q25 14 34 26 Z" fill="${c}"/><path d="M33 22 q6 -8 4 -14" stroke="${c}" stroke-width="1.6" fill="none"/>`,
-  12: (c) => `<path d="M17 26 L19 18 L22 23 L25 16 L28 23 L31 18 L33 26 Z" fill="#e0b13a"/><circle cx="25" cy="16" r="1.4" fill="${c}"/>`,
-  13: (c) => `<path d="M16 26 L17 15 L21 21 L25 13 L29 21 L33 15 L34 26 Z" fill="#e0b13a" stroke="#a87a10" stroke-width=".6"/><circle cx="25" cy="13" r="1.6" fill="${c}"/>`,
-};
-const face = (r, col, sym) => `
-  <rect x="11" y="11" width="28" height="48" rx="2" fill="${col}" opacity=".08"/>
-  ${HATS[r](col)}
-  <circle cx="25" cy="31" r="6.5" fill="#f3d2b0"/>
-  <circle cx="22.8" cy="30.5" r=".9" fill="#2a1a10"/><circle cx="27.2" cy="30.5" r=".9" fill="#2a1a10"/><path d="M23 34 q2 1.4 4 0" stroke="#a0503a" stroke-width=".7" fill="none"/>
-  ${r === 13 ? '<path d="M20 34 q5 7 10 0 q-2 6 -5 6 q-3 0 -5 -6z" fill="#8a5a3a"/>' : ''}
-  ${r === 12 ? '<path d="M18.5 30 q0 -7 6.5 -7.5 q6.5 0.5 6.5 7.5 q-1 -4 -6.5 -4.5 q-5.5 0.5 -6.5 4.5z" fill="#7a3a1a"/>' : ''}
-  <path d="M14 58 C14 44 19 39 25 39 C31 39 36 44 36 58 Z" fill="${col}"/>
-  <text x="25" y="52" text-anchor="middle" font-size="9" fill="#fff">${sym}</text>`;
 export function cardHtml(id, size = '') {
   const c = CARDS[id];
   if (c.special) {
@@ -615,11 +601,34 @@ export function cardHtml(id, size = '') {
       ${c.special === 'mj' ? '<circle cx="8" cy="9" r="5" fill="#1d1830" stroke="#c9a24a" stroke-width=".6"/><text x="8" y="12" text-anchor="middle" font-family="\'Black Han Sans\', sans-serif" font-size="8" fill="#f2d27a">1</text>' : ''}
       <text x="25" y="64.5" text-anchor="middle" font-size="8.5" font-weight="800" fill="#f2d27a">${SPECIAL_NAME[c.special]}</text></svg></div>`;
   }
-  const s = SUITS[c.suit], L = rankLabel(c.rank);
-  const corner = `<text x="5" y="11" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="${L.length > 1 ? 8 : 10}" fill="${s.color}">${L}</text><text x="5" y="19" text-anchor="middle" font-size="7" fill="${s.color}">${s.sym}</text>`;
+  ensureSuitSprite();
+  const L = rankLabel(c.rank), pip = (x, y, w, flip) => `<use href="#suit-${c.suit}" class="pip" fill="url(#sg-${c.suit})" x="${x - w / 2}" y="${y - w / 2}" width="${w}" height="${w}"${flip ? ` transform="rotate(180 ${x} ${y})"` : ''}/>`;
+  const col = SUITS[c.suit].color, art = c.rank >= 11 && c.rank <= 13;
+  const corner = `${art ? '<rect x="1.6" y="1.6" width="7.6" height="17.4" rx="1.8" fill="#fbf6e8" fill-opacity=".92" stroke="#b8963e" stroke-width=".35"/>' : ''}<text x="5.4" y="9.6" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${L.length > 1 ? 7.4 : 9}" letter-spacing="${L.length > 1 ? -0.6 : 0}" fill="${col}">${L}</text>${pip(5.4, 14.4, 5.2)}`;
   let mid;
-  if (c.rank <= 10) mid = PIPS[c.rank].map(([x, y]) => `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${s.color}" ${y > 36 ? `transform="rotate(180 ${x} ${y})"` : ''}>${s.sym}</text>`).join('');
-  else if (c.rank === 14) mid = `<text x="25" y="36" text-anchor="middle" dominant-baseline="central" font-size="30" fill="${s.color}">${s.sym}</text>`;
-  else mid = face(c.rank, s.color, s.sym);
-  return `<div class="tcard ${size}"><svg viewBox="0 0 50 70">${corner}<g transform="rotate(180 25 35)">${corner}</g>${mid}</svg></div>`;
+  if (c.rank <= 10) mid = PIPS[c.rank].map(([x, y]) => pip(x, y, 8.6, y > 36)).join('');
+  else if (c.rank === 14) mid = `<image href="img/cards/face-a.webp" x="7" y="17" width="36" height="36"/>`;
+  else mid = `<defs><clipPath id="tcfc"><rect x="2.4" y="2.4" width="45.2" height="65.2" rx="3"/></clipPath></defs>
+    <image href="img/cards/face-${{ 11: 'j', 12: 'q', 13: 'k' }[c.rank]}.webp" x="2.4" y="2.4" width="45.2" height="65.2" preserveAspectRatio="xMidYMin slice" clip-path="url(#tcfc)"/>
+    <rect x="2.4" y="2.4" width="45.2" height="65.2" rx="3" fill="none" stroke="#b8963e" stroke-width=".7"/>`;
+  return `<div class="tcard ${size} ${art ? 'art' : ''}"><svg viewBox="0 0 50 70">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg></div>`;
+}
+
+// 무늬 그림: 문서에 한 번만 넣어 두고 카드마다 <use>로 불러와요 (그라데이션이 숨은 SVG 안에 있으면 안 그려지는 문제 방지)
+const SUIT_PATH = {
+  s: '<path d="M5 .3C6.8 2.6 10 4.3 10 6.6 10 8.3 8.4 9.1 7 8.4 6.5 8.1 6.1 7.7 5.8 7.2 5.9 8.5 6.4 9.3 7.2 9.8H2.8C3.6 9.3 4.1 8.5 4.2 7.2 3.9 7.7 3.5 8.1 3 8.4 1.6 9.1 0 8.3 0 6.6 0 4.3 3.2 2.6 5 .3Z"/>',
+  h: '<path d="M5 9.6C3.5 8 .2 5.9 .2 3.3 .2 1.6 1.5 .4 3 .4 4 .4 4.6 1 5 1.7 5.4 1 6 .4 7 .4 8.5 .4 9.8 1.6 9.8 3.3 9.8 5.9 6.5 8 5 9.6Z"/>',
+  d: '<path d="M5 .2 8.6 5 5 9.8 1.4 5Z"/>',
+  c: '<circle cx="5" cy="2.8" r="2.35"/><circle cx="2.55" cy="6.05" r="2.35"/><circle cx="7.45" cy="6.05" r="2.35"/><path d="M4 3.5 3.4 6.5h3.2L6 3.5ZM4.4 6.2C4.4 8 3.8 9.2 2.9 9.8h4.2C6.2 9.2 5.6 8 5.6 6.2Z"/>',
+};
+const SUIT_GRAD = { s: ['#5a5a6a', '#26262e', '#08080c'], h: ['#ff7b6b', '#d22a2a', '#8a0f18'], d: ['#7fb0ff', '#2f6fd6', '#12388a'], c: ['#6fe0a0', '#2f9e5b', '#0e5a2e'] };
+function ensureSuitSprite() {
+  if (typeof document === 'undefined' || document.getElementById('suit-sprite')) return;
+  const g = Object.entries(SUIT_GRAD).map(([k, [a, b, d]]) => `<linearGradient id="sg-${k}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${a}"/><stop offset=".45" stop-color="${b}"/><stop offset="1" stop-color="${d}"/></linearGradient>`).join('');
+  const sym = Object.entries(SUIT_PATH).map(([k, d]) => `<symbol id="suit-${k}" viewBox="0 0 10 10" overflow="visible"><g stroke="rgba(0,0,0,.28)" stroke-width=".22">${d}</g></symbol>`).join('');
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  el.id = 'suit-sprite'; el.setAttribute('aria-hidden', 'true');
+  el.setAttribute('style', 'position:absolute;width:0;height:0;overflow:hidden');
+  el.innerHTML = `<defs>${g}</defs>${sym}`;
+  document.body.appendChild(el);
 }

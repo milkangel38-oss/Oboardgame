@@ -1900,3 +1900,4 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .av-yes, .av-no { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .av-yes img, .av-no img { width: 34px; height: 34px; border-radius: 50%; }
 .av-yes:disabled img, .av-no:disabled img { filter: grayscale(1) opacity(.5); }
+.tcard .pip { filter: drop-shadow(0 .4px .5px rgba(0, 0, 0, .35)); }
