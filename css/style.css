@@ -1910,3 +1910,12 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .rk-tile b { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; text-shadow: 0 1px 0 rgba(255, 255, 255, .5); }
 .rk-tile.new { box-shadow: 0 2px 4px rgba(0, 0, 0, .4), 0 0 0 2px #3ddc84; }
 .rk-tile.sm { border-image-width: 3px; }
+/* 스플렌더 그림 (v8.1) */
+.spl-scene { opacity: 1; }
+.spl-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, .35)); pointer-events: none; }
+.spl-card > .spl-ch, .spl-card > .spl-cost { z-index: 2; }
+.spl-deck.lv1, .spl-card.back.lv1 { background: #2a2018 url(../img/splendor/lv1.webp) 30% center / cover; }
+.spl-deck.lv2, .spl-card.back.lv2 { background: #2a2018 url(../img/splendor/lv2.webp) 60% center / cover; }
+.spl-deck.lv3, .spl-card.back.lv3 { background: #2a2018 url(../img/splendor/lv3.webp) center / cover; }
+.spl-deck, .spl-card.back { text-shadow: 0 1px 3px #000, 0 0 6px #000; box-shadow: inset 0 0 0 2px rgba(232, 207, 138, .7), 0 2px 0 rgba(0, 0, 0, .35); }
+.spl-noble { background: linear-gradient(180deg, #3a2a14, #1e150a); box-shadow: 0 3px 0 rgba(0, 0, 0, .35), inset 0 0 0 2px #c9a85a; }
