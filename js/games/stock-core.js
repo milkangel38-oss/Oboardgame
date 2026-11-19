@@ -53,7 +53,8 @@ export function dealInfo(state, round, now) {
 // k번째 차례: 순서 k+1번, k+2번 (마지막은 n번과 1번)
 export function newXchg(state, k, now) {
   const n = state.order.length;
-  return { k, pair: [state.seats[k], state.seats[(k + 1) % n]], in: {}, pick: {}, callUntil: now + XCALL_MS, until: 0 };
+  // hard: 나갔다 들어오기를 반복해도 이 시각이 지나면 무조건 봉투가 정해져요 (진행이 멈추지 않게)
+  return { k, pair: [state.seats[k], state.seats[(k + 1) % n]], in: {}, pick: {}, callUntil: now + XCALL_MS, until: 0, hard: now + XCALL_MS + XSTAY_MS + 15000 };
 }
 export function giveEnvelope(s, env, now, note) {
   const x = s.xchg;
@@ -74,7 +75,10 @@ export function advance(state, now, players) {
     const x = s.xchg;
     const free = freeEnvs(s);
     const rnd = () => free[Math.floor(Math.random() * free.length)];
-    if (x.until && now > x.until) {
+    if (x.hard && now > x.hard && !(x.until && now <= x.until)) {
+      const picks = Object.values(x.pick).filter((e) => free.includes(e));
+      s = giveEnvelope(s, picks.length ? picks[Math.floor(Math.random() * picks.length)] : rnd(), now, '정보교환 시간이 다 되어 봉투가 정해졌어요');
+    } else if (x.until && now > x.until) {
       const picks = Object.values(x.pick).filter((e) => free.includes(e));
       s = giveEnvelope(s, picks.length ? picks[Math.floor(Math.random() * picks.length)] : rnd(), now, '시간이 다 되어 봉투가 정해졌어요');
     } else if (!x.until && now > x.callUntil) {
@@ -106,7 +110,8 @@ export function advance(state, now, players) {
       return { uid: q.uid, no: q.no, st: 'call', until: now + CALL_MS, at: now };
     });
     const notes = skipped.length ? [...s.notes, ...skipped.map((no) => ({ at: now, text: `${no}번 고객님이 오지 않아 다음 번호로 넘어갔어요` }))].slice(-5) : s.notes;
-    s = { ...s, windows, queue, notes };
+    const same = !changed && queue.length === s.queue.length && windows.every((w, i) => w === s.windows[i]) && notes === s.notes;
+    if (!same) s = { ...s, windows, queue, notes };
   }
   return { state: s };
 }
@@ -190,7 +195,7 @@ export function applyMove(state, move, uid, players) {
     const pick = { ...x.pick };
     delete pick[uid];
     // 한 명이라도 나가면 대화는 리셋, 20초도 멈추고 다시 둘 다 들어와야 해요 (최소 15초 기다려 줌)
-    return { state: { ...s, xchg: { ...x, in: inn, pick, chat: [], until: 0, callUntil: Math.max(x.callUntil, now + 15000) } } };
+    return { state: { ...s, xchg: { ...x, in: inn, pick, chat: [], until: 0, callUntil: Math.min(x.hard || Infinity, Math.max(x.callUntil, now + 15000)) } } };
   }
   if (t === 'xpick') {
     const x = s.xchg;
@@ -225,7 +230,8 @@ export function applyMove(state, move, uid, players) {
     const wi = myWindow(s, uid);
     if (wi < 0 || s.windows[wi].st !== 'in') throw new Error('거래소 안에서만 사고팔 수 있어요');
     const c = Number(move.c);
-    if (!(c >= 0 && c < COMPANIES.length)) throw new Error('__noop');
+    if (!Number.isInteger(c) || c < 0 || c >= COMPANIES.length) throw new Error('__noop');
+    if (!Number.isFinite(Number(move.q))) throw new Error('__noop');
     const price = s.prices[c];
     const hold = { ...s.hold, [uid]: [...s.hold[uid]] };
     const stock = [...s.stock];
@@ -270,6 +276,7 @@ export function split(full) {
   const done = full.phase === 'done';
   if (done) { pub.cash = cash; pub.hold = hold; } // 끝나면 모두 공개
   pub.info = [];
+  if (!done) pub.history = (full.history || []).map((h) => ({ round: h.round })); // 지난 라운드 봉투·받은 사람은 게임이 끝나야 공개
   const x = full.xchg;
   if (x) { const { chat, pick, ...xp } = x; pub.xchg = { ...xp, picked: Object.keys(pick || {}).length }; }
   const mine = Object.fromEntries(full.order.map((u) => {
@@ -281,6 +288,7 @@ export function split(full) {
       dms: Object.fromEntries(Object.entries(dms || {}).filter(([k]) => k.split('|').includes(u))),
       xchat: pair ? x.chat || [] : null,
       xpick: pair ? x.pick || {} : null,
+      xk: pair ? x.k : null,
       stock: inEx ? stock : null, // 남은 주식 수는 거래소 안에서만
       round: full.round,
     }];

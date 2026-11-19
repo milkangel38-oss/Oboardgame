@@ -23,7 +23,8 @@ function view(pub, sec, me) {
   if (sec.hold) hold[me] = sec.hold;
   if (cash[me] == null) cash[me] = 0;
   if (!hold[me]) hold[me] = COMPANIES.map(() => 0);
-  const xchg = pub.xchg ? { ...pub.xchg, chat: sec.xchat || [], pick: sec.xpick || {} } : pub.xchg;
+  const fresh = pub.xchg && sec.xk === pub.xchg.k; // 지난 차례 대화·선택이 잠깐 보이지 않게
+  const xchg = pub.xchg ? { ...pub.xchg, chat: fresh ? sec.xchat || [] : [], pick: fresh ? sec.xpick || {} : {} } : pub.xchg;
   return { ...pub, cash, hold, info: pub.phase === 'done' ? pub.info : sec.info || [], dms: sec.dms || {}, xchg, stock: sec.stock || pub.stock || COMPANIES.map(() => 0) };
 }
 
@@ -132,14 +133,13 @@ function build(code) {
     if (e.target.closest('[data-xout]')) { c.ctx.sendMove({ type: 'xleave' }); return; }
     const ev = e.target.closest('[data-env]');
     if (ev && !ev.disabled) { c.ctx.sendMove({ type: 'xpick', env: Number(ev.dataset.env) }); return; }
-    const b = e.target.closest('[data-buy],[data-sell],[data-sellall],[data-exout],[data-infook]');
+    const b = e.target.closest('[data-buy],[data-sell],[data-sellall],[data-exout]');
     if (!b || b.disabled) return;
     const s = c.ctx.sendMove;
     if (b.dataset.buy != null) s({ type: 'trade', c: Number(b.dataset.buy), q: Number(b.dataset.q || 1) });
     else if (b.dataset.sell != null) s({ type: 'trade', c: Number(b.dataset.sell), q: -Number(b.dataset.q || 1) });
     else if (b.dataset.sellall != null) s({ type: 'trade', c: Number(b.dataset.sellall), q: -99 });
     else if (b.dataset.exout != null) s({ type: 'leave' });
-    else if (b.dataset.infook != null) s({ type: 'ready' });
   });
   return c;
 }
@@ -574,7 +574,7 @@ export default {
       ctl.gotSeen = `${state.round}:${g.env}`;
       if (!first && Date.now() - g.at < 8000) bigFlash(`✉️ 봉투 ${g.env + 1}번을 열었어요!<small>정보 3장이 내 정보 카드에 저장됐어요</small>`, 2400, 'sx-note');
     }
-    const sig = JSON.stringify([state.xchg, state.taken, state.phase, state.round, state.tick, state.prices, state.stock, state.cash[me], state.hold[me], state.queue, state.windows, state.ready, (state.chat || []).length, state.notes.length, finished]);
+    const sig = JSON.stringify([state.info.length, ctx0.secret?.nonce, ctx0.secret?.round, state.xchg, state.taken, state.phase, state.round, state.tick, state.prices, state.stock, state.cash[me], state.hold[me], state.queue, state.windows, state.ready, (state.chat || []).length, state.notes.length, finished]);
     if (sig !== ctl.sig) { ctl.sig = sig; paint(); }
   },
 };
