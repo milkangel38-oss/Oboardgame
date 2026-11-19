@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
       catch (e) { return send(res, 200, { ok: false, step: '1 서비스 계정 읽기', error: e.message, ...step }); }
       try { await accessToken(); step.token = 'ok'; }
       catch (e) { return send(res, 200, { ok: false, step: '2 구글 접근 토큰', error: e.message, ...step }); }
-      try { await getDoc('rooms', '__check__'); step.firestore = 'ok'; }
+      try { await getDoc('rooms', 'HEALTHCHECK'); step.firestore = 'ok'; }
       catch (e) { return send(res, 200, { ok: false, step: '3 Firestore 읽기', error: e.message, ...step }); }
       return send(res, 200, { ok: true, message: '서버 설정 정상 ✅', ...step });
     }
