@@ -1986,3 +1986,20 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
   radial-gradient(ellipse 28% 10% at 46% 37%, #a8da84 0 97%, transparent 100%),
   linear-gradient(180deg, #86c9f5 0%, #c9ecff 34%, #6cbb4c 36%, #5aac3e 60%, #4a962f 100%); }
 .ud-race::after { top: 33%; }
+/* 언더독레이스 v8.8: 장난감 초원 그림 배경 + 말랑한 장난감 표지판 */
+.ud-race { background: #9fd06e url(../img/underdog/meadow.webp) center 30% / cover; box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .6), 0 4px 12px rgba(0, 0, 0, .35); padding-top: 64px; }
+.ud-race::before, .ud-race::after { display: none; }
+.ud-base { background: linear-gradient(180deg, #fff, #e7ddc8); box-shadow: 0 2px 0 #b9a985, 0 3px 5px rgba(0, 0, 0, .2); height: 6px; border-radius: 6px; }
+.ud-slot.dh .ud-base { background: linear-gradient(180deg, #6a5ad6, #3d2f9e); box-shadow: 0 2px 0 #241a6a, 0 0 0 2px #fff; }
+.ud-rk { font-family: var(--logo); font-style: normal; font-weight: 400; color: #fff; letter-spacing: 0; text-shadow: 0 2px 0 #4f8a2c, 0 0 1px #4f8a2c, 1px 0 0 #4f8a2c, -1px 0 0 #4f8a2c, 0 3px 5px rgba(0, 0, 0, .25); }
+.ud-rk small { font-size: .62em; vertical-align: .3em; }
+.ud-slot.mine .ud-rk { color: #fff; text-shadow: 0 2px 0 #d23a7a, 1px 0 0 #d23a7a, -1px 0 0 #d23a7a, 0 0 8px rgba(255, 120, 180, .9); }
+.ud-tags > span { font-family: var(--logo); font-weight: 400; border-radius: 999px; padding: 2px 8px; border: 2px solid #fff; box-shadow: 0 2px 0 rgba(0, 0, 0, .18), 0 3px 6px rgba(0, 0, 0, .2); }
+.ud-dhb { background: linear-gradient(180deg, #7a6af0, #4a3bb8); color: #fff; }
+.ud-dhb:last-child::after { border-top-color: #fff; }
+.ud-myt { background: linear-gradient(180deg, #ff8fbf, #f2559a); color: #fff; }
+.ud-myt:last-child::after { border-top-color: #fff; }
+.ud-finish { width: 24px; border-radius: 6px; background: repeating-conic-gradient(#e8414f 0 25%, #fff 0 50%) 0 0 / 12px 12px; box-shadow: 0 0 0 2px #fff, 0 3px 6px rgba(0, 0, 0, .3); }
+.ud-finish span { font-family: var(--logo); font-weight: 400; letter-spacing: 2px; font-size: 11px; color: #e8414f; background: #fff; border: 0; border-radius: 999px; padding: 2px 7px; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.ud-token small { line-height: 1.5; }
+@media (min-width: 560px) { .ud-race { padding-top: 56px; } }

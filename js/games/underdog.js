@@ -437,7 +437,7 @@ export default {
         <div class="nb-banner">${banner}</div>
         <div class="ud-info">
           <div class="ud-token">🌑 다크호스 <b>${animalLabel(state.darkHorse)}</b> · 토큰 남음 <b>${state.tokensLeft}</b>개
-            <small>다크호스로 정해진 <b>${animalLabel(state.darkHorse)}</b>${hasJong(ANIMALS[state.darkHorse].name) ? '은' : '는'} 끝날 때까지 바뀌지 않아요. 토큰을 가진 사람은 경주가 끝났을 때 다크호스가 3등 안이면 <b class="up">+${DH_GOOD}점</b>, 아니면 <b class="dn">${DH_BAD}점</b>이에요</small>
+            <small>다크호스로 정해진 <b>${animalLabel(state.darkHorse)}</b>${hasJong(ANIMALS[state.darkHorse].name) ? '은' : '는'} 끝날 때까지 바뀌지 않아요.</small><small>토큰을 가진 사람은 경주가 끝났을 때</small><small>다크호스가 3등 안이면 <b class="up">+${DH_GOOD}점</b>, 아니면 <b class="dn">${DH_BAD}점</b>이에요.</small>
             ${Object.keys(state.tokensHeld).length ? `<small>보유: ${Object.keys(state.tokensHeld).map(name).join(', ')}</small>` : ''}
           </div>
           ${lastPlay ? `<div class="ud-last"><span class="ud-lastcard">${cardArt(CARDS[lastPlay.card])}</span><span><small>방금 낸 카드</small><b>${name(lastPlay.by)}</b><br>${esc(cardTitle(CARDS[lastPlay.card]))}<br><span class="ud-note">${esc(lastPlay.note)}</span></span></div>` : ''}
