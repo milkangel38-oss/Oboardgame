@@ -1808,7 +1808,7 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .mg-score, .mg-best, .mg-left { display: grid; } .mg-best { text-align: right; } .mg-left { justify-items: center; padding: 4px 10px; border-radius: 12px; background: rgba(255, 255, 255, .06); } .mg-left b { font-family: var(--display); font-size: 22px; line-height: 1.1; } .mg-left b.low { color: #ff6b6b; animation: mgBump .5s ease infinite alternate; }
 .mg-top small { font-size: 11px; color: var(--muted); } .mg-score b { font-family: var(--display); font-size: 28px; color: var(--gold); line-height: 1; } .mg-best b { font-family: var(--display); font-size: 18px; }
 .mg-next { display: grid; justify-items: center; padding: 4px 10px; border-radius: 12px; background: rgba(255, 255, 255, .06); } .mg-next img { width: 36px; height: 36px; }
-.mg-box { position: relative; width: 100%; max-width: min(440px, calc((100vh - 260px) * .7)); border-radius: 0 0 18px 18px; background: linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .09)); box-shadow: inset 0 0 0 3px rgba(232, 207, 138, .7), 0 12px 30px rgba(0, 0, 0, .45); overflow: hidden; }
+.mg-box { position: relative; width: 100%; max-width: min(440px, calc((100vh - 260px) * .7)); border-radius: 0 0 18px 18px; background: radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 72% 9%, #fff, transparent), radial-gradient(1.5px 1.5px at 38% 46%, #ffe9a8, transparent), radial-gradient(1px 1px at 86% 38%, #fff, transparent), radial-gradient(1px 1px at 22% 72%, #cfe0ff, transparent), radial-gradient(1.5px 1.5px at 64% 66%, #fff, transparent), radial-gradient(1px 1px at 90% 86%, #fff, transparent), radial-gradient(1px 1px at 50% 92%, #ffd6f0, transparent), radial-gradient(ellipse at 30% 20%, rgba(176, 108, 255, .22), transparent 55%), radial-gradient(ellipse at 80% 75%, rgba(58, 142, 232, .2), transparent 55%), linear-gradient(180deg, #0e0a24, #1a1240); box-shadow: inset 0 0 0 3px rgba(232, 207, 138, .7), 0 12px 30px rgba(0, 0, 0, .45); overflow: hidden; }
 .mg-box canvas { display: block; width: 100%; aspect-ratio: 420 / 600; touch-action: none; cursor: pointer; }
 .mg-over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 6, 24, .72); animation: amIn .3s ease; }
 .mg-over > div { display: grid; justify-items: center; gap: 6px; padding: 18px 22px; border-radius: 18px; background: #1d1636; box-shadow: 0 0 0 2px #e8cf8a; text-align: center; }
@@ -1830,3 +1830,18 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .mg-goal { font-size: 13px; padding: 5px 12px; border-radius: 999px; background: rgba(232, 207, 138, .12); color: var(--gold); } .mg-goal.done { background: rgba(61, 220, 132, .16); color: #3ddc84; text-decoration: line-through; }
 .mg-banner { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); padding: 12px 18px; border-radius: 16px; background: linear-gradient(90deg, #ff7ab6, #ffd84d); color: #1a1033; font-weight: 800; font-size: 16px; text-align: center; width: max-content; max-width: 86%; box-sizing: border-box; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); animation: mgPop .45s cubic-bezier(.2, 1.6, .4, 1); pointer-events: none; }
 @keyframes mgPop { from { transform: translateX(-50%) scale(.3); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+
+/* ───────── 게임 카드 미리보기 (PC: 마우스 올리기 · 휴대폰: 꾹 누르기) ───────── */
+.gcard { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.gpv { position: fixed; z-index: 3000; width: 270px; pointer-events: none; animation: gpvIn .18s ease; }
+.gpv[hidden] { display: none; }
+.gpv-card { display: grid; gap: 6px; padding: 10px; border-radius: 18px; background: #1d1636; box-shadow: 0 0 0 2px #e8cf8a, 0 18px 40px rgba(0, 0, 0, .6); }
+.gpv-title { font-weight: 800; font-size: 14px; text-align: center; }
+.gpv-shot { border-radius: 12px; overflow: hidden; max-height: calc(100vh - 110px); background: #120c2e; }
+.gpv-shot img { display: block; width: 100%; height: auto; }
+.gpv-foot { font-size: 11px; color: var(--muted); text-align: center; }
+.gpv.touch { inset: 0; width: auto; display: grid; place-items: center; background: rgba(8, 5, 20, .7); }
+.gpv.touch[hidden] { display: none; }
+.gpv.touch .gpv-card { width: min(78vw, 340px); }
+.gpv.touch .gpv-shot { max-height: calc(100vh - 140px); }
+@keyframes gpvIn { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }

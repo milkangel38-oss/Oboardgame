@@ -1,23 +1,23 @@
-// 미니게임 (혼자): 동글동글 합체 — 같은 캐릭터끼리 부딪히면 합쳐져 한 단계 큰 캐릭터가 돼요.
+// 미니게임 (혼자): 동글동글 합체 (우주 진화) — 같은 천체끼리 부딪히면 합쳐져 한 단계 큰 천체가 돼요. 별가루 → … → 블랙홀
 // 기본 50번 떨어뜨릴 수 있고, 목표 점수를 넘으면 30번 더! 모두 멈춘 뒤에 다음 캐릭터를 떨어뜨려요.
 // 최고 점수는 내 프로필(best.merge)에 저장되고 랭킹에 올라가요. 게임 진행은 내 기기에서만 해요.
 import { soundEvent, sfxDrop, sfxMerge, sfxBonus } from '../sound.js';
 
 export const CHARS = [
-  { name: '콩알', body: '#8bd450', dark: '#5fa82e', r: 15 },
-  { name: '병아리', body: '#ffd84d', dark: '#e0b020', r: 20 },
-  { name: '햄찌', body: '#f2b880', dark: '#d08a50', r: 26 },
-  { name: '토끼', body: '#f7eef4', dark: '#e2c4d6', r: 33 },
-  { name: '냥이', body: '#ffb24a', dark: '#e0862a', r: 40 },
-  { name: '멍멍이', body: '#d8a06a', dark: '#a8703a', r: 48 },
-  { name: '펭귄', body: '#3a4a6e', dark: '#26324e', r: 57 },
-  { name: '판다', body: '#ffffff', dark: '#dcdce4', r: 66 },
-  { name: '여우', body: '#ff7a3a', dark: '#d8541a', r: 76 },
-  { name: '곰돌이', body: '#9a6a44', dark: '#6e4628', r: 88 },
-  { name: '유니콘', body: '#f6eeff', dark: '#d8c4f4', r: 102 },
+  { name: '별가루', body: '#fff3a8', dark: '#f0c840', r: 15 },
+  { name: '운석', body: '#a89a8c', dark: '#6e6258', r: 20 },
+  { name: '달', body: '#f2eedc', dark: '#c8c0a0', r: 26 },
+  { name: '화성', body: '#e8643c', dark: '#b03e1e', r: 33 },
+  { name: '금성', body: '#f4c878', dark: '#d09a40', r: 40 },
+  { name: '지구', body: '#3a8ee8', dark: '#1e5ea8', r: 48 },
+  { name: '해왕성', body: '#4a6cf0', dark: '#2a3ea8', r: 57 },
+  { name: '토성', body: '#ecd49a', dark: '#bc9e5a', r: 66 },
+  { name: '목성', body: '#e8a86a', dark: '#b8703a', r: 76 },
+  { name: '태양', body: '#ffcc33', dark: '#ff8a1a', r: 88 },
+  { name: '블랙홀', body: '#1a1030', dark: '#b06cff', r: 102 },
 ];
 const MAX = CHARS.length - 1;
-export const SPAWN = [34, 28, 20, 12, 6]; // 떨어뜨리는 캐릭터 확률(%): 콩알·병아리·햄찌·토끼·냥이
+export const SPAWN = [34, 28, 20, 12, 6]; // 떨어뜨리는 확률(%): 별가루·운석·달·화성·금성
 export const pointsFor = (lv) => lv * (lv + 1); // 새로 만든 단계 lv의 점수 (2, 6, 12, 20 …)
 const MAX_BONUS = 300;
 export const LIMIT = 50;        // 기본 떨어뜨리기 횟수
@@ -35,26 +35,40 @@ export function pickSpawn(rand = Math.random) {
 // ── 캐릭터 그림 (오리지널, SVG) ──
 export function charSvg(lv) {
   const c = CHARS[lv];
-  const eye = (x, y, s = 1) => `<ellipse cx="${x}" cy="${y}" rx="${4.2 * s}" ry="${5.4 * s}" fill="#2a1f2e"/><circle cx="${x + 1.4 * s}" cy="${y - 1.8 * s}" r="${1.6 * s}" fill="#fff"/>`;
-  const blush = '<ellipse cx="30" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity=".55"/><ellipse cx="70" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity=".55"/>';
-  const mouth = (y = 60) => `<path d="M45 ${y} Q47.5 ${y + 3} 50 ${y} Q52.5 ${y + 3} 55 ${y}" stroke="#2a1f2e" stroke-width="2" fill="none" stroke-linecap="round"/>`;
-  const face = (ey = 50, s = 1) => `${eye(38, ey, s)}${eye(62, ey, s)}${blush}${mouth(ey + 10)}`;
-  const base = (fill = c.body) => `<circle cx="50" cy="50" r="46" fill="${fill}" stroke="${c.dark}" stroke-width="3"/>`;
+  const eye = (x, y, s = 1, col = '#2a1f2e') => `<ellipse cx="${x}" cy="${y}" rx="${4.2 * s}" ry="${5.4 * s}" fill="${col}"/><circle cx="${x + 1.4 * s}" cy="${y - 1.8 * s}" r="${1.6 * s}" fill="#fff"/>`;
+  const blush = (op = 0.55) => `<ellipse cx="30" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity="${op}"/><ellipse cx="70" cy="60" rx="6" ry="3.6" fill="#ff8aa8" opacity="${op}"/>`;
+  const smile = (y = 60, col = '#2a1f2e') => `<path d="M44 ${y} Q50 ${y + 6} 56 ${y}" stroke="${col}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  const face = (ey = 50, s = 1) => `${eye(38, ey, s)}${eye(62, ey, s)}${blush()}${smile(ey + 10)}`;
+  // 둥근 몸통 + 입체 그림자/하이라이트 (몸통 원 반지름 46 = 물리 반지름)
+  const shade = `<defs><radialGradient id="mgShade" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".55" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></radialGradient><clipPath id="mgClip"><circle cx="50" cy="50" r="46"/></clipPath></defs>`;
+  const base = (inner = '') => `<circle cx="50" cy="50" r="46" fill="${c.body}"/><g clip-path="url(#mgClip)">${inner}</g><circle cx="50" cy="50" r="46" fill="url(#mgShade)"/><circle cx="50" cy="50" r="46" fill="none" stroke="${c.dark}" stroke-width="3"/>`;
+  const star = (x, y, r, col) => `<path d="M${x} ${y - r} Q${x + r * 0.18} ${y - r * 0.18} ${x + r} ${y} Q${x + r * 0.18} ${y + r * 0.18} ${x} ${y + r} Q${x - r * 0.18} ${y + r * 0.18} ${x - r} ${y} Q${x - r * 0.18} ${y - r * 0.18} ${x} ${y - r}Z" fill="${col}"/>`;
   let g = '';
   switch (lv) {
-    case 0: g = `${base()}<path d="M50 6 q6 -4 10 2" stroke="#4a8a1e" stroke-width="3" fill="none"/>${face(48, 1.2)}`; break;
-    case 1: g = `${base()}<path d="M42 10 l4 -8 l4 8 l4 -8 l4 8" fill="#ffd84d" stroke="${c.dark}" stroke-width="2"/>${eye(38, 46, 1.1)}${eye(62, 46, 1.1)}${blush}<path d="M44 56 L56 56 L50 64Z" fill="#ff9a2a"/>`; break;
-    case 2: g = `<circle cx="22" cy="18" r="10" fill="${c.dark}"/><circle cx="78" cy="18" r="10" fill="${c.dark}"/>${base()}<ellipse cx="50" cy="66" rx="24" ry="18" fill="#fff4e4"/>${face(46)}`; break;
-    case 3: g = `<ellipse cx="34" cy="10" rx="8" ry="20" fill="${c.body}" stroke="${c.dark}" stroke-width="3"/><ellipse cx="66" cy="10" rx="8" ry="20" fill="${c.body}" stroke="${c.dark}" stroke-width="3"/><ellipse cx="34" cy="12" rx="3.5" ry="13" fill="#ffb8cc"/><ellipse cx="66" cy="12" rx="3.5" ry="13" fill="#ffb8cc"/>${base()}${face(52)}`; break;
-    case 4: g = `<path d="M14 30 L22 2 L42 20Z M86 30 L78 2 L58 20Z" fill="${c.body}" stroke="${c.dark}" stroke-width="3" stroke-linejoin="round"/>${base()}<path d="M36 18 l4 8 M50 14 l0 9 M64 18 l-4 8" stroke="${c.dark}" stroke-width="3" stroke-linecap="round"/>${face(52)}<path d="M18 60 h12 M70 60 h12 M20 66 h10 M70 66 h10" stroke="#2a1f2e" stroke-width="1.5" opacity=".5"/>`; break;
-    case 5: g = `${base()}<ellipse cx="12" cy="44" rx="11" ry="22" fill="${c.dark}"/><ellipse cx="88" cy="44" rx="11" ry="22" fill="${c.dark}"/><ellipse cx="50" cy="64" rx="18" ry="13" fill="#fff4e4"/>${face(48)}<ellipse cx="50" cy="58" rx="5" ry="3.5" fill="#2a1f2e"/>`; break;
-    case 6: g = `${base()}<path d="M50 14 Q24 18 20 50 Q22 86 50 92 Q78 86 80 50 Q76 18 50 14Z" fill="#fff"/>${eye(38, 46)}${eye(62, 46)}${blush}<path d="M44 56 L56 56 L50 63Z" fill="#ffb02e"/>`; break;
-    case 7: g = `<circle cx="18" cy="14" r="12" fill="#2a2a34"/><circle cx="82" cy="14" r="12" fill="#2a2a34"/>${base()}<ellipse cx="36" cy="48" rx="10" ry="12" fill="#2a2a34" transform="rotate(-20 36 48)"/><ellipse cx="64" cy="48" rx="10" ry="12" fill="#2a2a34" transform="rotate(20 64 48)"/><circle cx="37" cy="47" r="3.2" fill="#fff"/><circle cx="63" cy="47" r="3.2" fill="#fff"/>${blush}<ellipse cx="50" cy="60" rx="5" ry="3.5" fill="#2a2a34"/>`; break;
-    case 8: g = `<path d="M10 34 L16 0 L40 18Z M90 34 L84 0 L60 18Z" fill="${c.body}" stroke="${c.dark}" stroke-width="3" stroke-linejoin="round"/>${base()}<path d="M8 56 Q30 50 50 74 Q70 50 92 56 Q86 88 50 96 Q14 88 8 56Z" fill="#fff"/>${eye(36, 48)}${eye(64, 48)}<ellipse cx="50" cy="64" rx="4.5" ry="3.2" fill="#2a1f2e"/>`; break;
-    case 9: g = `<circle cx="16" cy="16" r="13" fill="${c.body}" stroke="${c.dark}" stroke-width="3"/><circle cx="84" cy="16" r="13" fill="${c.body}" stroke="${c.dark}" stroke-width="3"/><circle cx="16" cy="16" r="6" fill="#e8b890"/><circle cx="84" cy="16" r="6" fill="#e8b890"/>${base()}<ellipse cx="50" cy="64" rx="20" ry="15" fill="#e8c4a0"/>${face(46)}<ellipse cx="50" cy="58" rx="6" ry="4" fill="#2a1f2e"/>`; break;
-    case 10: g = `${base()}<path d="M50 -2 L44 22 L56 22Z" fill="#ffd84d" stroke="#e0a020" stroke-width="2"/><path d="M14 30 Q6 50 16 70" stroke="#ff8ad8" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M20 22 Q8 46 22 74" stroke="#8ab8ff" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M28 14 Q14 40 28 80" stroke="#9ff0c4" stroke-width="5" fill="none" stroke-linecap="round"/>${face(50, 1.1)}<path d="M74 28 l3 -6 l3 6 l6 1 l-5 4 l1 6 l-5 -3 l-5 3 l1 -6 l-5 -4Z" fill="#ffd84d"/>`; break;
+    case 0: // 별가루: 반짝이는 작은 빛뭉치
+      g = `${star(50, 50, 56, '#fff7c4')}${base(`<circle cx="50" cy="50" r="30" fill="#fffbe0"/>`)}${star(80, 18, 12, '#fff')}${star(18, 82, 8, '#fff')}${face(48, 1.25)}`; break;
+    case 1: // 운석: 울퉁불퉁 돌멩이
+      g = `${base(`<circle cx="24" cy="30" r="9" fill="${c.dark}" opacity=".5"/><circle cx="74" cy="74" r="12" fill="${c.dark}" opacity=".45"/><circle cx="78" cy="28" r="6" fill="${c.dark}" opacity=".5"/><circle cx="22" cy="72" r="5" fill="${c.dark}" opacity=".5"/>`)}${eye(38, 50, 1.1)}${eye(62, 50, 1.1)}${blush()}<path d="M44 64 Q50 60 56 64" stroke="#2a1f2e" stroke-width="2.4" fill="none" stroke-linecap="round"/>`; break;
+    case 2: // 달: 크레이터 + 졸린 눈
+      g = `${base(`<circle cx="28" cy="28" r="10" fill="${c.dark}" opacity=".45"/><circle cx="74" cy="72" r="13" fill="${c.dark}" opacity=".4"/><circle cx="76" cy="30" r="6" fill="${c.dark}" opacity=".45"/><circle cx="30" cy="78" r="7" fill="${c.dark}" opacity=".4"/>`)}<path d="M32 50 Q38 55 44 50 M56 50 Q62 55 68 50" stroke="#2a1f2e" stroke-width="2.8" fill="none" stroke-linecap="round"/>${blush()}${smile(60)}`; break;
+    case 3: // 화성: 붉은 땅 + 극관
+      g = `${base(`<ellipse cx="50" cy="6" rx="26" ry="10" fill="#fff"/><path d="M4 70 Q30 60 50 74 T96 68 L96 100 L4 100Z" fill="${c.dark}" opacity=".55"/><circle cx="76" cy="34" r="7" fill="${c.dark}" opacity=".5"/>`)}${face(48)}`; break;
+    case 4: // 금성: 소용돌이 구름
+      g = `${base(`<path d="M0 30 Q30 20 50 32 T100 28 M0 52 Q26 44 50 56 T100 50 M0 76 Q30 68 50 80 T100 74" stroke="#fff4d0" stroke-width="7" fill="none" opacity=".7"/>`)}${face(48)}`; break;
+    case 5: // 지구: 바다 + 대륙 + 구름
+      g = `${base(`<path d="M12 22 Q30 10 40 24 Q36 40 22 42 Q8 38 12 22Z M60 58 Q80 50 90 64 Q86 86 68 88 Q54 78 60 58Z M64 10 Q78 8 82 20 Q72 26 64 10Z" fill="#5cc86a"/><path d="M10 64 Q24 58 34 66 M58 36 Q72 30 86 38" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".85"/>`)}${face(48)}`; break;
+    case 6: // 해왕성: 짙은 파랑 줄무늬 + 반짝 눈
+      g = `${base(`<path d="M0 26 H100 M0 74 H100" stroke="#7aa0ff" stroke-width="6" opacity=".55"/><ellipse cx="72" cy="80" rx="12" ry="6" fill="#22307a" opacity=".6"/>`)}${star(36, 48, 8, '#fff')}${star(64, 48, 8, '#fff')}${blush(0.7)}${smile(60, '#fff')}`; break;
+    case 7: // 토성: 고리! (뒤쪽 반 → 몸통 → 앞쪽 반)
+      g = `<g transform="rotate(-14 50 54)"><path d="M-6 54 A56 13 0 0 1 106 54" stroke="#b8975a" stroke-width="7" fill="none"/></g>${base(`<path d="M0 28 H100 M0 70 H100" stroke="${c.dark}" stroke-width="5" opacity=".45"/>`)}${face(42)}<g transform="rotate(-14 50 54)"><path d="M-6 54 A56 13 0 0 0 106 54" stroke="#e8cf8a" stroke-width="7" fill="none" stroke-linecap="round"/></g>`; break;
+    case 8: // 목성: 띠 + 대적점
+      g = `${base(`<path d="M0 22 H100 M0 40 H100 M0 80 H100" stroke="#fff0d8" stroke-width="7" opacity=".75"/><path d="M0 31 H100 M0 88 H100" stroke="${c.dark}" stroke-width="5" opacity=".6"/><ellipse cx="70" cy="74" rx="12" ry="7" fill="#c8402a"/>`)}${face(52)}`; break;
+    case 9: // 태양: 이글이글 빛살
+      g = `${Array.from({ length: 12 }, (_, i) => `<path d="M50 -4 L56 8 L44 8Z" fill="#ffb020" transform="rotate(${i * 30} 50 50)"/>`).join('')}${base(`<circle cx="50" cy="50" r="34" fill="#ffe066"/>`)}<path d="M30 46 Q36 40 42 46 M58 46 Q64 40 70 46" stroke="#a04010" stroke-width="3" fill="none" stroke-linecap="round"/>${blush(0.7)}<path d="M40 58 Q50 72 60 58Z" fill="#a04010"/>`; break;
+    case 10: // 블랙홀: 빛나는 원반 + 반짝이는 눈
+      g = `<g transform="rotate(-12 50 58)"><path d="M-6 58 A56 12 0 0 1 106 58" stroke="#ff9a3a" stroke-width="6" fill="none"/></g>${base(`<circle cx="50" cy="50" r="40" fill="#08040f"/><circle cx="50" cy="50" r="44" fill="none" stroke="#b06cff" stroke-width="6" opacity=".7"/>`)}${eye(38, 38, 1.2, '#ffffff')}${eye(62, 38, 1.2, '#ffffff')}<circle cx="38" cy="39.5" r="3" fill="#b06cff"/><circle cx="62" cy="39.5" r="3" fill="#b06cff"/><ellipse cx="29" cy="50" rx="6" ry="3.6" fill="#ff8aa8" opacity=".5"/><ellipse cx="71" cy="50" rx="6" ry="3.6" fill="#ff8aa8" opacity=".5"/>${smile(49, '#ffffff')}<g transform="rotate(-12 50 58)"><path d="M-6 58 A56 12 0 0 0 106 58" stroke="#ffd06a" stroke-width="6" fill="none" stroke-linecap="round"/></g>${star(80, 14, 7, '#fff')}`; break;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 -8 112 112">${g}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 116 116">${shade}${g}</svg>`;
 }
 
 // ── 물리 (커질 때는 반지름이 서서히 자라며 옆 캐릭터를 미끄러지듯 밀어내고, 구를 때는 회전) ──
@@ -155,7 +169,7 @@ function build() {
     <div class="mg-goal" data-goal>🎯 ${BONUS_AT.toLocaleString()}점을 넘으면 <b>+${BONUS_DROPS}번</b> 더!</div>
     <div class="mg-box"><canvas></canvas><div class="mg-banner" hidden></div><div class="mg-over" hidden></div></div>
     <div class="mg-chain">${CHARS.map((c, i) => `<img src="${dataUrl(i)}" title="${c.name}" alt="${c.name}" style="width:${14 + i * 2.6}px">`).join('<i>›</i>')}</div>
-    <div class="mg-hint">화면을 누른 채로 좌우로 움직이고, 손을 떼면 떨어져요 · 모두 멈춰야 다음 캐릭터를 떨어뜨릴 수 있어요 (PC: 마우스 · ←→ + 스페이스)</div>
+    <div class="mg-hint">화면을 누른 채로 좌우로 움직이고, 손을 떼면 떨어져요 · 모두 멈춰야 다음 천체를 떨어뜨릴 수 있어요 (PC: 마우스 · ←→ + 스페이스)</div>
     <div class="mg-rank"><div class="mg-rank-t">🏆 랭킹 TOP 10</div><ol data-rank><li class="muted">불러오는 중…</li></ol></div>`;
   const c = { root, $: (q) => root.querySelector(q), canvas: root.querySelector('canvas'), w: newWorld(), raf: 0, last: performance.now(), sprites: [], aim: false, shownScore: 0 };
   c.sprites = CHARS.map((_, i) => { const im = new Image(); im.src = dataUrl(i); return im; });
@@ -216,7 +230,7 @@ async function gameOver(c, reason) {
   const top = w.made.reduce((m, n, i) => (n ? i : m), 0);
   c.$('.mg-over').innerHTML = `<div><b>${reason === 'full' ? '상자가 가득 찼어요!' : '모두 떨어뜨렸어요!'}</b><strong>${score.toLocaleString()}점</strong>${isNew ? '<em>🎉 최고 기록 경신!</em>' : `<small>내 최고 ${best.toLocaleString()}점</small>`}
     ${w.bonus ? '<small>🎯 보너스 +30번 달성!</small>' : ''}
-    <span>가장 크게 만든 친구: <img src="${dataUrl(top)}" alt=""> ${CHARS[top].name}</span>
+    <span>가장 크게 만든 천체: <img src="${dataUrl(top)}" alt=""> ${CHARS[top].name}</span>
     <button class="mg-again" data-again>다시 하기 ↻</button></div>`;
   c.$('.mg-over').hidden = false;
   c.$('[data-best]').textContent = best.toLocaleString();
@@ -328,34 +342,34 @@ function drawStar(g, x, y, r, rot) {
 }
 function drawChar(g, c, lv, x, y, r, s, ang) {
   const im = c.sprites[lv];
-  const size = r * 2 * (112 / 92) * s; // 그림의 몸통 원(반지름 46/112) = 물리 반지름
+  const size = r * 2 * (116 / 92) * s; // 그림의 몸통 원(반지름 46/116) = 물리 반지름
   if (!im.complete) { g.fillStyle = CHARS[lv].body; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); return; }
   g.save(); g.translate(x, y); g.rotate(ang || 0);
-  g.drawImage(im, -size / 2, -size / 2 - r * 0.04, size, size);
+  g.drawImage(im, -size / 2, -size / 2, size, size);
   g.restore();
 }
 
 export default {
   id: 'merge',
   name: '동글동글 합체',
-  emoji: '🫧',
+  emoji: '🪐',
   category: 'mini',
   minPlayers: 1,
   maxPlayers: 1,
   solo: true,
   bgm: 'happy',
-  duration: '혼자 · 5~10분',
+  duration: '5~10분',
   rewards: [],
   rewardLabel: '🏆 랭킹전',
-  description: '같은 친구끼리 합쳐서 더 큰 친구로! 혼자 하는 점수 랭킹전',
+  description: '별가루에서 블랙홀까지! 같은 천체끼리 합쳐 우주를 키우는 혼자 하는 랭킹전',
   rules: [
-    `캐릭터를 ${LIMIT}번 떨어뜨릴 수 있어요. 같은 캐릭터끼리 닿으면 합쳐져 한 단계 큰 캐릭터가 돼요.`,
-    '떨어뜨린 뒤 모두 멈춰야 다음 캐릭터를 떨어뜨릴 수 있어요.',
-    `캐릭터는 11단계: ${CHARS.map((c) => c.name).join(' → ')}`,
-    `떨어지는 건 작은 5가지뿐이에요 (콩알 ${SPAWN[0]}% · 병아리 ${SPAWN[1]}% · 햄찌 ${SPAWN[2]}% · 토끼 ${SPAWN[3]}% · 냥이 ${SPAWN[4]}%). 큰 캐릭터는 합쳐서만 만들 수 있어요.`,
-    '합칠 때마다 점수! 큰 캐릭터를 만들수록 점수가 커져요 (병아리 2점 · 햄찌 6점 · … · 유니콘 110점). 유니콘 둘을 합치면 +300점 보너스!',
+    `천체를 ${LIMIT}번 떨어뜨릴 수 있어요. 같은 천체끼리 닿으면 합쳐져 한 단계 큰 천체가 돼요.`,
+    '떨어뜨린 뒤 모두 멈춰야 다음 천체를 떨어뜨릴 수 있어요.',
+    `천체는 11단계: ${CHARS.map((c) => c.name).join(' → ')}`,
+    `떨어지는 건 작은 5가지뿐이에요 (별가루 ${SPAWN[0]}% · 운석 ${SPAWN[1]}% · 달 ${SPAWN[2]}% · 화성 ${SPAWN[3]}% · 금성 ${SPAWN[4]}%). 큰 천체는 합쳐서만 만들 수 있어요.`,
+    '합칠 때마다 점수! 큰 천체를 만들수록 점수가 커져요 (운석 2점 · 달 6점 · … · 블랙홀 110점). 블랙홀 둘을 합치면 +300점 보너스!',
     `점수가 ${BONUS_AT.toLocaleString()}점을 넘으면 ${BONUS_DROPS}번 더 떨어뜨릴 수 있어요 (한 번).`,
-    '다 떨어뜨리거나, 캐릭터가 상자 밖으로 넘친 채 멈추면 게임 끝.',
+    '다 떨어뜨리거나, 천체가 상자 밖으로 넘친 채 멈추면 게임 끝.',
     '최고 점수는 내 프로필에 저장되고 랭킹에 올라가요. 혼자 하는 게임이라 가넷·전적은 없어요.',
   ],
 

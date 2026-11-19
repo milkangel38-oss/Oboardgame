@@ -7,6 +7,7 @@ import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 import { showAlert } from './alert.js';
 import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange } from './sound.js';
+import { bindPreview, hidePreview, justPreviewed } from './preview.js';
 
 const $app = document.getElementById('app');
 let user = null;      // 로그인 정보 (구글/네이버)
@@ -56,7 +57,7 @@ function avatar(p, size = '') {
 }
 
 function playerCount(g) {
-  return g.minPlayers === g.maxPlayers ? `${g.minPlayers}명` : `${g.minPlayers}~${g.maxPlayers}명`;
+  return g.solo ? '혼자' : g.minPlayers === g.maxPlayers ? `${g.minPlayers}명` : `${g.minPlayers}~${g.maxPlayers}명`;
 }
 
 const logo = (size = '') => `<span class="logo ${size}"><span class="logo-o">O</span><span class="logo-text">게임</span></span>`;
@@ -121,6 +122,7 @@ backend.onAuth((u) => {
   route();
 });
 
+window.addEventListener('hashchange', hidePreview);
 window.addEventListener('hashchange', route);
 
 // #/            로그인 또는 로비
@@ -722,9 +724,13 @@ function renderCategory(c) {
     </main>`;
   bindHeader();
   profileListeners.add(refreshGameRecords);
+  hidePreview();
   $app.querySelectorAll('[data-game]').forEach((el) => {
+    bindPreview(el, getGame(el.dataset.game));
     el.onclick = async () => {
       const game = getGame(el.dataset.game);
+      if (justPreviewed(el)) return; // 꾹 눌러 미리보기를 본 직후엔 방을 만들지 않아요
+      hidePreview();
       if (game.comingSoon) return toast('곧 열릴 게임이에요! 조금만 기다려 주세요');
       el.disabled = true;
       try {

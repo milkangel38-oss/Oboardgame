@@ -8,14 +8,14 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
-  // 동글동글 합체: 유리 상자 속에 쌓인 캐릭터들
+  // 동글동글 합체: 별이 빛나는 상자 속에 쌓인 행성들
   merge: (() => {
-    const put = (lv, x, y, sz) => `<g transform="translate(${x - sz / 2} ${y - sz / 2}) scale(${sz / 112})">${mergeChar(lv).replace(/<svg[^>]*>|<\/svg>/g, '').replace(/^/, '<g transform="translate(6 8)">') + '</g>'}</g>`;
+    const put = (lv, x, y, sz) => `<g transform="translate(${x - sz / 2} ${y - sz / 2}) scale(${sz / 116})"><g transform="translate(8 8)">${mergeChar(lv).replace(/<svg[^>]*>|<\/svg>/g, '')}</g></g>`;
+    const stars = [[30, 40], [80, 20], [250, 30], [270, 120], [20, 160], [120, 110], [200, 90], [60, 260], [280, 260]].map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i % 3 ? 1.2 : 2}" fill="#fff" opacity=".8"/>`).join('');
     return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-  <rect width="300" height="420" fill="#2a2450"/><circle cx="150" cy="180" r="170" fill="#3a3270" opacity=".6"/>
-  <rect x="40" y="80" width="220" height="300" rx="10" fill="rgba(255,255,255,.08)" stroke="#e8cf8a" stroke-width="3"/>
-  <line x1="40" y1="130" x2="260" y2="130" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity=".5"/>
-  ${put(9, 100, 320, 110)}${put(8, 205, 330, 96)}${put(6, 210, 250, 72)}${put(4, 120, 240, 60)}${put(3, 160, 205, 50)}${put(2, 80, 200, 38)}${put(1, 215, 190, 30)}${put(0, 245, 210, 22)}${put(10, 150, 60, 80)}
+  <rect width="300" height="420" fill="#120c2e"/><circle cx="90" cy="120" r="150" fill="#5a2a8a" opacity=".35"/><circle cx="230" cy="320" r="150" fill="#1e4a9a" opacity=".35"/>${stars}
+  <rect x="40" y="80" width="220" height="300" rx="10" fill="rgba(255,255,255,.06)" stroke="#e8cf8a" stroke-width="3"/>
+  ${put(9, 100, 318, 112)}${put(8, 205, 330, 96)}${put(6, 212, 248, 70)}${put(4, 118, 236, 58)}${put(3, 162, 205, 48)}${put(2, 82, 198, 38)}${put(1, 215, 192, 30)}${put(0, 245, 208, 24)}${put(10, 150, 58, 84)}
 </svg>`;
   })(),
 
