@@ -19,6 +19,12 @@ service cloud.firestore {
 
     // ── 게임 방 (rooms/{code}) ──
     // 방 코드를 아는 사람만 열 수 있어요 (방 목록 전체 조회는 막음).
+    // 서버가 진행하는 게임(아발론): 게임 중에는 브라우저가 게임 상태를 못 바꾸고, 결과는 '중단'만 쓸 수 있어요
+    function serverGameOk() {
+      return !(resource.data.gameId in ['avalon'] && resource.data.status == 'playing')
+        || (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['game', 'matchId'])
+            && (request.resource.data.get('result', null) == null || request.resource.data.result.get('aborted', false) == true));
+    }
     match /rooms/{code} {
       allow get: if signedIn();
       allow list: if false;
@@ -31,7 +37,8 @@ service cloud.firestore {
       allow update: if signedIn() && (
         // 참가자: 게임 진행·나가기·내보내기는 되지만, 다른 사람을 새로 넣을 수는 없어요
         (me() in resource.data.players
-          && request.resource.data.players.keys().hasOnly(resource.data.players.keys()))
+          && request.resource.data.players.keys().hasOnly(resource.data.players.keys())
+          && serverGameOk())
         ||
         // 새로 들어오는 사람: 대기 중인 방에 '나'만 추가할 수 있어요
         (!(me() in resource.data.players)
@@ -45,6 +52,12 @@ service cloud.firestore {
       // 방 삭제: 방장, 또는 마지막 남은 사람
       allow delete: if signedIn() && (resource.data.hostId == me()
         || (me() in resource.data.players && resource.data.players.size() == 1));
+
+      // 게임 비밀: 내 것(secret/{내 uid})만 읽을 수 있고, 쓰기는 서버만 (SERVER 문서는 아무도 못 읽음)
+      match /secret/{uid} {
+        allow get: if signedIn() && me() == uid;
+        allow list, write: if false;
+      }
     }
 
     // ── 친구 DM (dms/{a__b}) ──

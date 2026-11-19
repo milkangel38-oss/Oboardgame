@@ -1,7 +1,7 @@
 // 게임 결과 → 가넷·전적 기록 규칙 (서버에서만 실행). 순수 함수라 테스트하기 쉬워요.
 // 게임마다: 최소 인원, 한 판에 받을 수 있는 가넷 범위 (게임 파일의 rewards와 맞춰 주세요)
 const GAMES = {
-  avalon: { min: 5, max: 2 },
+  avalon: { min: 5, max: 2, server: true }, // server: 서버가 진행 → 서버가 만든 결과만 인정
   chosung: { min: 2, max: 4 },
   lexio: { min: 3, max: 4 },
   mystery: { min: 2, max: 3 },
@@ -32,6 +32,7 @@ function recordFor(room, prof, uid, now = Date.now()) {
   const meta = GAMES[room.gameId];
   if (!meta) throw err(400, '기록하지 않는 게임이에요');
   if (room.status !== 'finished' || !room.result || room.result.aborted || !room.matchId) throw err(409, '끝난 게임이 아니에요');
+  if (meta.server && room.result.by !== 'server') throw err(409, '서버가 확인한 결과가 아니에요');
   const ranking = Array.isArray(room.result.ranking) ? room.result.ranking : [];
   // 인원·참가 여부는 방의 실제 참가자 명단으로만 판단 (순위표의 uid는 누구나 지어낼 수 있어요)
   const people = new Set(Object.keys(room.players || {}));

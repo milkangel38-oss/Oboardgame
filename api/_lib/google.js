@@ -110,7 +110,8 @@ async function transact(fn, tries = 4) {
         method: 'POST',
         body: JSON.stringify({
           transaction,
-          writes: writes.map((w) => ({ update: { name: docName(w.col, w.id), fields: enc(w.data).mapValue.fields }, updateMask: { fieldPaths: w.fields } })),
+          // fields가 있으면 그 필드만, 없으면 문서 전체를 바꿔요
+          writes: writes.map((w) => ({ update: { name: docName(w.col, w.id), fields: enc(w.data).mapValue.fields }, ...(w.fields ? { updateMask: { fieldPaths: w.fields } } : {}) })),
         }),
       });
       return true;

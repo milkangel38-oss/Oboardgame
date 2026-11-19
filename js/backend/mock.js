@@ -3,6 +3,7 @@
 // - 방 데이터: localStorage에 저장 → 같은 브라우저의 다른 탭과 실시간 공유.
 //   초대 링크를 새 탭에 붙여넣으면 "친구"로 입장해 볼 수 있어요.
 import { randomCode } from './code.js';
+import { serverApply } from '../games/server-games.js';
 
 const ROOMS_KEY = 'mbg:rooms';
 const PROFILE_PREFIX = 'mbg:profile:'; // 사람마다 따로 저장 (여러 탭이 동시에 저장해도 덮어쓰지 않게)
@@ -17,6 +18,7 @@ const roomListeners = new Set();
 function notifyRooms() { roomListeners.forEach((fn) => fn()); }
 window.addEventListener('storage', (e) => {
   if (e.key === ROOMS_KEY) notifyRooms();
+  if (e.key?.startsWith('og-secret:')) notifyRooms();
   if (e.key?.startsWith(PROFILE_PREFIX) || e.key?.startsWith('og-dm:')) notifyProfiles();
 });
 
@@ -85,6 +87,27 @@ export function createBackend() {
       if (next === null) delete rooms[code];
       else rooms[code] = next;
       saveRooms(rooms);
+    },
+
+    // 서버가 진행하는 게임 (테스트 모드: 서버 대신 같은 함수를 브라우저에서 실행, 비밀은 localStorage)
+    async serverMove(code, move) {
+      const me = readUser()?.uid;
+      const rooms = loadRooms();
+      if (!rooms[code]) throw new Error('방을 찾을 수 없어요');
+      const sk = (id) => `og-secret:${code}:${id}`;
+      let srv = null; try { srv = JSON.parse(localStorage.getItem(sk('SERVER'))); } catch {}
+      let out;
+      try { out = serverApply({ ...rooms[code], code }, srv, me, move); } catch (e) { if (e.message === '__noop') return; throw e; }
+      localStorage.setItem(sk('SERVER'), JSON.stringify(out.server));
+      if (['deal', 'vote'].includes(move.type)) Object.entries(out.mine).forEach(([u, v]) => localStorage.setItem(sk(u), JSON.stringify({ ...v, match: rooms[code].matchId })));
+      rooms[code] = out.room;
+      saveRooms(rooms);
+    },
+    watchSecret(code, uid, cb) {
+      const emit = () => { try { cb(JSON.parse(localStorage.getItem(`og-secret:${code}:${uid}`))); } catch { cb(null); } };
+      roomListeners.add(emit);
+      emit();
+      return () => roomListeners.delete(emit);
     },
 
     watchProfile(uid, cb) {

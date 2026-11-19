@@ -17,6 +17,7 @@ const profileListeners = new Set();
 let authReady = false;
 let cleanup = null;
 const recordedMatches = new Set();
+let roomSecret = null; // 서버 진행 게임에서 내 비밀 (역할 등)
 const recordRetries = new Map();
 
 // 화면에 쓰는 "나" = 로그인 정보 + 프로필에서 바꾼 닉네임/사진
@@ -998,6 +999,7 @@ function renderRoom(code) {
   const presenceOn = backend.mode !== 'mock' || new URLSearchParams(location.search).has('presence');
   let latest = null;
   let lastSig = '';
+  let secretUnsub = null;
   // 1순위: Realtime Database 접속 표시 (연결이 끊기면 서버가 자동으로 지움 → 대기 중에도 나간 사람 정리)
   let online = null; // 온라인 uid Set (null = 아직 모름/사용 불가)
   const missing = {}; // uid → 처음 안 보인 시각 (내 시계 기준)
@@ -1058,6 +1060,13 @@ function renderRoom(code) {
       }
       return;
     }
+    // 서버가 진행하는 게임: 내 비밀(역할 등)을 따로 받아요 (본인만 읽을 수 있음)
+    if (game.serverMoves && !secretUnsub && backend.watchSecret) {
+      secretUnsub = backend.watchSecret(code, user.uid, (d) => {
+        roomSecret = d;
+        if (latest && latest.players?.[user.uid] && $main.isConnected) { lastSig = ''; drawRoom($main, latest, getGame(latest.gameId)); }
+      });
+    }
     recordIfFinished(room);
     setPresence({ state: room.status === 'playing' ? 'playing' : 'waiting', room: room.code, game: room.gameId });
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
@@ -1068,7 +1077,7 @@ function renderRoom(code) {
     drawRoom($main, room, game);
   });
 
-  return () => { closed = true; unsub(); if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
+  return () => { closed = true; unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1331,7 +1340,10 @@ function drawRoom($main, room, game) {
       players: room.players,
       finished: room.status === 'finished',
       room,
-      sendMove: (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent),
+      secret: roomSecret && roomSecret.match === room.matchId ? roomSecret : null,
+      sendMove: game.serverMoves
+        ? (move, opts) => backend.serverMove(room.code, move).catch((e) => { if (opts?.silent || e.message === '__noop') return; showAlert(e.message); })
+        : (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent),
     });
   }
 }

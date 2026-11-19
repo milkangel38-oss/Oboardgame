@@ -185,6 +185,14 @@ export function createBackend(config) {
       });
     },
 
+    // 서버가 진행하는 게임(아발론)의 동작 보내기 + 내 비밀(역할 등) 받기
+    async serverMove(code, move) {
+      await this.callApi('/api/game', { code, move });
+    },
+    watchSecret(code, uid, cb) {
+      return onSnapshot(doc(db, 'rooms', code, 'secret', uid), (snap) => cb(snap.exists() ? snap.data() : null), () => cb(null));
+    },
+
     // 친구 DM: dms/{두 사람 uid를 정렬해 '__'로 이은 것} = { users: [a, b], a: [a가 보낸 메시지], b: [b가 보낸 메시지] }
     // 보안 규칙으로 두 사람만 읽을 수 있고, 각자 자기 칸(a 또는 b)만 쓸 수 있어요.
     watchDms(uid, cb) {

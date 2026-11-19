@@ -6,72 +6,11 @@ import { soundEvent } from '../sound.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { faceHtml } from './face.js';
 
-export const SIZES = {
-  5: [2, 3, 2, 3, 3], 6: [2, 3, 4, 3, 4], 7: [2, 3, 3, 4, 4],
-  8: [3, 4, 4, 5, 5], 9: [3, 4, 4, 5, 5], 10: [3, 4, 4, 5, 5],
-};
-export const EVIL_COUNT = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4 };
-export const failsNeeded = (n, q) => (n >= 7 && q === 3 ? 2 : 1); // 7명 이상 4번째 원정은 실패 2장 필요
-const WIN_GARNETS = 2;
-
-export const ROLES = {
-  merlin: { name: '멀린', team: 'good', icon: '🧙', desc: '악 팀이 누구인지 알아요 (모드레드 빼고). 하지만 들키면 암살당해요!' },
-  percival: { name: '퍼시벌', team: 'good', icon: '🛡️', desc: '멀린과 모르가나 두 사람을 알지만, 누가 진짜 멀린인지는 몰라요.' },
-  servant: { name: '아서의 충신', team: 'good', icon: '⚔️', desc: '아무 정보도 없어요. 대화와 투표로 악 팀을 찾아내세요.' },
-  assassin: { name: '암살자', team: 'evil', icon: '🗡️', desc: '악 팀 동료를 알아요. 정의 팀이 원정 3번을 성공하면 멀린을 지목해 암살할 수 있어요.' },
-  morgana: { name: '모르가나', team: 'evil', icon: '🔮', desc: '악 팀 동료를 알아요. 퍼시벌에게는 멀린처럼 보여요.' },
-  mordred: { name: '모드레드', team: 'evil', icon: '👑', desc: '악 팀 동료를 알아요. 멀린도 모드레드가 악 팀인 걸 몰라요.' },
-  oberon: { name: '오베론', team: 'evil', icon: '🌑', desc: '악 팀이지만 동료를 모르고, 동료들도 오베론을 몰라요.' },
-  minion: { name: '모드레드의 하수인', team: 'evil', icon: '💀', desc: '악 팀 동료를 알아요. 원정을 몰래 실패시키세요.' },
-};
-export const ROLE_SETS = ['기본 (멀린·암살자)', '퍼시벌·모르가나 추가', '+ 모드레드', '+ 모드레드·오베론'];
+import { SIZES, failsNeeded, ROLES, ROLE_SETS, WIN_GARNETS, knowledge } from './avalon-core.js';
+export { SIZES, EVIL_COUNT, failsNeeded, ROLES, ROLE_SETS, dealRoles, knowledge } from './avalon-core.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6', '#ff8ad8', '#e8cf8a', '#ff8a3d', '#9ad04a'];
-
-export function dealRoles(order, setName) {
-  const n = order.length;
-  const evilN = EVIL_COUNT[n];
-  const lvl = Math.max(0, ROLE_SETS.indexOf(setName));
-  const evil = ['assassin'];
-  const good = ['merlin'];
-  if (lvl >= 1) { good.push('percival'); evil.push('morgana'); }
-  if (lvl >= 2) evil.push('mordred');
-  if (lvl >= 3) evil.push('oberon');
-  const evilRoles = evil.slice(0, evilN);
-  while (evilRoles.length < evilN) evilRoles.push('minion');
-  const goodRoles = good.slice(0, n - evilN);
-  while (goodRoles.length < n - evilN) goodRoles.push('servant');
-  const deck = shuffle([...evilRoles, ...goodRoles]);
-  return Object.fromEntries(order.map((u, i) => [u, deck[i]]));
-}
-// 내가 아는 정보
-export function knowledge(roles, me) {
-  const r = roles[me];
-  const others = Object.keys(roles).filter((u) => u !== me);
-  if (r === 'merlin') return { label: '악 팀', who: others.filter((u) => ROLES[roles[u]].team === 'evil' && roles[u] !== 'mordred') };
-  if (r === 'percival') return { label: '멀린 또는 모르가나', who: others.filter((u) => ['merlin', 'morgana'].includes(roles[u])) };
-  if (ROLES[r].team === 'evil' && r !== 'oberon') return { label: '악 팀 동료', who: others.filter((u) => ROLES[roles[u]].team === 'evil' && roles[u] !== 'oberon') };
-  return { label: '', who: [] };
-}
-
-function endGame(s, winner, how, players) {
-  s.phase = 'done';
-  s.winner = winner;
-  s.how = how;
-  const ranking = s.order.map((uid) => {
-    const win = ROLES[s.roles[uid]].team === winner;
-    return { uid, score: win ? 1 : 0, place: win ? 1 : 2, garnets: win ? WIN_GARNETS : 0 };
-  });
-  return {
-    message: winner === 'good' ? '⚔️ 정의 팀 승리!' : '🗡️ 악 팀 승리!',
-    winners: ranking.filter((r) => r.place === 1).map((r) => r.uid),
-    ranking,
-    rewards: Object.fromEntries(ranking.map((r) => [r.uid, r.garnets])),
-  };
-}
-const nextLeader = (s) => s.order[(s.order.indexOf(s.leader) + 1) % s.order.length];
 
 export default {
   id: 'avalon',
@@ -97,111 +36,40 @@ export default {
     `이긴 팀 모두 가넷 +${WIN_GARNETS}`,
   ],
 
-  setup(players, room) {
-    const order = shuffle(players.map((p) => p.uid));
-    const roles = dealRoles(order, room?.options?.roles || ROLE_SETS[1]);
-    return {
-      order, roles, phase: 'role', seen: {}, quest: 0, results: [], leader: order[0], team: [], votes: {}, rejects: 0,
-      plays: {}, lastVote: null, lastQuest: null, turnNo: 1, history: [], target: null,
-    };
+  // 역할·투표·원정 카드는 서버가 맡아요 (방 문서에는 공개 정보만). 시작하면 방장 화면이 서버에 '역할 나눠 주기'를 요청해요.
+  serverMoves: true,
+  setup(players) {
+    return { phase: 'deal', order: players.map((p) => p.uid), turnNo: 0 };
   },
+  move() { throw new Error('아발론은 서버가 진행해요'); },
 
-  move(state, move, uid, players) {
-    const s = JSON.parse(JSON.stringify(state));
-    const n = s.order.length;
-    const t = move?.type;
-    if (!s.order.includes(uid)) throw new Error('참가자가 아니에요');
-    if (t === 'seen') {
-      if (s.phase !== 'role') throw new Error('__noop');
-      s.seen[uid] = true;
-      if (s.order.every((u) => s.seen[u])) { s.phase = 'propose'; s.turnNo += 1; }
-      return { state: s };
-    }
-    if (t === 'propose') {
-      if (s.phase !== 'propose') throw new Error('지금은 원정대를 고를 때가 아니에요');
-      if (uid !== s.leader) throw new Error('대표만 원정대를 고를 수 있어요');
-      const team = [...new Set(move.team || [])].filter((u) => s.order.includes(u));
-      const need = SIZES[n][s.quest];
-      if (team.length !== need) throw new Error(`원정대는 ${need}명이에요 (지금 ${team.length}명)`);
-      s.team = team;
-      s.votes = {};
-      s.phase = 'vote';
-      s.turnNo += 1;
-      return { state: s };
-    }
-    if (t === 'vote') {
-      if (s.phase !== 'vote') throw new Error('지금은 투표할 때가 아니에요');
-      s.votes[uid] = !!move.ok;
-      if (!s.order.every((u) => u in s.votes)) return { state: s };
-      const yes = s.order.filter((u) => s.votes[u]).length;
-      const pass = yes * 2 > n;
-      s.lastVote = { quest: s.quest, leader: s.leader, team: s.team, votes: s.votes, pass, at: Date.now() };
-      s.history.push({ kind: 'vote', ...s.lastVote });
-      if (pass) { s.phase = 'quest'; s.plays = {}; s.rejects = 0; }
-      else {
-        s.rejects += 1;
-        if (s.rejects >= 5) return { state: s, result: endGame(s, 'evil', 'rejects', players) };
-        s.leader = nextLeader(s);
-        s.team = [];
-        s.phase = 'propose';
-      }
-      s.turnNo += 1;
-      return { state: s };
-    }
-    if (t === 'play') {
-      if (s.phase !== 'quest') throw new Error('지금은 원정 카드를 낼 때가 아니에요');
-      if (!s.team.includes(uid)) throw new Error('원정대만 카드를 낼 수 있어요');
-      if (uid in s.plays) throw new Error('이미 냈어요');
-      const fail = !!move.fail;
-      if (fail && ROLES[s.roles[uid]].team === 'good') throw new Error('정의 팀은 성공 카드만 낼 수 있어요');
-      s.plays[uid] = fail;
-      if (!s.team.every((u) => u in s.plays)) return { state: s };
-      const fails = Object.values(s.plays).filter(Boolean).length;
-      const ok = fails < failsNeeded(n, s.quest);
-      s.results.push(ok);
-      s.lastQuest = { quest: s.quest, team: s.team, fails, ok, at: Date.now() };
-      s.history.push({ kind: 'quest', ...s.lastQuest });
-      s.plays = {};
-      const wins = s.results.filter(Boolean).length, losses = s.results.length - wins;
-      if (losses >= 3) return { state: s, result: endGame(s, 'evil', 'quests', players) };
-      if (wins >= 3) { s.phase = 'assassin'; s.turnNo += 1; return { state: s }; }
-      s.quest += 1;
-      s.leader = nextLeader(s);
-      s.team = [];
-      s.phase = 'propose';
-      s.turnNo += 1;
-      return { state: s };
-    }
-    if (t === 'chat') {
-      const text = String(move.text || '').trim().slice(0, 60);
-      if (!text) throw new Error('__noop');
-      s.chat = [...(s.chat || []), { u: uid, text, at: Date.now() }].slice(-40);
-      return { state: s };
-    }
-    if (t === 'assassinate') {
-      if (s.phase !== 'assassin') throw new Error('__noop');
-      if (s.roles[uid] !== 'assassin') throw new Error('암살자만 지목할 수 있어요');
-      const tg = move.target;
-      if (!s.order.includes(tg) || ROLES[s.roles[tg]].team !== 'good') throw new Error('정의 팀으로 보이는 사람을 골라 주세요');
-      s.target = tg;
-      const hit = s.roles[tg] === 'merlin';
-      return { state: s, result: endGame(s, hit ? 'evil' : 'good', hit ? 'assassin' : 'quests', players) };
-    }
-    throw new Error('알 수 없는 동작이에요');
-  },
-
-  render(el, { state, me, players, finished, sendMove, room }) {
+  render(el, { state, me, players, finished, sendMove, room, secret }) {
     const n = state.order.length;
+    if (state.phase === 'deal') {
+      // 방장이 서버에 역할 나눠 주기를 요청 (한 번만)
+      ui.show = false; // 새 판: 역할 카드 닫기
+      // 방장이 바로 요청하고, 5초가 지나도 그대로면 다른 사람도 요청해요 (서버는 한 번만 나눠 줘요)
+      const k = `${room?.code}:${room?.matchId}`;
+      if (room && ui.dealt !== k) {
+        if (ui.dealWait !== k) { ui.dealWait = k; ui.dealFirst = Date.now(); }
+        if (room.hostId === me || Date.now() - ui.dealFirst > 5000) { ui.dealt = k; sendMove({ type: 'deal' }, { silent: true }); }
+        else setTimeout(() => { if (el.isConnected && ui.dealt !== k) this.render(el, { state, me, players, finished, sendMove, room, secret }); }, 5200);
+      }
+      el.innerHTML = '<div class="av"><div class="av-msg">🃏 역할을 나눠 주는 중…</div></div>';
+      return;
+    }
+    const roles = state.roles || {}; // 게임이 끝나야 모두 공개돼요
+    const votedMap = state.voted || {}, playedMap = state.played || {};
     const name = (u) => esc(players[u]?.name || '나간 사람');
     const isPlayer = state.order.includes(me);
-    const myRole = state.roles[me];
+    const myRole = secret?.role || roles[me];
     const R = myRole ? ROLES[myRole] : null;
-    const know = isPlayer ? knowledge(state.roles, me) : { who: [] };
+    const know = isPlayer ? (secret?.know || (state.roles ? knowledge(state.roles, me) : { label: '', who: [] })) : { who: [] };
     const over = finished || state.phase === 'done';
     const color = (u) => COLORS[state.order.indexOf(u) % COLORS.length];
 
     // 내가 할 일이 있을 때 알림
-    const myAction = !over && ((state.phase === 'propose' && state.leader === me) || (state.phase === 'vote' && !(me in state.votes)) || (state.phase === 'quest' && state.team.includes(me) && !(me in state.plays)) || (state.phase === 'assassin' && myRole === 'assassin'));
+    const myAction = !over && ((state.phase === 'propose' && state.leader === me) || (state.phase === 'vote' && !votedMap[me]) || (state.phase === 'quest' && state.team.includes(me) && !playedMap[me]) || (state.phase === 'assassin' && myRole === 'assassin'));
     if (room) turnAlert(room.code, `av:${state.turnNo}`, myAction);
     if (room && state.lastQuest && ui.questSeen !== `${room.code}:${state.lastQuest.at}`) {
       const first = ui.questSeen === undefined;
@@ -242,12 +110,12 @@ export default {
       const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
       const x = 50 + Math.cos(ang) * 37, y = 50 + Math.sin(ang) * 38;
       const pickable = !over && state.phase === 'propose' && state.leader === me;
-      const target = !over && state.phase === 'assassin' && myRole === 'assassin' && ROLES[state.roles[u]].team === 'good' && u !== me;
+      const target = !over && state.phase === 'assassin' && myRole === 'assassin' && u !== me;
       const onTeam = state.phase === 'propose' ? sel.includes(u) : state.team.includes(u);
       const known = ui.show && know.who.includes(u); // 역할 카드를 열었을 때만 표시 (옆 사람이 못 보게)
-      const voted = state.phase === 'vote' && u in state.votes;
+      const voted = state.phase === 'vote' && !!votedMap[u];
       const showVote = state.lastVote && ['propose', 'quest'].includes(state.phase) && state.lastVote.quest === state.quest ? state.lastVote.votes[u] : undefined;
-      const reveal = over ? ROLES[state.roles[u]] : null;
+      const reveal = over && roles[u] ? ROLES[roles[u]] : null;
       return `<${pickable || target ? 'button' : 'div'} class="av-seat ${u === me ? 'me' : ''} ${onTeam ? 'team' : ''} ${known ? 'known' : ''} ${reveal ? reveal.team : ''} ${target ? 'target' : ''} ${state.target === u ? 'shot' : ''}" style="left:${x}%;top:${y}%;--pc:${color(u)}" ${pickable ? `data-pick="${u}"` : ''} ${target ? `data-kill="${u}"` : ''}>
         <span class="av-face">${faceHtml(players[u] || { name: '?' })}</span>
         ${state.leader === u && !over ? '<em class="av-crown">👑</em>' : ''}
@@ -281,19 +149,19 @@ export default {
         : `<div class="av-msg">👑 ${name(state.leader)}님이 ${state.quest + 1}번째 원정대 ${need}명을 고르는 중… 원탁 채팅으로 의견을 말해 보세요</div>
            <div class="av-rule">📜 원정대가 정해지면 모두 찬반 투표를 해요. <b>찬성이 ${majority}명 이상(과반)</b>이면 출발, 아니면 다음 사람이 대표가 돼요.</div>`;
     } else if (state.phase === 'vote') {
-      const left = state.order.filter((u) => !(u in state.votes)).length;
+      const left = state.order.filter((u) => !votedMap[u]).length;
       action = `<div class="av-msg">🗳️ ${name(state.leader)}님의 원정대: <b>${state.team.map(name).join(', ')}</b> · 찬성하나요? (남은 투표 ${left}명 · 모두 투표하면 한꺼번에 공개)</div>
         <div class="av-rule">📜 <b>찬성 ${majority}명 이상(${n}명 중 과반)</b> → 원정 출발! · 찬성이 ${majority - 1}명 이하 → <b>부결</b>, 다음 사람이 대표가 돼요.<br>⚠️ 지금 연속 부결 ${state.rejects}번 · <b>5번 연속 부결되면 악 팀이 바로 이겨요</b></div>
-        ${isPlayer ? (me in state.votes ? `<div class="av-done">투표했어요 (${state.votes[me] ? '찬성' : '반대'}) · 다른 사람 기다리는 중…</div>`
+        ${isPlayer ? (votedMap[me] ? `<div class="av-done">투표했어요${secret?.vote === true ? ' (찬성)' : secret?.vote === false ? ' (반대)' : ''} · 다른 사람 기다리는 중…</div>`
           : '<div class="av-two"><button class="av-yes" data-vote="1">👍 찬성</button><button class="av-no" data-vote="0">👎 반대</button></div>') : ''}`;
     } else if (state.phase === 'quest') {
-      const left = state.team.filter((u) => !(u in state.plays)).length;
+      const left = state.team.filter((u) => !playedMap[u]).length;
       const inTeam = state.team.includes(me);
       const fn = failsNeeded(n, state.quest);
       action = `<div class="av-msg">⚔️ 원정 중! ${state.team.map(name).join(', ')} · 카드를 낸 사람 ${state.team.length - left}/${state.team.length}</div>
         <div class="av-rule">📜 원정대가 몰래 성공/실패 카드를 내요. <b>실패 카드가 ${fn}장 이상</b>이면 <b class="no">원정 실패</b>, ${fn > 1 ? '실패 카드가 1장 이하' : '모두 성공 카드'}면 <b class="ok">원정 성공</b>이에요. 누가 냈는지는 공개되지 않아요.<br>정의 팀은 성공만 낼 수 있어요 · 원정 3번 성공하면 정의 팀, 3번 실패하면 악 팀이 이겨요</div>
-        ${inTeam ? (me in state.plays ? '<div class="av-done">카드를 냈어요 · 결과를 기다리는 중…</div>'
-          : `<div class="av-two"><button class="av-yes" data-play="0">✨ 성공</button><button class="av-no" data-play="1" ${R.team === 'good' ? 'disabled title="정의 팀은 성공만 낼 수 있어요"' : ''}>💥 실패</button></div>${R.team === 'good' ? '<small class="hint">정의 팀은 성공만 낼 수 있어요</small>' : ''}`) : ''}`;
+        ${inTeam ? (playedMap[me] ? '<div class="av-done">카드를 냈어요 · 결과를 기다리는 중…</div>'
+          : `<div class="av-two"><button class="av-yes" data-play="0">✨ 성공</button><button class="av-no" data-play="1" ${R?.team !== 'evil' ? 'disabled title="정의 팀은 성공만 낼 수 있어요"' : ''}>💥 실패</button></div>${R?.team !== 'evil' ? '<small class="hint">정의 팀은 성공만 낼 수 있어요</small>' : ''}`) : ''}`;
     } else if (state.phase === 'assassin') {
       action = myRole === 'assassin'
         ? '<div class="av-msg evil">🗡️ 정의 팀이 원정 3번을 성공했어요. <b>멀린이라고 생각하는 사람</b>을 원탁에서 눌러 암살하세요! (악 팀 동료와 의논해도 좋아요)</div>'
@@ -332,12 +200,12 @@ export default {
       $say.addEventListener('submit', (e) => { e.preventDefault(); const text = $i.value.trim(); if (!text) return; $i.value = ''; sendMove({ type: 'chat', text }); });
     }
     el.querySelectorAll('[data-bub]').forEach((b) => { const k = b.dataset.bub; const left = 6000 - (Date.now() - (ui.chatSeen[k] || 0)); setTimeout(() => b.remove(), Math.max(0, left)); });
-    el.querySelector('[data-toggle]')?.addEventListener('click', () => { ui.show = !ui.show; this.render(el, { state, me, players, finished, sendMove, room }); });
+    el.querySelector('[data-toggle]')?.addEventListener('click', () => { ui.show = !ui.show; this.render(el, { state, me, players, finished, sendMove, room, secret }); });
     el.querySelector('[data-seen]')?.addEventListener('click', () => sendMove({ type: 'seen' }));
     el.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => {
       const u = b.dataset.pick;
       ui.team = ui.team.includes(u) ? ui.team.filter((x) => x !== u) : ui.team.length < need ? [...ui.team, u] : ui.team;
-      this.render(el, { state, me, players, finished, sendMove, room });
+      this.render(el, { state, me, players, finished, sendMove, room, secret });
     }));
     el.querySelector('[data-propose]')?.addEventListener('click', () => sendMove({ type: 'propose', team: ui.team }));
     el.querySelectorAll('[data-vote]').forEach((b) => (b.onclick = () => sendMove({ type: 'vote', ok: b.dataset.vote === '1' })));
@@ -345,4 +213,4 @@ export default {
     el.querySelectorAll('[data-kill]').forEach((b) => (b.onclick = () => sendMove({ type: 'assassinate', target: b.dataset.kill })));
   },
 };
-const ui = { team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
+const ui = { dealt: '', team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
