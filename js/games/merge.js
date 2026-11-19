@@ -17,7 +17,7 @@ export const CHARS = [
   { name: '블랙홀', body: '#1a1030', dark: '#b06cff', r: 102 },
 ];
 const MAX = CHARS.length - 1;
-export const SPAWN = [38, 30, 18, 10, 4]; // 떨어뜨리는 확률(%): 별가루·운석·달·화성·금성
+export const SPAWN = [36, 29, 19, 11, 5]; // 떨어뜨리는 확률(%): 별가루·운석·달·화성·금성
 export const pointsFor = (lv) => lv * (lv + 1); // 새로 만든 단계 lv의 점수 (2, 6, 12, 20 …)
 const MAX_BONUS = 300;
 export const LIMIT = 50;        // 기본 떨어뜨리기 횟수
@@ -94,8 +94,8 @@ export function step(w, dt, now, onMerge) {
   }
   for (let it = 0; it < 4; it++) {
     for (const b of B) {
-      if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.25; b.touch = true; }
-      if (b.x + b.r > W) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.25; b.touch = true; }
+      if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) > 60 ? Math.abs(b.vx) * 0.25 : 0; b.touch = true; }
+      if (b.x + b.r > W) { b.x = W - b.r; b.vx = Math.abs(b.vx) > 60 ? -Math.abs(b.vx) * 0.25 : 0; b.touch = true; }
       if (b.y + b.r > H) { b.y = H - b.r; if (b.vy > 0) b.vy *= -0.12; if (it === 0) b.vx *= 0.993; b.touch = true; }
     }
     for (let i = 0; i < B.length; i++) {
@@ -128,11 +128,17 @@ export function step(w, dt, now, onMerge) {
     b.x = Math.max(b.r, Math.min(W - b.r, b.x));
     if (b.y + b.r > H) { b.y = H - b.r; if (b.vy > 0) b.vy = 0; }
     // 회전: 무언가에 닿아 있으면 굴러가는 속도에 맞춰 돌고, 공중에서는 돌던 대로
-    if (b.touch) { b.fall = false; b.w += (b.vx / b.r - b.w) * 0.5; } else b.w *= 0.998;
-    if (Math.hypot(b.vx, b.vy) < 8) b.w *= 0.85;
-    b.a += b.w * dt;
     // 실제로 움직인 속도 (쌓인 채 쉬는 캐릭터는 중력과 밀어내기가 상쇄돼 0에 가까워요 → 화면 주사율과 상관없이 멈춤 판정)
+    const mvx = b.px == null ? b.vx : (b.x - b.px) / dt;
     b.sp = b.px == null ? Math.hypot(b.vx, b.vy) : Math.hypot(b.x - b.px, b.y - b.py) / dt;
+    // 회전도 '실제로 굴러간 거리'로: 끼어서 못 움직이는 캐릭터는 속도 값이 남아 있어도 돌지 않아요
+    if (b.touch) { b.fall = false; b.w += (mvx / b.r - b.w) * 0.5; } else b.w *= 0.998;
+    if (b.sp < 8) b.w *= 0.85;
+    // 구름 저항: 닿은 채 느릿느릿 기어가는 움직임은 금방 멈춰요 (밀려날 때의 빠른 미끄러짐은 그대로)
+    if (b.touch && b.sp < 40) { const k = Math.exp(-7 * dt); b.vx *= k; if (b.vy < 0) b.vy *= k; }
+    // 거의 멈췄으면 딱 멈춰요 (위에서 눌려 아주 조금씩 밀리는 움직임·회전을 없애요)
+    if (b.touch && b.sp < 10 && Math.abs(b.vx) < 25) { b.vx = 0; b.w = 0; }
+    b.a += b.w * dt;
   }
 }
 // 모두 멈췄나? (속도가 거의 0이고 자라는 중인 캐릭터도 없음)
