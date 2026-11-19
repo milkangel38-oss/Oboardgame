@@ -1768,3 +1768,36 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .av-hist .ok { box-shadow: inset 3px 0 0 #3d7bff; } .av-hist .no { box-shadow: inset 3px 0 0 #ff4f6e; }
 .spl-flash.av-ok b, .spl-flash.av-ok { color: #8ab8ff; } .spl-flash.av-no { color: #ff8a9a; }
 @media (max-width: 420px) { .av-seat { width: 70px; } .av-face { width: 42px; height: 42px; } .av-seat b { font-size: 10.5px; } }
+
+/* 아발론: 더 세련된 원탁 · 큰 글자 · 체크 · 말풍선 · 규칙 안내 */
+.av-q { padding: 6px 2px; }
+.av-q b { font-size: clamp(22px, 6.4vw, 32px); display: flex; align-items: baseline; } .av-q b small { font-size: 12px; color: var(--muted); margin-left: 1px; }
+.av-q b.word { font-size: clamp(17px, 5vw, 24px); color: #fff; text-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+.av-q small { font-size: clamp(10px, 2.6vw, 12px); }
+.av-table { max-width: 620px; aspect-ratio: 1 / .92; }
+.av-round { width: 52%; background: none; box-shadow: none; }
+.av-round::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background:
+  radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, .25) 59%, transparent 62%),
+  repeating-radial-gradient(circle at 50% 50%, #7a4e24 0 6px, #8a5a2c 6px 11px, #6e4520 11px 14px),
+  conic-gradient(from 0deg, #6e4520, #9a6a34, #6e4520, #9a6a34, #6e4520);
+  box-shadow: 0 0 0 5px #c9a85a, 0 0 0 9px #4a2e14, 0 14px 30px rgba(0, 0, 0, .6), inset 0 0 30px rgba(0, 0, 0, .45); }
+.av-round-in { position: relative; display: grid; justify-items: center; gap: 2px; padding: 12%; border-radius: 50%; background: radial-gradient(circle, rgba(20, 12, 4, .55), rgba(20, 12, 4, .15) 70%); }
+.av-crest { width: clamp(36px, 11vw, 56px); height: auto; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
+.av-round-in b { font-family: var(--display); font-size: clamp(17px, 5vw, 24px); color: #ffe7a8; text-shadow: 0 2px 4px #000; line-height: 1.1; }
+.av-round-in small { font-size: clamp(11px, 3vw, 14px); color: #ffe7c8; font-weight: 700; }
+.av-score { display: flex; gap: 4px; } .av-score i { font-style: normal; font-size: clamp(10px, 2.8vw, 12.5px); font-weight: 800; padding: 1px 7px; border-radius: 99px; }
+.av-score .ok { background: #3d7bff; color: #fff; } .av-score .no { background: #ff4f6e; color: #fff; }
+.av-seat { width: 90px; } .av-face { width: 56px; height: 56px; } .av-seat b { font-size: 12.5px; }
+.av-check { position: absolute; top: 34px; right: 12px; font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #3ddc84; color: #0d2a1a; font-size: 15px; font-weight: 900; box-shadow: 0 0 0 2px #0d2a1a, 0 2px 6px rgba(0, 0, 0, .5); }
+.av-bub { position: absolute; bottom: calc(100% - 4px); left: 50%; transform: translateX(-50%); z-index: 5; max-width: 140px; padding: 5px 10px; border-radius: 12px; background: #fff; color: #1a1033; font-size: 12px; font-weight: 700; line-height: 1.3; word-break: keep-all; overflow-wrap: anywhere; box-shadow: 0 4px 10px rgba(0, 0, 0, .4); animation: amIn .25s ease; width: max-content; }
+.av-bub::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #fff; }
+.av-say { display: flex; gap: 6px; }
+.av-say input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid rgba(201, 168, 90, .45); background: rgba(0, 0, 0, .3); color: #fff; font: inherit; font-size: 16px; }
+.av-say button { padding: 0 16px; border-radius: 12px; border: 0; background: linear-gradient(90deg, #c9a85a, #e8cf8a); color: #1a1033; font: inherit; font-weight: 800; }
+.av-rule { padding: 9px 12px; border-radius: 12px; background: rgba(61, 123, 255, .1); border: 1px solid rgba(61, 123, 255, .35); font-size: 12.5px; line-height: 1.6; word-break: keep-all; }
+.av-rule b.ok { color: #8ab8ff; } .av-rule b.no { color: #ff8a9a; }
+@media (max-width: 420px) { .av-seat { width: 74px; } .av-face { width: 46px; height: 46px; } .av-check { top: 26px; right: 6px; width: 20px; height: 20px; font-size: 12px; } .av-bub { max-width: 110px; font-size: 11px; } }
+.av { overflow-x: clip; }
+.av-score i { white-space: nowrap; }
+.av-round-in b { white-space: nowrap; font-size: clamp(15px, 4.4vw, 24px); }
+.av-round-in small { white-space: nowrap; }
