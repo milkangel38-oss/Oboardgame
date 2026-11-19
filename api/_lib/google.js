@@ -33,6 +33,7 @@ let certCache = { certs: null, exp: 0 };
 async function certs() {
   if (certCache.certs && Date.now() < certCache.exp) return certCache.certs;
   const r = await fetch(CERT_URL);
+  if (!r.ok) throw new Error(`인증서를 받지 못했어요 (${r.status})`); // 실패한 응답은 저장하지 않아요
   const maxAge = Number(/max-age=(\d+)/.exec(r.headers.get('cache-control') || '')?.[1] || 3600);
   certCache = { certs: await r.json(), exp: Date.now() + maxAge * 1000 };
   return certCache.certs;
@@ -100,11 +101,10 @@ async function getDoc(col, id, transaction) {
 async function transact(fn, tries = 4) {
   for (let i = 0; i < tries; i++) {
     const { transaction } = await call(`${base()}:beginTransaction`, { method: 'POST', body: '{}' });
-    const writes = await fn((col, id) => getDoc(col, id, transaction));
-    if (!writes || !writes.length) {
-      await call(`${base()}:rollback`, { method: 'POST', body: JSON.stringify({ transaction }) }).catch(() => {});
-      return false;
-    }
+    const rollback = () => call(`${base()}:rollback`, { method: 'POST', body: JSON.stringify({ transaction }) }).catch(() => {});
+    let writes;
+    try { writes = await fn((col, id) => getDoc(col, id, transaction)); } catch (e) { await rollback(); throw e; } // 잠금이 남지 않게 바로 풀어요
+    if (!writes || !writes.length) { await rollback(); return false; }
     try {
       await call(`${base()}:commit`, {
         method: 'POST',

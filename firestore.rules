@@ -7,7 +7,7 @@ service cloud.firestore {
     // ── 프로필 · 전적 (users/{uid}) ──
     // 누구나(로그인한 사람) 볼 수 있고, 본인 것만 고칠 수 있어요.
     // 단, 가넷·전적·최고 기록은 서버(/api/record, /api/best)만 바꿀 수 있어요 (조작 방지).
-    function valueKeys() { return ['garnets', 'stats', 'ghist', 'lastMatch', 'recentMatches', 'best', 'bestAt']; }
+    function valueKeys() { return ['garnets', 'stats', 'ghist', 'lastMatch', 'recentMatches', 'rl', 'best', 'bestAt']; }
     match /users/{uid} {
       allow read: if signedIn();
       allow create: if signedIn() && me() == uid
@@ -36,6 +36,7 @@ service cloud.firestore {
         // 새로 들어오는 사람: 대기 중인 방에 '나'만 추가할 수 있어요
         (!(me() in resource.data.players)
           && resource.data.status == 'waiting'
+          && !(me() in resource.data.get('kicked', {}))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players'])
           && request.resource.data.players.diff(resource.data.players).affectedKeys().hasOnly([me()])
           && me() in request.resource.data.players

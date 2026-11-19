@@ -15,8 +15,8 @@ module.exports = async (req, res) => {
     const { code } = await readJson(req);
     if (!/^[A-Z0-9]{3,12}$/.test(String(code || ''))) return send(res, 400, { ok: false, error: '방 코드가 올바르지 않아요' });
     let out = null;
+    const room = await getDoc('rooms', code); // 방은 읽기만 해요 (트랜잭션 밖 → 방을 잠그지 않아요)
     await transact(async (read) => {
-      const room = await read('rooms', code);
       const prof = await read('users', uid);
       out = recordFor(room, prof, uid);
       return out ? [{ col: 'users', id: uid, data: out.data, fields: out.fields }] : [];

@@ -232,15 +232,23 @@ export function createBackend(config) {
       if (!config.databaseURL) return null;
       const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
       const rdb = m.getDatabase(app);
-      const mine = m.ref(rdb, `presence/${code}/${uid}`);
+      // 연결(탭)마다 따로 표시해요: presence/{방}/{uid}/{연결id} — 한 사람이 탭을 여러 개 열어도 하나만 닫혔다고 사라지지 않게
+      let mine = null;
       const offConn = m.onValue(m.ref(rdb, '.info/connected'), (s) => {
         if (s.val() !== true) return;
-        m.onDisconnect(mine).remove().then(() => m.set(mine, true)).catch(() => {});
+        const conn = m.push(m.ref(rdb, `presence/${code}/${uid}`));
+        mine = conn;
+        m.onDisconnect(conn).remove().then(() => m.set(conn, true)).catch(() => {});
       });
       let offRoom = () => {};
       return {
-        watch(cb) { offRoom = m.onValue(m.ref(rdb, `presence/${code}`), (s) => cb(new Set(Object.keys(s.val() || {}))), () => cb(null)); },
-        close() { offConn(); offRoom(); m.remove(mine).catch(() => {}); },
+        watch(cb) {
+          offRoom = m.onValue(m.ref(rdb, `presence/${code}`), (s) => {
+            const v = s.val() || {};
+            cb(new Set(Object.keys(v).filter((u) => v[u] && typeof v[u] === 'object' && Object.keys(v[u]).length)));
+          }, () => cb(null));
+        },
+        close() { offConn(); offRoom(); if (mine) m.remove(mine).catch(() => {}); },
       };
     },
 

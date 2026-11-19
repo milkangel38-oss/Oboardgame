@@ -17,6 +17,7 @@ const profileListeners = new Set();
 let authReady = false;
 let cleanup = null;
 const recordedMatches = new Set();
+const recordRetries = new Map();
 
 // 화면에 쓰는 "나" = 로그인 정보 + 프로필에서 바꾼 닉네임/사진
 function me() {
@@ -114,13 +115,14 @@ backend.onAuth((u) => {
       if (sig === lastSig) return; // 접속 신호만 바뀐 경우
       lastSig = sig;
       syncFriendSubs();
+      migrateOldDm();
       profileListeners.forEach((fn) => fn());
     }) : null;
     stopFriends();
-    dmUnsub?.(); dmUnsub = null; dmDocs = {}; dmMigrated = false;
+    dmUnsub?.(); dmUnsub = null; dmDocs = {}; dmMigrated = false; dmLoaded = false;
     if (u) {
       pushPresence(); startFriends();
-      dmUnsub = backend.watchDms?.(u.uid, (d) => { dmDocs = d; migrateOldDm(); Object.keys(d).forEach(checkDm); notifyFriends(); });
+      dmUnsub = backend.watchDms?.(u.uid, (d) => { dmDocs = d; dmLoaded = true; migrateOldDm(); Object.keys(d).forEach(checkDm); notifyFriends(); });
     }
   }
   route();
@@ -500,14 +502,14 @@ function drawFriends() {
 // 두 사람만 읽을 수 있는 dms/{a__b} 문서에 각자 보낸 메시지를 최근 40개씩 저장해요.
 // (예전에는 내 프로필 dm{}에 저장했어요 → 처음 접속할 때 새 저장소로 옮기고, 아직 안 옮긴 친구 것도 같이 보여 줘요)
 const DM_MAX = 40;
-let dmDocs = {}, dmUnsub = null, dmMigrated = false;
+let dmDocs = {}, dmUnsub = null, dmMigrated = false, dmLoaded = false;
 const dmReadKey = (fid) => `og:dmread:${user?.uid}:${fid}`;
 const lastRead = (fid) => Number(localStorage.getItem(dmReadKey(fid))) || 0;
 const dmUniq = (list) => { const seen = new Set(); return list.filter((m) => m && typeof m.text === 'string' && !seen.has(`${m.t}:${m.text}`) && seen.add(`${m.t}:${m.text}`)).sort((a, b) => a.t - b.t); };
 const myMsgs = (fid) => dmUniq([...(dmDocs[fid]?.mine || []), ...(profile?.dm?.[fid] || [])]);
 const theirMsgs = (fid) => dmUniq([...(dmDocs[fid]?.theirs || []), ...(fdocs[fid]?.dm?.[user.uid] || [])]);
 function migrateOldDm() {
-  if (dmMigrated || !profile || !user) return;
+  if (dmMigrated || !dmLoaded || !profile || !user) return; // 새 DM 저장소를 한 번 받아 온 뒤에만 (기존 새 메시지를 덮어쓰지 않게)
   dmMigrated = true;
   const old = profile.dm || {};
   const fids = Object.keys(old).filter((f) => Array.isArray(old[f]) && old[f].length);
@@ -1009,20 +1011,23 @@ function renderRoom(code) {
       h.watch((set) => { online = set; });
     }).catch(() => {});
   }
+  const WAIT_GONE_MS = 3 * 60 * 1000; // 대기 중에는 넉넉히 (카톡으로 초대 링크 보내러 잠깐 나가도 괜찮게)
   const rtdbCheck = presenceOn ? setInterval(() => {
-    if (!online || !latest || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
+    // 내 접속 표시가 보일 때만 믿어요 (규칙 문제 등으로 아무도 안 보이면 다 내보내는 사고 방지)
+    if (!online || !online.has(user.uid) || !latest || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
+    const limit = latest.status === 'playing' ? GONE_MS : WAIT_GONE_MS;
     if (Date.now() - enteredAt < GONE_MS) return; // 방금 들어왔으면 잠시 지켜봐요
     const now = Date.now();
     Object.values(latest.players).forEach((p) => {
       if (p.uid === user.uid) return;
       if (online.has(p.uid) || now - (p.joinedAt || 0) < GONE_MS) { delete missing[p.uid]; return; }
       missing[p.uid] ||= now;
-      if (now - missing[p.uid] > GONE_MS) { delete missing[p.uid]; backend.mutateRoom(code, (r) => R.dropAbsent(r, p.uid)).catch(() => {}); }
+      if (now - missing[p.uid] > limit) { delete missing[p.uid]; backend.mutateRoom(code, (r) => R.dropAbsent(r, p.uid)).catch(() => {}); }
     });
   }, 5000) : null;
   // 2순위(Realtime Database를 못 쓸 때만): 게임 중 10초마다 seen 기록
   const presence = presenceOn ? setInterval(() => {
-    if (online || !latest || latest.status !== 'playing' || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
+    if (online?.has(user.uid) || !latest || latest.status !== 'playing' || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
     backend.mutateRoom(code, (r) => R.heartbeat(r, user.uid)).catch(() => {});
     const now = Date.now();
     Object.values(latest.players).forEach((p) => {
@@ -1196,7 +1201,9 @@ function recordIfFinished(room) {
   const garnets = room.result.rewards?.[user.uid] || 0;
   backend.recordResult(user.uid, key, room.gameId, { place, garnets }).catch((e) => {
     console.warn('전적 저장 실패', e);
-    if (!e.status || e.status >= 500) setTimeout(() => recordedMatches.delete(key), 5000); // 네트워크·서버 문제면 잠시 뒤 다시 시도
+    const n = (recordRetries.get(key) || 0) + 1;
+    recordRetries.set(key, n);
+    if ((!e.status || e.status >= 500) && !e.code && n < 4) setTimeout(() => recordedMatches.delete(key), 5000 * n); // 네트워크·서버 문제면 잠시 뒤 다시 (최대 3번)
   });
 }
 
