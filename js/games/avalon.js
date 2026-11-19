@@ -144,7 +144,14 @@ export default {
     if (over) {
       const how = { rejects: '원정대가 5번 연속 부결됐어요', quests: state.winner === 'good' ? (state.target ? `암살자가 ${name(state.target)}님을 지목했지만 멀린이 아니었어요!` : '원정 3번 성공!') : '원정이 3번 실패했어요', assassin: `암살자가 멀린(${name(state.target)}님)을 찾아냈어요!` }[state.how];
       action = `<div class="av-end ${state.winner}"><b>${state.winner === 'good' ? '⚔️ 정의 팀 승리!' : '🗡️ 악 팀 승리!'}</b><small>${how}</small>
-        <span>${R ? (R.team === state.winner ? `🎉 우리 팀이 이겼어요! ${GARNET}+${WIN_GARNETS}` : '😢 우리 팀이 졌어요') : ''}</span></div>`;
+        <span>${R ? (R.team === state.winner ? `🎉 우리 팀이 이겼어요! ${GARNET}+${WIN_GARNETS}` : '😢 우리 팀이 졌어요') : ''}</span></div>
+        <div class="av-reveal">${['good', 'evil'].map((tm) => `<div class="av-rv-team ${tm} ${state.winner === tm ? 'win' : ''}">
+          <b>${tm === 'good' ? '⚔️ 정의 팀' : '🗡️ 악 팀'}${state.winner === tm ? ' 🏆' : ''}</b>
+          ${state.order.filter((u) => roles[u] && ROLES[roles[u]].team === tm).map((u) => `<div class="av-rv ${u === me ? 'me' : ''} ${state.target === u ? 'shot' : ''}">
+            <span class="av-rv-face" style="--pc:${color(u)}">${faceHtml(players[u] || { name: '?' })}</span>
+            <span class="av-rv-name">${name(u)}${u === me ? ' (나)' : ''}</span>
+            <span class="av-rv-role">${ROLES[roles[u]].icon} ${ROLES[roles[u]].name}${state.target === u ? ' · 🎯 암살 지목' : ''}</span></div>`).join('')}
+        </div>`).join('')}</div>`;
     } else if (state.phase === 'role') {
       const waiting = state.order.filter((u) => !state.seen[u]).length;
       action = `<div class="av-msg">🤫 내 역할을 몰래 확인하고 <b>확인</b>을 눌러 주세요 ${waiting ? `(남은 사람 ${waiting}명)` : ''}</div>
@@ -177,7 +184,7 @@ export default {
     }
 
     // 내 역할 카드 (누르면 보였다 숨겼다)
-    const roleCard = R ? `<button class="av-role-card ${R.team} ${ui.show ? 'open' : ''}" data-toggle>
+    const roleCard = R && !over ? `<button class="av-role-card ${R.team} ${ui.show ? 'open' : ''}" data-toggle>
       ${ui.show ? `<span class="av-rc-icon">${R.icon}</span><b>${R.name}</b><small>${R.team === 'good' ? '정의 팀' : '악 팀'}</small><p>${R.desc}</p>
         ${know.who.length ? `<p class="av-rc-know">${know.label}: <b>${know.who.map(name).join(', ')}</b></p>` : myRole === 'oberon' ? '<p class="av-rc-know">동료를 모르는 외톨이예요</p>' : ''}<em>눌러서 숨기기</em>`
         : '<span class="av-rc-icon">🂠</span><b>내 역할 보기</b><em>다른 사람이 못 보게 조심!</em>'}
