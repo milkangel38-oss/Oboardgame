@@ -7,7 +7,7 @@ import {
   setPersistence, browserSessionPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField, collection, query, where, orderBy, limit, getDocs,
+  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, getDoc, deleteField, collection, query, where, orderBy, limit, getDocs,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { randomCode } from './code.js';
 
@@ -116,14 +116,32 @@ export function createBackend(config) {
       });
     },
 
+    // 가넷·전적·최고 기록은 서버(/api)가 확인하고 저장해요 (브라우저에서는 바꿀 수 없게 보안 규칙으로 막혀 있어요)
+    async callApi(path, body) {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('로그인이 필요해요');
+      const r = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { const e = new Error(j.error || `서버 오류 (${r.status})`); e.status = r.status; throw e; }
+      return j;
+    },
+
     // 혼자 하는 게임의 최고 기록 (내 프로필 best.{게임}) · 랭킹
+    async getBest(uid, key) {
+      const snap = await getDoc(doc(db, 'users', uid));
+      return Number(snap.data()?.best?.[key]) || 0;
+    },
     async saveBest(uid, key, score) {
-      let best = 0;
-      await this.updateProfile(uid, (p) => {
-        best = Math.max(p.best?.[key] || 0, score);
-        return { ...p, best: { ...(p.best || {}), [key]: best }, bestAt: { ...(p.bestAt || {}), [key]: best === score ? Date.now() : p.bestAt?.[key] || 0 } };
-      });
-      return best;
+      try {
+        const j = await this.callApi('/api/best', { key, score: Math.floor(score) });
+        return Number(j.best) || 0;
+      } catch (e) {
+        if (e.status && e.status < 500) throw e;
+        // 서버를 못 쓰면 예전 방식으로 (새 보안 규칙을 게시하면 이 길은 막혀요)
+        let best = 0;
+        await this.updateProfile(uid, (p) => { best = Math.max(Number(p.best?.[key]) || 0, score); return { ...p, best: { ...(p.best || {}), [key]: best } }; });
+        return best;
+      }
     },
     async topScores(key, n = 10) {
       const snap = await getDocs(query(collection(db, 'users'), orderBy(`best.${key}`, 'desc'), limit(n)));
@@ -139,21 +157,57 @@ export function createBackend(config) {
       );
     },
 
-    async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {
+    async recordResult(uid, matchKey, gameId, { place, garnets = 0 } = {}) {
+      try {
+        await this.callApi('/api/record', { code: matchKey.split(':')[0] });
+      } catch (e) {
+        if (e.status && e.status < 500) throw e;
+        console.warn('서버 기록 실패 → 예전 방식으로 기록', e);
+        await this.legacyRecord(uid, matchKey, gameId, { place, garnets });
+      }
+    },
+    // 예전 방식(브라우저가 직접 기록). 새 보안 규칙을 게시하면 권한이 없어 실패해요.
+    async legacyRecord(uid, matchKey, gameId, { place, garnets = 0 }) {
       const ref = doc(db, 'users', uid);
       await runTransaction(db, async (t) => {
         const snap = await t.get(ref);
         const p = snap.exists() ? snap.data() : {};
-        if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
+        const recent = p.recentMatches || [];
+        if (p.lastMatch === matchKey || recent.includes(matchKey)) return;
         const stats = p.stats || {};
         const g = { plays: 0, wins: 0, garnets: 0, ...(stats[gameId] || {}) };
         g.plays += 1;
-        if (garnets > 0) g.wins += 1; // 가넷을 받으면 승, 못 받으면 패
+        if (garnets > 0) g.wins += 1;
         g.garnets += garnets;
         const total = Math.max(0, (p.garnets || 0) + garnets);
-        const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30); // 최근 가넷 내역
-        t.set(ref, { stats: { ...stats, [gameId]: g }, garnets: total, ghist, lastMatch: matchKey }, { merge: true });
+        const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30);
+        t.set(ref, { stats: { ...stats, [gameId]: g }, garnets: total, ghist, lastMatch: matchKey, recentMatches: [matchKey, ...recent].slice(0, 30) }, { merge: true });
       });
+    },
+
+    // 친구 DM: dms/{두 사람 uid를 정렬해 '__'로 이은 것} = { users: [a, b], a: [a가 보낸 메시지], b: [b가 보낸 메시지] }
+    // 보안 규칙으로 두 사람만 읽을 수 있고, 각자 자기 칸(a 또는 b)만 쓸 수 있어요.
+    watchDms(uid, cb) {
+      return onSnapshot(
+        query(collection(db, 'dms'), where('users', 'array-contains', uid)),
+        (snap) => {
+          const out = {};
+          snap.docs.forEach((d) => {
+            const x = d.data(); const [a, b] = x.users || [];
+            const me = a === uid ? 'a' : 'b', fid = a === uid ? b : a;
+            if (fid) out[fid] = { mine: x[me] || [], theirs: x[me === 'a' ? 'b' : 'a'] || [] };
+          });
+          cb(out);
+        },
+        (err) => { console.warn('DM을 불러오지 못했어요', err); cb({}); },
+      );
+    },
+    async writeDm(uid, fid, msgs) {
+      const users = [uid, fid].sort();
+      await setDoc(doc(db, 'dms', users.join('__')), { users, [users[0] === uid ? 'a' : 'b']: msgs }, { merge: true });
+    },
+    async clearOldDm(uid) {
+      await setDoc(doc(db, 'users', uid), { dm: deleteField() }, { merge: true });
     },
 
     // 실시간 위치 채널 (자객 마피아) — Realtime Database: live/{방코드}/{uid}
@@ -169,6 +223,24 @@ export function createBackend(config) {
         watch(cb) { return m.onValue(base, (snap) => cb(snap.val() || {}), () => cb({})); },
         onLeave(uid) { try { m.onDisconnect(m.child(base, uid)).remove(); } catch {} },
         close(uid) { m.remove(m.child(base, uid)).catch(() => {}); },
+      };
+    },
+
+    // 방 접속 확인 (Realtime Database: presence/{방코드}/{uid}) — 창을 닫거나 연결이 끊기면 서버가 알아서 지워요.
+    // cb(온라인 uid Set) · 사용할 수 없으면 cb(null) → 예전 방식(seen)으로 확인
+    async roomPresence(code, uid) {
+      if (!config.databaseURL) return null;
+      const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+      const rdb = m.getDatabase(app);
+      const mine = m.ref(rdb, `presence/${code}/${uid}`);
+      const offConn = m.onValue(m.ref(rdb, '.info/connected'), (s) => {
+        if (s.val() !== true) return;
+        m.onDisconnect(mine).remove().then(() => m.set(mine, true)).catch(() => {});
+      });
+      let offRoom = () => {};
+      return {
+        watch(cb) { offRoom = m.onValue(m.ref(rdb, `presence/${code}`), (s) => cb(new Set(Object.keys(s.val() || {}))), () => cb(null)); },
+        close() { offConn(); offRoom(); m.remove(mine).catch(() => {}); },
       };
     },
 

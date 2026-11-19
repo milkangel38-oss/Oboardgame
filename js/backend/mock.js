@@ -17,7 +17,7 @@ const roomListeners = new Set();
 function notifyRooms() { roomListeners.forEach((fn) => fn()); }
 window.addEventListener('storage', (e) => {
   if (e.key === ROOMS_KEY) notifyRooms();
-  if (e.key?.startsWith(PROFILE_PREFIX)) notifyProfiles();
+  if (e.key?.startsWith(PROFILE_PREFIX) || e.key?.startsWith('og-dm:')) notifyProfiles();
 });
 
 function loadProfile(uid) {
@@ -119,6 +119,7 @@ export function createBackend() {
     },
 
     async recordResult(uid, matchKey, gameId, { place, garnets = 0 }) {
+      // 테스트 모드: 서버 대신 브라우저에서 같은 규칙으로 기록
       const p = loadProfile(uid) || {};
       if (p.lastMatch === matchKey) return; // 같은 판을 두 번 기록하지 않음
       const stats = p.stats || {};
@@ -129,6 +130,38 @@ export function createBackend() {
       const total = Math.max(0, (p.garnets || 0) + garnets);
       const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30); // 최근 가넷 내역
       saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: total, ghist, lastMatch: matchKey });
+    },
+
+    // 친구 DM (테스트 모드: localStorage 'og-dm:<a>__<b>')
+    watchDms(uid, cb) {
+      const emit = () => {
+        const out = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k.startsWith('og-dm:')) continue;
+          let x; try { x = JSON.parse(localStorage.getItem(k)); } catch { continue; }
+          const [a, b] = x.users || [];
+          if (a !== uid && b !== uid) continue;
+          const me = a === uid ? 'a' : 'b', fid = a === uid ? b : a;
+          out[fid] = { mine: x[me] || [], theirs: x[me === 'a' ? 'b' : 'a'] || [] };
+        }
+        cb(out);
+      };
+      profileListeners.add(emit);
+      emit();
+      return () => profileListeners.delete(emit);
+    },
+    async writeDm(uid, fid, msgs) {
+      const users = [uid, fid].sort();
+      const k = `og-dm:${users.join('__')}`;
+      let x = {}; try { x = JSON.parse(localStorage.getItem(k)) || {}; } catch {}
+      localStorage.setItem(k, JSON.stringify({ ...x, users, [users[0] === uid ? 'a' : 'b']: msgs }));
+      notifyProfiles();
+    },
+    async clearOldDm(uid) {
+      const p = loadProfile(uid) || {};
+      delete p.dm;
+      saveProfile(uid, p);
     },
 
     // 실시간 위치 채널 (테스트 모드: 같은 브라우저 탭끼리 BroadcastChannel)
@@ -151,6 +184,7 @@ export function createBackend() {
       await this.updateProfile(uid, (p) => { best = Math.max(p.best?.[key] || 0, score); return { ...p, best: { ...(p.best || {}), [key]: best } }; });
       return best;
     },
+    async getBest(uid, key) { return Number(loadProfile(uid)?.best?.[key]) || 0; },
     async topScores(key, n = 10) {
       const out = [];
       for (let i = 0; i < localStorage.length; i++) {

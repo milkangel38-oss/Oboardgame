@@ -117,7 +117,11 @@ backend.onAuth((u) => {
       profileListeners.forEach((fn) => fn());
     }) : null;
     stopFriends();
-    if (u) { pushPresence(); startFriends(); }
+    dmUnsub?.(); dmUnsub = null; dmDocs = {}; dmMigrated = false;
+    if (u) {
+      pushPresence(); startFriends();
+      dmUnsub = backend.watchDms?.(u.uid, (d) => { dmDocs = d; migrateOldDm(); Object.keys(d).forEach(checkDm); notifyFriends(); });
+    }
   }
   route();
 });
@@ -158,6 +162,24 @@ function route() {
 }
 
 // ───────── 로그인 ─────────
+// ───────── 앱 안 브라우저(카카오톡·네이버앱·인스타 등) ─────────
+// 구글은 앱 안 브라우저에서 로그인을 막아요(disallowed_useragent) → 바깥 브라우저로 열도록 안내해요.
+const UA = navigator.userAgent || '';
+const IN_APP = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|FB_IAB|Line\/|DaumApps|everytimeApp|; wv\)/i.test(UA);
+const IS_KAKAO = /KAKAOTALK/i.test(UA);
+const IS_ANDROID = /Android/i.test(UA);
+// 카카오톡은 바깥 브라우저로 바로 열 수 있어요 (한 번만 시도)
+if (IS_KAKAO && !sessionStorage.getItem('og:extTried')) {
+  sessionStorage.setItem('og:extTried', '1');
+  location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(location.href)}`;
+}
+function openExternal() {
+  const url = location.href;
+  if (IS_KAKAO) { location.href = `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}`; return; }
+  if (IS_ANDROID) { location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`; return; }
+  navigator.clipboard?.writeText(url).then(() => toast('주소를 복사했어요. Safari에 붙여 넣어 열어 주세요!'), () => toast(url));
+}
+
 function renderLogin(invited) {
   $app.innerHTML = `
     <main class="login">
@@ -175,6 +197,11 @@ function renderLogin(invited) {
         ${backend.mode === 'mock' ? `<div class="notice">🧪 <b>혼자 테스트 모드</b> · 로그인 없이 임시 플레이어로 들어가요.<br>
           새 탭에 초대 링크를 붙여 넣으면 그 탭은 다른 플레이어가 돼요. 여기서 얻은 가넷·전적은 실제 계정과 상관없어요.</div>` : ''}
 
+        ${IN_APP && (backend.mode !== 'mock' || location.search.includes('inapp')) ? `<div class="inapp-note"><p>⚠️ 지금은 <b>앱 안의 브라우저</b>라서 <b>구글 로그인이 막혀 있어요.</b><br>
+          네이버로 참여하거나, 바깥 브라우저로 열어 주세요.</p>
+          <button class="btn primary sm" data-ext>${IS_ANDROID || IS_KAKAO ? '🌐 바깥 브라우저로 열기' : '🔗 주소 복사 (Safari에 붙여 넣기)'}</button>
+          ${!IS_KAKAO && !IS_ANDROID ? '<small>또는 오른쪽 아래/위 메뉴(⋯)에서 "Safari로 열기"를 눌러도 돼요</small>' : ''}</div>` : ''}
+
         <div class="login-buttons">
           <button class="arcade-btn google" data-p="google"><span class="ico">G</span>Google로 참여하기</button>
           <button class="arcade-btn naver" data-p="naver"><span class="ico">N</span>네이버로 참여하기</button>
@@ -183,8 +210,10 @@ function renderLogin(invited) {
         <p class="version">${APP_VERSION} · <a href="/about.html">서비스 소개</a> · <a href="/privacy.html">개인정보 처리방침</a></p>
       </div>
     </main>`;
+  $app.querySelector('[data-ext]')?.addEventListener('click', openExternal);
   $app.querySelectorAll('[data-p]').forEach((b) => {
     b.onclick = async () => {
+      if (IN_APP && b.dataset.p === 'google' && backend.mode !== 'mock') { toast('앱 안 브라우저에서는 구글 로그인이 안 돼요. 네이버로 참여하거나 바깥 브라우저로 열어 주세요'); return; }
       try { await backend.signIn(b.dataset.p, {}); } catch (e) { toast(e.message); }
     };
   });
@@ -468,24 +497,37 @@ function drawFriends() {
 }
 
 // ───────── 친구와 대화 (DM) ─────────
-// 보낸 메시지는 내 문서 dm{친구uid: [{t, text}]} 에 최근 40개만 저장 → 두 사람 문서를 합쳐서 대화로 보여 줘요.
+// 두 사람만 읽을 수 있는 dms/{a__b} 문서에 각자 보낸 메시지를 최근 40개씩 저장해요.
+// (예전에는 내 프로필 dm{}에 저장했어요 → 처음 접속할 때 새 저장소로 옮기고, 아직 안 옮긴 친구 것도 같이 보여 줘요)
 const DM_MAX = 40;
+let dmDocs = {}, dmUnsub = null, dmMigrated = false;
 const dmReadKey = (fid) => `og:dmread:${user?.uid}:${fid}`;
 const lastRead = (fid) => Number(localStorage.getItem(dmReadKey(fid))) || 0;
+const dmUniq = (list) => { const seen = new Set(); return list.filter((m) => m && typeof m.text === 'string' && !seen.has(`${m.t}:${m.text}`) && seen.add(`${m.t}:${m.text}`)).sort((a, b) => a.t - b.t); };
+const myMsgs = (fid) => dmUniq([...(dmDocs[fid]?.mine || []), ...(profile?.dm?.[fid] || [])]);
+const theirMsgs = (fid) => dmUniq([...(dmDocs[fid]?.theirs || []), ...(fdocs[fid]?.dm?.[user.uid] || [])]);
+function migrateOldDm() {
+  if (dmMigrated || !profile || !user) return;
+  dmMigrated = true;
+  const old = profile.dm || {};
+  const fids = Object.keys(old).filter((f) => Array.isArray(old[f]) && old[f].length);
+  if (!fids.length && !('dm' in profile)) return;
+  Promise.all(fids.map((f) => backend.writeDm(user.uid, f, myMsgs(f).slice(-DM_MAX))))
+    .then(() => backend.clearOldDm(user.uid))
+    .catch((e) => { console.warn('DM 옮기기 실패', e); dmMigrated = false; });
+}
 function dmThread(fid) {
-  const mine = (profile?.dm?.[fid] || []).map((m) => ({ ...m, me: true }));
-  const theirs = (fdocs[fid]?.dm?.[user.uid] || []).map((m) => ({ ...m, me: false }));
-  return [...mine, ...theirs].sort((a, b) => a.t - b.t);
+  return [...myMsgs(fid).map((m) => ({ ...m, me: true })), ...theirMsgs(fid).map((m) => ({ ...m, me: false }))].sort((a, b) => a.t - b.t);
 }
 function unreadCount(fid) {
   if (!profile?.friends?.[fid] || dmOpen === fid) return 0;
   const r = lastRead(fid);
-  return (fdocs[fid]?.dm?.[user.uid] || []).filter((m) => m.t > r).length;
+  return theirMsgs(fid).filter((m) => m.t > r).length;
 }
 const dmToasted = new Set();
 function checkDm(fid) {
   if (!user || !profile?.friends?.[fid]) return;
-  const msgs = fdocs[fid]?.dm?.[user.uid] || [];
+  const msgs = theirMsgs(fid);
   const last = msgs[msgs.length - 1];
   if (!last) return;
   if (dmOpen === fid) { localStorage.setItem(dmReadKey(fid), String(last.t)); drawDm(); return; }
@@ -551,11 +593,7 @@ function drawDm(focus = false) {
     dmDraft = '';
     $in.value = '';
     try {
-      await backend.updateProfile(user.uid, (d) => {
-        const dm = { ...(d.dm || {}) };
-        dm[fid] = [...(dm[fid] || []), { t: Date.now(), text }].slice(-DM_MAX);
-        return { ...d, dm };
-      });
+      await backend.writeDm(user.uid, fid, [...myMsgs(fid), { t: Date.now(), text }].slice(-DM_MAX));
     } catch (err) { toast('보내지 못했어요: ' + err.message); dmDraft = text; drawDm(true); }
   };
 }
@@ -954,12 +992,37 @@ function renderRoom(code) {
   // 게임 중 접속 확인: 10초마다 내 접속 신호, 40초 넘게 신호가 없는 사람은 나간 것으로 처리
   // (혼자 테스트 모드에서는 뒤쪽 탭이 느려져서 꺼 둬요. 확인용으로 ?presence 를 붙이면 켜져요)
   const HEARTBEAT_MS = 10000;
-  const GONE_MS = Number(new URLSearchParams(location.search).get('gone')) || 40000;
+  const GONE_MS = (backend.mode === 'mock' && Number(new URLSearchParams(location.search).get('gone'))) || 40000; // ?gone= 은 테스트 모드에서만
   const presenceOn = backend.mode !== 'mock' || new URLSearchParams(location.search).has('presence');
   let latest = null;
   let lastSig = '';
+  // 1순위: Realtime Database 접속 표시 (연결이 끊기면 서버가 자동으로 지움 → 대기 중에도 나간 사람 정리)
+  let online = null; // 온라인 uid Set (null = 아직 모름/사용 불가)
+  const missing = {}; // uid → 처음 안 보인 시각 (내 시계 기준)
+  const enteredAt = Date.now();
+  let rp = null, closed = false;
+  if (presenceOn && backend.roomPresence) {
+    backend.roomPresence(code, user.uid).then((h) => {
+      if (!h) return;
+      if (closed) { h.close(); return; }
+      rp = h;
+      h.watch((set) => { online = set; });
+    }).catch(() => {});
+  }
+  const rtdbCheck = presenceOn ? setInterval(() => {
+    if (!online || !latest || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
+    if (Date.now() - enteredAt < GONE_MS) return; // 방금 들어왔으면 잠시 지켜봐요
+    const now = Date.now();
+    Object.values(latest.players).forEach((p) => {
+      if (p.uid === user.uid) return;
+      if (online.has(p.uid) || now - (p.joinedAt || 0) < GONE_MS) { delete missing[p.uid]; return; }
+      missing[p.uid] ||= now;
+      if (now - missing[p.uid] > GONE_MS) { delete missing[p.uid]; backend.mutateRoom(code, (r) => R.dropAbsent(r, p.uid)).catch(() => {}); }
+    });
+  }, 5000) : null;
+  // 2순위(Realtime Database를 못 쓸 때만): 게임 중 10초마다 seen 기록
   const presence = presenceOn ? setInterval(() => {
-    if (!latest || latest.status !== 'playing' || !latest.players[user.uid]) return;
+    if (online || !latest || latest.status !== 'playing' || !latest.players[user.uid] || getGame(latest.gameId)?.solo) return;
     backend.mutateRoom(code, (r) => R.heartbeat(r, user.uid)).catch(() => {});
     const now = Date.now();
     Object.values(latest.players).forEach((p) => {
@@ -1000,7 +1063,7 @@ function renderRoom(code) {
     drawRoom($main, room, game);
   });
 
-  return () => { unsub(); if (presence) clearInterval(presence); stopGameBgm(); vol(); };
+  return () => { closed = true; unsub(); if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1131,7 +1194,10 @@ function recordIfFinished(room) {
   const mine = (room.result.ranking || []).find((r) => r.uid === user.uid);
   const place = mine?.place || ((room.result.winners || []).includes(user.uid) ? 1 : 0);
   const garnets = room.result.rewards?.[user.uid] || 0;
-  backend.recordResult(user.uid, key, room.gameId, { place, garnets }).catch((e) => console.warn('전적 저장 실패', e));
+  backend.recordResult(user.uid, key, room.gameId, { place, garnets }).catch((e) => {
+    console.warn('전적 저장 실패', e);
+    if (!e.status || e.status >= 500) setTimeout(() => recordedMatches.delete(key), 5000); // 네트워크·서버 문제면 잠시 뒤 다시 시도
+  });
 }
 
 function drawRoom($main, room, game) {
@@ -1211,6 +1277,7 @@ function drawRoom($main, room, game) {
               <span class="seat-av">${avatar(p, gameChat ? 'lg' : '')}${host ? '<span class="crown">👑</span>' : ''}</span>
               <span class="seat-name">${profile?.friends?.[p.uid] ? '<i class="fr-mark">♥</i>' : ''}${esc(p.name)}</span>
               ${tag ? `<span class="seat-tag">${tag}</span>` : ''}
+              ${isHost && room.status !== 'playing' && p.uid !== user.uid ? `<button class="seat-kick" data-kick="${esc(p.uid)}" title="${esc(p.name)}님 내보내기" aria-label="${esc(p.name)}님 내보내기">✕</button>` : ''}
             </li>`;
           }).join('')}
           ${'<li class="seat empty"><span class="seat-av"><span class="avatar">?</span></span><span class="seat-name">빈 자리</span></li>'.repeat(emptySeats)}
@@ -1237,6 +1304,11 @@ function drawRoom($main, room, game) {
     backend.mutateRoom(room.code, (r) => R.leave(r, uid)).catch(() => {});
   };
   $main.querySelector('[data-ready]')?.addEventListener('click', () => act((r) => R.setReady(r, user.uid, !mine.ready)));
+  $main.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const p = room.players[b.dataset.kick];
+    if (p && confirm(`${p.name}님을 방에서 내보낼까요? (이 방에는 다시 들어올 수 없어요)`)) act((r) => R.kick(r, user.uid, b.dataset.kick));
+  }));
   $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.start(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
   $main.querySelectorAll('[data-opt]').forEach((sel) => {

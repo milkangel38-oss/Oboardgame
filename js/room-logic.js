@@ -34,6 +34,7 @@ export function newRoom(code, game, user) {
 
 export function join(room, user, game) {
   if (room.players[user.uid]) return room;
+  if (room.kicked?.[user.uid]) throw new Error('방장이 내보낸 방이에요');
   if (room.status !== 'waiting') throw new Error('이미 게임이 진행 중이에요');
   const list = sortedPlayers(room);
   if (list.length >= game.maxPlayers) throw new Error('방이 가득 찼어요');
@@ -73,6 +74,21 @@ export function dropIfGone(room, uid, timeoutMs) {
   if (!p || room.status !== 'playing') return room;
   if (Date.now() - (p.seen || 0) < timeoutMs) return room; // 그새 다시 접속했으면 그대로
   return leave(room, uid, 'disconnect');
+}
+
+// 접속이 끊긴 사람 내보내기 (대기 중이든 게임 중이든). 게임 중이면 게임이 끝나요(가넷 없음).
+export function dropAbsent(room, uid) {
+  return room.players[uid] ? leave(room, uid, 'disconnect') : room;
+}
+
+// 방장이 대기 중인 사람을 내보내기 (다시 못 들어와요)
+export function kick(room, hostUid, uid) {
+  if (room.hostId !== hostUid) throw new Error('방장만 내보낼 수 있어요');
+  if (room.status === 'playing') throw new Error('게임 중에는 내보낼 수 없어요');
+  if (uid === hostUid || !room.players[uid]) return room;
+  delete room.players[uid];
+  room.kicked = { ...(room.kicked || {}), [uid]: true };
+  return room;
 }
 
 export function setReady(room, uid, ready) {

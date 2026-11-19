@@ -242,7 +242,7 @@ async function gameOver(c, reason) {
   try {
     const { backend } = await import('../backend/index.js');
     const prev = w.best;
-    best = await backend.saveBest(c.ctx.me, 'merge', score);
+    best = await Promise.race([backend.saveBest(c.ctx.me, 'merge', score), new Promise((_, no) => setTimeout(() => no(new Error('느린 연결')), 4000))]); // 연결이 느려도 결과 화면은 바로
     isNew = score > prev && score === best;
     w.best = best;
   } catch { best = Math.max(best, score); }
@@ -405,7 +405,7 @@ export default {
       ctl.code = code;
       ctl.ctx = ctx;
       ctl.raf = requestAnimationFrame(frame);
-      import('../backend/index.js').then(({ backend }) => backend.saveBest?.(ctx.me, 'merge', 0).then((b) => { if (ctl) { ctl.w.best = b; ctl.$('[data-best]').textContent = b ? b.toLocaleString() : '-'; } }).catch(() => {}));
+      import('../backend/index.js').then(({ backend }) => (backend.getBest ? backend.getBest(ctx.me, 'merge') : backend.saveBest(ctx.me, 'merge', 0)).then((b) => { if (ctl) { ctl.w.best = b; ctl.$('[data-best]').textContent = b ? b.toLocaleString() : '-'; } }).catch(() => {}));
       loadRank(ctl);
     }
     ctl.ctx = ctx;

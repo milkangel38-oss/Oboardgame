@@ -23,7 +23,8 @@ function getServiceAccount() {
   }
   if (key && !key.includes('BEGIN PRIVATE KEY')) key = null;
   if (!email || !key) throw new Error('FIREBASE_SERVICE_ACCOUNT 환경 변수가 설정되지 않았어요');
-  return { email, key: key.replace(/\\n/g, '\n') };
+  let projectId = process.env.FIREBASE_PROJECT_ID || raw.match(/"project_id"\s*:\s*"([^"]+)"/)?.[1] || email.match(/@([^.]+)\.iam\.gserviceaccount\.com$/)?.[1];
+  return { email, key: key.replace(/\\n/g, '\n'), projectId };
 }
 
 const b64url = (input) => Buffer.from(input).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -38,4 +39,4 @@ function createCustomToken(uid, claims = {}) {
   return `${input}.${b64url(signature)}`;
 }
 
-module.exports = { createCustomToken, AUDIENCE };
+module.exports = { createCustomToken, getServiceAccount, b64url, AUDIENCE };
