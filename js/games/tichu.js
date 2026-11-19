@@ -603,15 +603,18 @@ export function cardHtml(id, size = '') {
   }
   ensureSuitSprite();
   const L = rankLabel(c.rank), pip = (x, y, w, flip) => `<use href="#suit-${c.suit}" class="pip" fill="url(#sg-${c.suit})" x="${x - w / 2}" y="${y - w / 2}" width="${w}" height="${w}"${flip ? ` transform="rotate(180 ${x} ${y})"` : ''}/>`;
-  const col = SUITS[c.suit].color, art = c.rank >= 11 && c.rank <= 13;
-  const corner = `${art ? '<rect x="1.6" y="1.6" width="7.6" height="17.4" rx="1.8" fill="#fbf6e8" fill-opacity=".92" stroke="#b8963e" stroke-width=".35"/>' : ''}<text x="5.4" y="9.6" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${L.length > 1 ? 7.4 : 9}" letter-spacing="${L.length > 1 ? -0.6 : 0}" fill="${col}">${L}</text>${pip(5.4, 14.4, 5.2)}`;
+  const col = SUITS[c.suit].color;
+  const corner = `<text x="5.4" y="9.6" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${L.length > 1 ? 7.4 : 9}" letter-spacing="${L.length > 1 ? -0.6 : 0}" fill="${col}">${L}</text>${pip(5.4, 14.4, 5.2)}`;
   let mid;
   if (c.rank <= 10) mid = PIPS[c.rank].map(([x, y]) => pip(x, y, 8.6, y > 36)).join('');
-  else if (c.rank === 14) mid = `<image href="img/cards/face-a.webp" x="7" y="17" width="36" height="36"/>`;
-  else mid = `<defs><clipPath id="tcfc"><rect x="2.4" y="2.4" width="45.2" height="65.2" rx="3"/></clipPath></defs>
-    <image href="img/cards/face-${{ 11: 'j', 12: 'q', 13: 'k' }[c.rank]}.webp" x="2.4" y="2.4" width="45.2" height="65.2" preserveAspectRatio="xMidYMin slice" clip-path="url(#tcfc)"/>
-    <rect x="2.4" y="2.4" width="45.2" height="65.2" rx="3" fill="none" stroke="#b8963e" stroke-width=".7"/>`;
-  return `<div class="tcard ${size} ${art ? 'art' : ''}"><svg viewBox="0 0 50 70">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg></div>`;
+  else if (c.rank === 14) mid = `<circle cx="25" cy="35" r="14" fill="${col}" fill-opacity=".05" stroke="#b8963e" stroke-width=".6"/><circle cx="25" cy="35" r="12.4" fill="none" stroke="#b8963e" stroke-width=".3"/>${pip(25, 35, 17)}`;
+  else {
+    // J·Q·K: 금테 안에 무늬 색 문장(검·작은 왕관·큰 왕관) + 아래에 무늬
+    const em = { 11: 'j', 12: 'q', 13: 'k' }[c.rank];
+    mid = `<rect x="10.5" y="7" width="29" height="56" rx="2.2" fill="${col}" fill-opacity=".05" stroke="#b8963e" stroke-width=".6"/><rect x="12" y="8.5" width="26" height="53" rx="1.6" fill="none" stroke="#b8963e" stroke-width=".25"/>
+      <use href="#emb-${em}" fill="url(#sg-${c.suit})" x="13" y="16" width="24" height="24"/>${pip(25, 48, 9)}`;
+  }
+  return `<div class="tcard ${size}"><svg viewBox="0 0 50 70">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg></div>`;
 }
 
 // 무늬 그림: 문서에 한 번만 넣어 두고 카드마다 <use>로 불러와요 (그라데이션이 숨은 SVG 안에 있으면 안 그려지는 문제 방지)
@@ -622,6 +625,15 @@ const SUIT_PATH = {
   c: '<circle cx="5" cy="2.8" r="2.35"/><circle cx="2.55" cy="6.05" r="2.35"/><circle cx="7.45" cy="6.05" r="2.35"/><path d="M4 3.5 3.4 6.5h3.2L6 3.5ZM4.4 6.2C4.4 8 3.8 9.2 2.9 9.8h4.2C6.2 9.2 5.6 8 5.6 6.2Z"/>',
 };
 const SUIT_GRAD = { s: ['#5a5a6a', '#26262e', '#08080c'], h: ['#ff7b6b', '#d22a2a', '#8a0f18'], d: ['#7fb0ff', '#2f6fd6', '#12388a'], c: ['#6fe0a0', '#2f9e5b', '#0e5a2e'] };
+const GOLD = '#e8cf8a';
+const EMBLEMS = [
+  // J: 검
+  `<symbol id="emb-j" viewBox="0 0 20 20" overflow="visible"><g stroke="rgba(0,0,0,.3)" stroke-width=".22"><path d="M10 .6 11.4 3.6V12.8H8.6V3.6Z"/><rect x="4.2" y="12.8" width="11.6" height="1.8" rx=".9"/><rect x="9.1" y="14.6" width="1.8" height="3.4" rx=".4"/><circle cx="10" cy="18.9" r="1.25"/></g><path d="M10 3.2V12" stroke="rgba(255,255,255,.55)" stroke-width=".45"/><circle cx="10" cy="13.7" r=".6" fill="${GOLD}"/></symbol>`,
+  // Q: 둥근 아치 왕관(티아라)
+  `<symbol id="emb-q" viewBox="0 0 20 20" overflow="visible"><g stroke="rgba(0,0,0,.3)" stroke-width=".22"><path d="M2.5 14.2C2.2 10.5 3.6 8.4 5.6 9.6 6.2 6.4 7.8 4.6 10 4.4 12.2 4.6 13.8 6.4 14.4 9.6 16.4 8.4 17.8 10.5 17.5 14.2Z"/><rect x="2.3" y="14.2" width="15.4" height="2.4" rx=".6"/><circle cx="5.4" cy="8.4" r="1.05"/><circle cx="10" cy="3.2" r="1.15"/><circle cx="14.6" cy="8.4" r="1.05"/></g><ellipse cx="10" cy="10.4" rx="1.3" ry="1.8" fill="${GOLD}"/><circle cx="6" cy="15.4" r=".55" fill="${GOLD}"/><circle cx="10" cy="15.4" r=".55" fill="${GOLD}"/><circle cx="14" cy="15.4" r=".55" fill="${GOLD}"/></symbol>`,
+  // K: 뾰족한 큰 왕관
+  `<symbol id="emb-k" viewBox="0 0 20 20" overflow="visible"><g stroke="rgba(0,0,0,.3)" stroke-width=".22"><path d="M2.2 13.6 1 5.2 6.2 9.2 10 2.4 13.8 9.2 19 5.2 17.8 13.6Z"/><rect x="2" y="13.6" width="16" height="2.8" rx=".6"/><circle cx="1" cy="5" r="1.1"/><circle cx="10" cy="2.2" r="1.2"/><circle cx="19" cy="5" r="1.1"/></g><path d="M10 6.6 11.2 9.6 10 12.4 8.8 9.6Z" fill="${GOLD}"/><circle cx="5.6" cy="15" r=".65" fill="${GOLD}"/><circle cx="10" cy="15" r=".65" fill="${GOLD}"/><circle cx="14.4" cy="15" r=".65" fill="${GOLD}"/></symbol>`,
+].join('');
 function ensureSuitSprite() {
   if (typeof document === 'undefined' || document.getElementById('suit-sprite')) return;
   const g = Object.entries(SUIT_GRAD).map(([k, [a, b, d]]) => `<linearGradient id="sg-${k}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${a}"/><stop offset=".45" stop-color="${b}"/><stop offset="1" stop-color="${d}"/></linearGradient>`).join('');
@@ -629,6 +641,6 @@ function ensureSuitSprite() {
   const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   el.id = 'suit-sprite'; el.setAttribute('aria-hidden', 'true');
   el.setAttribute('style', 'position:absolute;width:0;height:0;overflow:hidden');
-  el.innerHTML = `<defs>${g}</defs>${sym}`;
+  el.innerHTML = `<defs>${g}</defs>${sym}${EMBLEMS}`;
   document.body.appendChild(el);
 }
