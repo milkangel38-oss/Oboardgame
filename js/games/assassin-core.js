@@ -62,7 +62,7 @@ export function newRound(state, roundNo) {
 }
 export const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u]);
 export function toVote(state, now, why) {
-  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, meeting: why };
+  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, confirmed: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, meeting: why };
 }
 export function resolve(state, players) {
   const tally = {};
@@ -72,7 +72,7 @@ export function resolve(state, players) {
   if (!state.runoff && max > 0 && leaders.length >= 2) {
     const now = Date.now();
     const runoff = shuffle(leaders).slice(0, 2); // 3명 이상 동점이면 그중 무작위 2명
-    return { state: { ...state, runoff, runoffAt: now, firstTally: tally, votes: {}, deadline: now + RUNOFF_MS } };
+    return { state: { ...state, runoff, runoffAt: now, firstTally: tally, votes: {}, confirmed: {}, deadline: now + RUNOFF_MS } };
   }
   const caught = max > 0 && leaders.length === 1 ? leaders[0] : null;
   const mafiaCaught = caught === state.mafia;
@@ -184,9 +184,18 @@ export function applyMove(state, move, uid, players, env = {}) {
     if (!state.order.includes(move.target) || state.dead[move.target]) throw new Error('투표할 수 없는 사람이에요');
     if (state.runoff && !state.runoff.includes(move.target)) throw new Error('결선 투표는 동점인 두 사람 중에서만 고를 수 있어요');
     if (move.target === uid) throw new Error('나에게는 투표할 수 없어요');
-    const votes = { ...state.votes, [uid]: move.target };
-    const s = { ...state, votes };
-    if (state.order.filter((u) => !state.dead[u]).every((u) => votes[u])) return resolve(s, players);
+    if (state.confirmed?.[uid]) throw new Error('이미 투표를 완료했어요');
+    // 투표완료를 누르기 전까지는 몇 번이든 바꿀 수 있어요
+    return { state: { ...state, votes: { ...state.votes, [uid]: move.target } } };
+  }
+  if (t === 'confirm') {
+    if (state.phase !== 'vote') throw new Error('__noop');
+    if (state.dead[uid]) throw new Error('__noop');
+    if (!state.votes[uid]) throw new Error('먼저 마피아라고 생각하는 사람을 골라 주세요');
+    const confirmed = { ...(state.confirmed || {}), [uid]: true };
+    const s = { ...state, confirmed };
+    // 살아 있는 모두가 투표완료를 눌러야 결과가 나와요 (시간이 다 되면 그때까지의 표로)
+    if (state.order.filter((u) => !state.dead[u]).every((u) => confirmed[u])) return resolve(s, players);
     return { state: s };
   }
   if (t === 'chat') {

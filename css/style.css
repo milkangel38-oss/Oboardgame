@@ -1876,3 +1876,12 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .sv-deal { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 40px 16px; font-weight: 700; color: var(--muted); }
 .sv-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .2); border-top-color: var(--gold); animation: svSpin .8s linear infinite; }
 @keyframes svSpin { to { transform: rotate(360deg); } }
+
+/* 자객 마피아: 맵 맨 위에서는 표시·말풍선을 캐릭터 아래로 */
+.am-ch.flip .am-fx { bottom: auto; top: calc(96% + max(16px, 2.6cqw)); }
+.am-ch.flip .am-bub { bottom: auto; top: calc(96% + max(18px, 3cqw)); }
+.am-ch.flip .am-bub::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #fff; }
+.am-ch.flip .am-bub.shout::after { border-bottom-color: #ff3b5c; border-top-color: transparent; }
+.am-ch.flip .am-fx:not(:empty) ~ .am-bub { margin-top: max(20px, 3.4cqw); }
+.am-confirm { margin-top: 6px; }
+.am-confirm:disabled { opacity: .5; }

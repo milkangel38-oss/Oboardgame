@@ -134,6 +134,7 @@ function build(code) {
     const a = e.target.closest('[data-advise]');
     if (a && !a.disabled) c.ctx.sendMove({ type: 'advise', target: a.dataset.advise });
     if (e.target.closest('[data-next]')) c.ctx.sendMove({ type: 'next' });
+    if (e.target.closest('[data-confirm]')) c.ctx.sendMove({ type: 'confirm' });
   });
   return c;
 }
@@ -161,7 +162,7 @@ function surroundings(now) {
       const d = dist(mine, ctl.disp[u]);
       if (d >= MEET) return;
       if (touch('t:' + u)) out.slow = true;
-      out.icon = '✋';
+      out.icon = `✋ ${esc(players[u]?.name || '')}`; // 닿아 있는 동안만 서로 이름이 보여요
       if (!best || d < best.d) best = { u, d };
     });
     if (best) out.body = best.u; // 상호작용 → 서버가 쓰러진 사람인지 확인 (맞으면 시체발견!)
@@ -220,7 +221,7 @@ function frame() {
     let vy = c.joy.y + (c.keys.has('d') ? 1 : 0) - (c.keys.has('u') ? 1 : 0);
     const len = Math.hypot(vx, vy);
     if (len > 1) { vx /= len; vy /= len; }
-    const sp = SPEED * (sur.slow ? SLOW : 1);
+    const sp = SPEED; // 만나도 느려지지 않아요
     c.pos.x = Math.max(R, Math.min(W - R, c.pos.x + vx * sp * dt));
     c.pos.y = Math.max(R + 10, Math.min(H - R, c.pos.y + vy * sp * dt));
   }
@@ -272,6 +273,7 @@ function frame() {
     el.style.left = `${(p.x / W) * 100}%`;
     el.style.top = `${(p.y / H) * 100}%`;
     el.style.zIndex = String(Math.round(p.y));
+    el.classList.toggle('flip', p.y < 150); // 맨 위쪽이면 표시·말풍선을 아래로
     const look = `${COLORS[i % COLORS.length]}|${dead}|${players[u]?.photo || ''}`;
     if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = personHtml(COLORS[i % COLORS.length], players[u], dead); }
     el.querySelector('.am-nm').textContent = players[u]?.name || '나간 사람';
@@ -365,7 +367,7 @@ function paintPanel() {
   ctl.$('.am-round').innerHTML = `ROUND <b>${state.round}</b> / ${state.rounds}`;
   ctl.$('.am-phase').textContent = phaseName;
   const showDead = ['vote', 'result', 'done'].includes(state.phase) || isMafia;
-  ctl.$('.am-chips').innerHTML = state.order.map((u) => `<span class="${u === me ? 'me' : ''} ${showDead && state.dead[u] ? 'dead' : ''}" style="--pc:${color(u)}"><i></i>${nm(u)} <b>${state.scores[u]}</b>${state.phase === 'lobby' && state.ready[u] ? ' ✔' : ''}${state.phase === 'vote' && state.votes[u] ? ' 🗳' : ''}${showDead && state.dead[u] ? ' 💀' : ''}</span>`).join('');
+  ctl.$('.am-chips').innerHTML = state.order.map((u) => `<span class="${u === me ? 'me' : ''} ${showDead && state.dead[u] ? 'dead' : ''}" style="--pc:${color(u)}"><i></i>${nm(u)} <b>${state.scores[u]}</b>${state.phase === 'lobby' && state.ready[u] ? ' ✔' : ''}${state.phase === 'vote' && (state.confirmed || {})[u] ? ' ✅' : state.phase === 'vote' && state.votes[u] ? ' 🗳' : ''}${showDead && state.dead[u] ? ' 💀' : ''}</span>`).join('');
   ctl.$('.am-mission').innerHTML = isMafia && ['hunt', 'vote'].includes(state.phase) && Date.now() >= state.mafiaAt + 1500
     ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}` : '';
   ctl.$('.am-mission').classList.toggle('on', !!ctl.$('.am-mission').innerHTML);
@@ -396,6 +398,7 @@ function paintPanel() {
     html = `<div class="am-tip">맵 안에서 자유롭게 움직여 보세요. 모두 <b>준비</b>를 누르면 불이 꺼져요 ${waiting ? `(남은 사람 ${waiting}명)` : ''}</div>`;
   } else if (state.phase === 'vote') {
     const iVote = state.votes[me];
+    const confirmedMe = !!(state.confirmed || {})[me];
     const canVote = state.order.includes(me) && !state.dead[me];
     const ro = state.runoff;
     const iAdvise = state.dead[me] && !ro ? (state.advice || {})[me] : null;
@@ -408,12 +411,14 @@ function paintPanel() {
       <div class="am-votes">${state.order.map((u) => {
         const dead = !!state.dead[u];
         const advisor = state.dead[me] && state.order.includes(me) && !ro;
-        const off = dead || u === me || !(canVote || advisor) || (ro && !ro.includes(u));
+        const off = dead || u === me || !(canVote || advisor) || (ro && !ro.includes(u)) || (!advisor && confirmedMe);
         return `<button class="am-card ${ro && !ro.includes(u) ? 'out' : ''} ${(advisor ? iAdvise : iVote) === u ? 'on' : ''} ${advisor ? 'advisor' : ''} ${dead ? 'dead' : ''}" ${advisor ? 'data-advise' : 'data-vote'}="${u}" ${off ? 'disabled' : ''} style="--pc:${color(u)}">
           <span class="am-mini">${personHtml(color(u), players[u], dead)}</span><b>${nm(u)}</b><small>${dead ? '💀 공격당함' : u === me ? '나' : `${counts[u] || 0}표`}</small>
           ${!dead && adviceTo[u] ? `<em class="am-adv">${adviceTo[u].map((d) => `💬 ${nm(d)}님의 조언입니다`).join('<br>')}</em>` : ''}</button>`;
       }).join('')}</div>
-      <div class="am-tip sm">투표 ${Object.keys(state.votes).length} / ${state.order.filter((u) => !state.dead[u]).length} · 다 투표하면 바로 결과가 나와요 · 다시 누르면 바꿀 수 있어요</div>`;
+      ${canVote ? (confirmedMe ? '<div class="am-tip sm">✅ 투표를 완료했어요 · 다른 사람을 기다리는 중…</div>'
+        : `<button class="am-next am-confirm" data-confirm ${iVote ? '' : 'disabled'}>${iVote ? `🗳 ${nm(iVote)}님에게 투표완료` : '먼저 프로필을 눌러 투표하세요'}</button>`) : ''}
+      <div class="am-tip sm">투표완료 <b>${Object.keys(state.confirmed || {}).length} / ${state.order.filter((u) => !state.dead[u]).length}</b>명 · 모두 투표완료를 누르면 결과가 나와요 · 완료 전에는 다시 눌러 바꿀 수 있어요</div>`;
   } else if (state.phase === 'result') {
     const host = room?.hostId === me || !state.order.includes(room?.hostId);
     html = `${resultHtml(state.last)}${host ? '<button class="am-next" data-next>다음 라운드 시작 →</button>' : '<div class="am-tip">방장이 다음 라운드를 시작하길 기다리는 중…</div>'}`;
@@ -449,10 +454,10 @@ export default {
   rules: [
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용 버튼(스페이스)을 써요.',
     '모두 준비를 누르면 불이 꺼져요. 방장이 마피아 선택을 누르면 1명이 몰래 마피아가 되고 비밀 미션을 받아요.',
-    '어둠 속에선 내 캐릭터만 보여요. 누군가와 몸이 닿으면 0.5초 동안 느려져요. 마피아에겐 🗡+이름, 시민에겐 누구든 ✋만 떠요 (마피아인지 알 수 없어요).',
+    '어둠 속에선 내 캐릭터만 보여요. 누군가와 몸이 닿아 있는 동안에만 서로의 이름이 보여요 (마피아에겐 🗡+이름, 시민에겐 ✋+이름 · 마피아인지는 알 수 없어요).',
     '마피아는 마주친 순간 상호작용 버튼으로 공격! 공격받은 사람은 그 자리에 쓰러져 움직이거나 채팅할 수 없어요 (💀는 마피아에게만 보여요).',
     '어둠 속에서는 누가 쓰러졌는지 보이지 않아요. 누군가와 닿았을 때 상호작용을 눌러 살펴보세요. 쓰러진 사람이면 "시체발견!"을 외치고 그 자리에서 모두 멈추고 불이 켜져요. (아니면 아무 일도 없어요)',
-    '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 공격받은 사람은 채팅·투표 대신 프로필을 눌러 조언할 수 있어요 (투표란에 "○○님의 조언입니다"로 보여요). 최다 득표 1명이 지목돼요. 동점이면 두 명으로 추려 1분 동안 결선 투표를 한 번 더 해요 (조언 없음, 또 동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
+    '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 공격받은 사람은 채팅·투표 대신 프로필을 눌러 조언할 수 있어요 (투표란에 "○○님의 조언입니다"로 보여요). 살아 있는 모두가 투표완료를 누르면 결과가 나와요 (완료 전에는 바꿀 수 있어요). 최다 득표 1명이 지목돼요. 동점이면 두 명으로 추려 1분 동안 결선 투표를 한 번 더 해요 (조언 없음, 또 동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
     '마피아 미션: 정해진 2~3명만 공격(다른 사람을 공격하면 실패) / 4명 이상 공격 / 정해진 사람이 가장 많은 표를 받게 하기 중 하나.',
     '점수 — 마피아를 잡으면: 마피아 −5, 시민 모두 +5 / 못 잡으면: 마피아 +5, 시민 모두 −5. 마피아 미션 성공 +3 (실패해도 감점 없음), 시민은 공격받으면 −1, 생존 +1',
     '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
