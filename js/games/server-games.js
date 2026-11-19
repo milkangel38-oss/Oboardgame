@@ -5,8 +5,9 @@
 import * as avalon from './avalon-core.js';
 import * as memorypoker from './memorypoker-core.js';
 import * as assassin from './assassin-core.js';
+import * as stock from './stock-core.js';
 
-export const SERVER_GAMES = { avalon, memorypoker, assassin };
+export const SERVER_GAMES = { avalon, memorypoker, assassin, stock };
 export const isServerGame = (id) => !!SERVER_GAMES[id];
 
 const nonce = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);

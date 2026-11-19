@@ -14,7 +14,7 @@ const GAMES = {
   memorypoker: { min: 2, max: 3, server: true },
   numbers: { min: 4, max: 3 },
   seedpoker: { min: 6, max: 3 },
-  stock: { min: 4, max: 5 },
+  stock: { min: 4, max: 5, server: true },
   typing: { min: 6, max: 2 },
   underdog: { min: 2, max: 3 },
 };

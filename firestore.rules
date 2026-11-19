@@ -19,11 +19,11 @@ service cloud.firestore {
 
     // ── 게임 방 (rooms/{code}) ──
     // 방 코드를 아는 사람만 열 수 있어요 (방 목록 전체 조회는 막음).
-    // 서버가 진행하는 게임(아발론·기억포커·자객 마피아): 게임 중에는 브라우저가 게임 상태를 못 바꾸고, 결과는 '중단'만 쓸 수 있어요
+    // 서버가 진행하는 게임(아발론·기억포커·자객 마피아·증권시장): 게임 중에는 브라우저가 게임 상태를 못 바꾸고, 결과는 '중단'만 쓸 수 있어요
     function serverGameOk() {
       let b = resource.data;
       let a = request.resource.data;
-      return !(b.gameId in ['avalon', 'memorypoker', 'assassin'])
+      return !(b.gameId in ['avalon', 'memorypoker', 'assassin', 'stock'])
         || (a.gameId == b.gameId
             && (b.status != 'playing'
                 || (!a.diff(b).affectedKeys().hasAny(['game', 'matchId', 'gameId', 'options', 'startedAt'])
