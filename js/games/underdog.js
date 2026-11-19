@@ -226,11 +226,13 @@ function raceTrack(state, me) {
       })()}
       <span class="ud-stand">${animalSvg(a, '', true)}</span>
       <span class="ud-base"></span>
-      <span class="ud-rk">${i + 1}<small>등</small></span>
+      <span class="ud-rk">${i + 1}<small>${['st', 'nd', 'rd'][i] || 'th'}</small></span>
     </div>`;
   }).join('');
-  return `<div class="ud-race"><div class="ud-lane">${slots}</div><div class="ud-finish"><span>FINISH</span></div></div>
-    <div class="ud-score">
+  return `<div class="ud-race"><div class="ud-lane">${slots}</div><div class="ud-finish"><span>FINISH</span></div></div>`;
+}
+function scoreTable() {
+  return `    <div class="ud-score">
       <div class="ud-score-t">🏆 등수별 점수 <small>경주가 끝났을 때 내 티켓 동물의 등수로 점수를 받아요</small></div>
       <div class="ud-score-row">${POINTS.map((p, i) => `<span class="${i < 3 ? 'hi' : ''}"><b>${i + 1}등</b>${p}점</span>`).join('')}</div>
       <div class="ud-score-dh">🌑 다크호스 토큰: 다크호스가 3등 안 <b class="up">+${DH_GOOD}점</b> · 4등 이하 <b class="dn">${DH_BAD}점</b></div>
@@ -401,7 +403,7 @@ export default {
 
     let banner;
     if (state.exchange) banner = exForMe ? '<span><b>티켓 교환 지목!</b> 버릴 내 티켓 1장을 고르세요</span>' : `<span><b>${name(state.exchange.target)}</b>님이 버릴 티켓을 고르는 중…</span>`;
-    else banner = myTurn ? '<span><b>내 차례!</b> 토큰을 가져올지 정하고, 액션카드 1장을 내세요</span>' : `<span><b>${name(turnUid)}</b>님 차례 · 카드를 눌러 설명을 볼 수 있어요</span>`;
+    else banner = myTurn ? `<span><b>내 차례!</b> ${canToken ? '토큰을 가져올지 정하고, ' : ''}액션카드 1장을 내세요</span>` : `<span><b>${name(turnUid)}</b>님 차례</span>`;
 
     const sel = ui.card !== null && (state.hands[me] || []).includes(ui.card) ? CARDS[ui.card] : null;
     let options = '';
@@ -432,22 +434,22 @@ export default {
       <div class="ud">
         ${raceTrack(state, me)}
 
+        <div class="nb-banner">${banner}</div>
         <div class="ud-info">
           <div class="ud-token">🌑 다크호스 <b>${animalLabel(state.darkHorse)}</b> · 토큰 남음 <b>${state.tokensLeft}</b>개
-            <small>토큰을 가진 사람은 경주가 끝났을 때 다크호스가 3등 안이면 +${DH_GOOD}점, 아니면 ${DH_BAD}점</small>
+            <small>다크호스로 정해진 <b>${animalLabel(state.darkHorse)}</b>${hasJong(ANIMALS[state.darkHorse].name) ? '은' : '는'} 끝날 때까지 바뀌지 않아요. 토큰을 가진 사람은 경주가 끝났을 때 다크호스가 3등 안이면 <b class="up">+${DH_GOOD}점</b>, 아니면 <b class="dn">${DH_BAD}점</b>이에요</small>
             ${Object.keys(state.tokensHeld).length ? `<small>보유: ${Object.keys(state.tokensHeld).map(name).join(', ')}</small>` : ''}
           </div>
           ${lastPlay ? `<div class="ud-last"><span class="ud-lastcard">${cardArt(CARDS[lastPlay.card])}</span><span><small>방금 낸 카드</small><b>${name(lastPlay.by)}</b><br>${esc(cardTitle(CARDS[lastPlay.card]))}<br><span class="ud-note">${esc(lastPlay.note)}</span></span></div>` : ''}
           ${state.ticketDiscards.length ? `<div class="ud-discards"><span class="ud-dt">버린 티켓</span>${state.ticketDiscards.map((d) => `<span class="ud-dchip" style="--c1:${NUM_COLOR[d.animal]}"><i>${d.animal}</i>${esc(ANIMALS[d.animal].name)}<small>${name(d.by)}</small></span>`).join('')}</div>` : ''}
         </div>
 
-        <div class="nb-banner">${banner}</div>
 
         ${exForMe ? `<div class="ud-tickets big">${(state.tickets[me] || []).map((a) => `<button class="udt-btn" data-discard="${a}">${ticketArt(state, a, '<i class="udt-act">버리기</i>')}</button>`).join('')}</div>` : ''}
 
         ${isPlayer ? `
           <div class="ud-mine">
-            <div class="ud-mine-title">🎫 내 티켓 <small>나만 보여요</small></div>
+            <div class="ud-mine-title">🎫 내 티켓 <small>나만 보여요 · 내 티켓 동물이 높은 순위를 하도록 하세요</small></div>
             <div class="ud-tickets">${(state.tickets[me] || []).map((a) => ticketArt(state, a)).join('')}
               ${state.tokensHeld[me] ? '<span class="udt dhk"><span class="udt-pic">🌑</span><span class="udt-info"><b>다크호스 토큰</b><small>3등 안 +5 / 아니면 −3</small></span></span>' : ''}</div>
           </div>
@@ -467,6 +469,7 @@ export default {
               <span class="sp-pchips">🎫${(state.tickets[u] || []).length}</span>
             </li>`).join('')}
         </ul>
+        ${scoreTable()}
       </div>`;
 
     animateTrack(el, state, room?.code);

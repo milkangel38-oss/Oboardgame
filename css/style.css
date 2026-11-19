@@ -1948,3 +1948,23 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .ud-base { background: #c9a24a; box-shadow: 0 2px 0 #7a5a1a; }
 .ud-rk { color: #fff7dc; text-shadow: 0 1px 0 #1c3a20, 0 0 4px #1c3a20; }
 .ud-finish { margin: 0 0 0 2px; border-radius: 3px; }
+/* 언더독레이스 v8.6: 동물 겹치지 않게, 표지판 글씨를 경주장 명판 느낌으로 */
+.ud-stand { width: 100%; margin: 0; }
+.ud-slot:nth-child(even) .ud-stand { margin-bottom: 0; }
+.ud-lane { column-gap: 2px; }
+.ud-rk { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; color: #f6e2a6; text-shadow: 0 1px 0 #3a2a08, 0 2px 4px rgba(0, 0, 0, .8); letter-spacing: -.5px; }
+.ud-rk small { font-size: .6em; margin-left: 1px; vertical-align: .35em; }
+.ud-slot.mine .ud-rk { color: #ffe7f1; text-shadow: 0 1px 0 #6a0a35, 0 0 6px rgba(255, 79, 154, .8); }
+.ud-tags > span { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; letter-spacing: 0; border-radius: 4px; padding: 2px 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, .55); }
+.ud-dhb { background: linear-gradient(180deg, #2a2a30, #0c0c10); color: #f2d27a; border: 1.5px solid #c9a24a; animation: none; }
+.ud-dhb:last-child::after { border-top-color: #c9a24a; }
+.ud-myt { background: linear-gradient(180deg, #fff8e6, #ecd9a8); color: #8a1240; border: 1.5px solid #c9a24a; }
+.ud-myt:last-child::after { border-top-color: #c9a24a; }
+.ud-finish { width: 22px; background: repeating-conic-gradient(#14140f 0 25%, #f4ecd6 0 50%) 0 0 / 11px 11px; box-shadow: 0 0 0 2px #c9a24a, 0 2px 6px rgba(0, 0, 0, .5); }
+.ud-finish span { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; letter-spacing: 3px; font-size: 11px; color: #f2d27a; background: #14140f; border: 1px solid #c9a24a; padding: 1px 6px; }
+.ud-token small b { color: inherit; } .ud-token .up { color: #3ddc84; } .ud-token .dn { color: #ff6b7a; }
+.ud-race { padding-top: 62px; }
+.ud-tags > span { font-size: 10px; padding: 1px 4px; }
+.ud-slot:nth-child(even) .ud-tags { bottom: calc(100% + 20px); }
+.ud-slot:first-child .ud-tags { left: 2px; }
+@media (min-width: 560px) { .ud-race { padding-top: 54px; } .ud-tags > span { font-size: 12px; } .ud-slot:nth-child(even) .ud-tags { bottom: calc(100% + 2px); } }
