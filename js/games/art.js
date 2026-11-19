@@ -1,3 +1,4 @@
+import { charSvg as mergeChar } from './merge.js';
 // 게임 카드 일러스트 (직접 그린 SVG) — 게임을 추가하면 여기에 그림도 추가하세요.
 // viewBox 300x420 기준, 카드 크기에 맞춰 잘려서 보여요.
 
@@ -7,6 +8,17 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 동글동글 합체: 유리 상자 속에 쌓인 캐릭터들
+  merge: (() => {
+    const put = (lv, x, y, sz) => `<g transform="translate(${x - sz / 2} ${y - sz / 2}) scale(${sz / 112})">${mergeChar(lv).replace(/<svg[^>]*>|<\/svg>/g, '').replace(/^/, '<g transform="translate(6 8)">') + '</g>'}</g>`;
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" fill="#2a2450"/><circle cx="150" cy="180" r="170" fill="#3a3270" opacity=".6"/>
+  <rect x="40" y="80" width="220" height="300" rx="10" fill="rgba(255,255,255,.08)" stroke="#e8cf8a" stroke-width="3"/>
+  <line x1="40" y1="130" x2="260" y2="130" stroke="#fff" stroke-width="2" stroke-dasharray="8 6" opacity=".5"/>
+  ${put(9, 100, 320, 110)}${put(8, 205, 330, 96)}${put(6, 210, 250, 72)}${put(4, 120, 240, 60)}${put(3, 160, 205, 50)}${put(2, 80, 200, 38)}${put(1, 215, 190, 30)}${put(0, 245, 210, 22)}${put(10, 150, 60, 80)}
+</svg>`;
+  })(),
+
   // 아발론: 달밤의 성 + 원탁 + 검과 단검
   avalon: `
 <svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">

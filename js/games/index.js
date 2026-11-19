@@ -26,6 +26,7 @@ import dongsang from './dongsang.js';
 import stock from './stock.js';
 import rummikub from './rummikub.js';
 import avalon from './avalon.js';
+import merge from './merge.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -52,6 +53,7 @@ export const GAMES = [
   tichu,
   chosung,
   rummikub,
+  merge,
   lexio,
   splendor,
   avalon,

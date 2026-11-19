@@ -7,7 +7,7 @@ import {
   setPersistence, browserSessionPersistence,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import {
-  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField, collection, query, where,
+  initializeFirestore, doc, onSnapshot, runTransaction, setDoc, deleteField, collection, query, where, orderBy, limit, getDocs,
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { randomCode } from './code.js';
 
@@ -114,6 +114,20 @@ export function createBackend(config) {
         const next = fn(structuredClone(snap.exists() ? snap.data() : {}));
         t.set(ref, { ...next, updatedAt: Date.now() });
       });
+    },
+
+    // 혼자 하는 게임의 최고 기록 (내 프로필 best.{게임}) · 랭킹
+    async saveBest(uid, key, score) {
+      let best = 0;
+      await this.updateProfile(uid, (p) => {
+        best = Math.max(p.best?.[key] || 0, score);
+        return { ...p, best: { ...(p.best || {}), [key]: best }, bestAt: { ...(p.bestAt || {}), [key]: best === score ? Date.now() : p.bestAt?.[key] || 0 } };
+      });
+      return best;
+    },
+    async topScores(key, n = 10) {
+      const snap = await getDocs(query(collection(db, 'users'), orderBy(`best.${key}`, 'desc'), limit(n)));
+      return snap.docs.map((d) => { const p = d.data(); return { uid: d.id, name: p.name || p.authName || '이름 없음', photo: p.photo || p.authPhoto || '', score: p.best?.[key] || 0 }; });
     },
 
     // 나에게 친구 요청을 보낸 사람들 (그 사람의 reqOut에 내가 있음)

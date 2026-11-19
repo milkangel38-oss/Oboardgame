@@ -1118,6 +1118,7 @@ function mountVolume() {
 // 게임이 끝나면 내 전적에 한 번만 기록
 function recordIfFinished(room) {
   if (room.status !== 'finished' || !room.result || room.result.aborted || !room.matchId) return;
+  if (getGame(room.gameId)?.solo) return; // 혼자 하는 게임은 전적·가넷 없음 (랭킹만)
   const key = `${room.code}:${room.matchId}`;
   if (recordedMatches.has(key)) return;
   recordedMatches.add(key);

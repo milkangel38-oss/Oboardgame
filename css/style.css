@@ -1801,3 +1801,27 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .av-score i { white-space: nowrap; }
 .av-round-in b { white-space: nowrap; font-size: clamp(15px, 4.4vw, 24px); }
 .av-round-in small { white-space: nowrap; }
+
+/* ───────── 동글동글 합체 ───────── */
+.mg { display: grid; gap: 8px; justify-items: center; }
+.mg-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; width: 100%; max-width: 440px; }
+.mg-score, .mg-best { display: grid; } .mg-best { text-align: right; }
+.mg-top small { font-size: 11px; color: var(--muted); } .mg-score b { font-family: var(--display); font-size: 28px; color: var(--gold); line-height: 1; } .mg-best b { font-family: var(--display); font-size: 18px; }
+.mg-next { display: grid; justify-items: center; padding: 4px 10px; border-radius: 12px; background: rgba(255, 255, 255, .06); } .mg-next img { width: 36px; height: 36px; }
+.mg-box { position: relative; width: 100%; max-width: min(440px, calc((100vh - 260px) * .7)); border-radius: 0 0 18px 18px; background: linear-gradient(180deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .09)); box-shadow: inset 0 0 0 3px rgba(232, 207, 138, .7), 0 12px 30px rgba(0, 0, 0, .45); overflow: hidden; }
+.mg-box canvas { display: block; width: 100%; aspect-ratio: 420 / 600; touch-action: none; cursor: pointer; }
+.mg-over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10, 6, 24, .72); animation: amIn .3s ease; }
+.mg-over > div { display: grid; justify-items: center; gap: 6px; padding: 18px 22px; border-radius: 18px; background: #1d1636; box-shadow: 0 0 0 2px #e8cf8a; text-align: center; }
+.mg-over b { font-family: var(--display); font-size: 24px; } .mg-over strong { font-family: var(--display); font-size: 40px; color: var(--gold); line-height: 1.1; }
+.mg-over em { font-style: normal; font-weight: 800; color: #3ddc84; } .mg-over small { color: var(--muted); }
+.mg-over span { display: flex; align-items: center; gap: 4px; font-size: 13px; } .mg-over span img { width: 28px; height: 28px; }
+.mg-again { appearance: none; margin-top: 6px; padding: 12px 22px; border-radius: 14px; border: 0; background: linear-gradient(90deg, #c9a85a, #e8cf8a); color: #1a1033; font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+.mg-chain { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; max-width: 440px; } .mg-chain i { font-style: normal; color: var(--muted); font-size: 11px; } .mg-chain img { height: auto; }
+.mg-hint { font-size: 11px; color: var(--muted); text-align: center; }
+.mg-rank { width: 100%; max-width: 440px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .05); box-sizing: border-box; }
+.mg-rank-t { font-weight: 800; margin-bottom: 6px; }
+.mg-rank ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.mg-rank li { display: grid; grid-template-columns: 28px 1fr auto; gap: 6px; align-items: center; padding: 5px 8px; border-radius: 9px; background: rgba(255, 255, 255, .04); font-size: 13px; }
+.mg-rank li.me { box-shadow: inset 0 0 0 1.5px var(--gold); } .mg-rank li.muted { display: block; color: var(--muted); font-size: 12px; }
+.mg-rank li span { text-align: center; } .mg-rank li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .mg-rank li em { font-style: normal; font-family: var(--display); color: var(--gold); }
+.mg-over[hidden] { display: none; }

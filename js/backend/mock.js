@@ -146,6 +146,22 @@ export function createBackend() {
       };
     },
 
+    async saveBest(uid, key, score) {
+      let best = 0;
+      await this.updateProfile(uid, (p) => { best = Math.max(p.best?.[key] || 0, score); return { ...p, best: { ...(p.best || {}), [key]: best } }; });
+      return best;
+    },
+    async topScores(key, n = 10) {
+      const out = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k.startsWith(PROFILE_PREFIX)) continue;
+        const p = loadProfile(k.slice(PROFILE_PREFIX.length));
+        if (p?.best?.[key]) out.push({ uid: k.slice(PROFILE_PREFIX.length), name: p.name || p.authName || '이름 없음', photo: p.photo || p.authPhoto || '', score: p.best[key] });
+      }
+      return out.sort((a, b) => b.score - a.score).slice(0, n);
+    },
+
     watchRoom(code, cb) {
       const emit = () => cb(loadRooms()[code] || null);
       roomListeners.add(emit);
