@@ -607,10 +607,13 @@ const face = (r, col, sym) => `
 export function cardHtml(id, size = '') {
   const c = CARDS[id];
   if (c.special) {
+    // 특수 카드: 동양화 그림(img/tichu) + 금색 이름
     return `<div class="tcard sp ${size} sp-${c.special}"><svg viewBox="0 0 50 70">
-      ${c.special === 'mj' ? '<text x="5" y="12" font-family="\'Black Han Sans\', sans-serif" font-size="10" fill="#3a2412">1</text>' : ''}
-      <svg x="5" y="11" width="40" height="40" viewBox="0 0 40 40">${SP_ART[c.special]}</svg>
-      <text x="25" y="63" text-anchor="middle" font-size="9" font-weight="800" fill="#3a2412">${SPECIAL_NAME[c.special]}</text></svg></div>`;
+      <defs><clipPath id="tcclip"><rect x="2.5" y="2.5" width="45" height="51" rx="2.5"/></clipPath></defs>
+      <image href="img/tichu/sp-${c.special}.webp" x="-1" y="2.5" width="52" height="52" clip-path="url(#tcclip)" preserveAspectRatio="xMidYMid slice"/>
+      <rect x="2.5" y="2.5" width="45" height="51" rx="2.5" fill="none" stroke="#c9a24a" stroke-width=".8"/>
+      ${c.special === 'mj' ? '<circle cx="8" cy="9" r="5" fill="#1d1830" stroke="#c9a24a" stroke-width=".6"/><text x="8" y="12" text-anchor="middle" font-family="\'Black Han Sans\', sans-serif" font-size="8" fill="#f2d27a">1</text>' : ''}
+      <text x="25" y="64.5" text-anchor="middle" font-size="8.5" font-weight="800" fill="#f2d27a">${SPECIAL_NAME[c.special]}</text></svg></div>`;
   }
   const s = SUITS[c.suit], L = rankLabel(c.rank);
   const corner = `<text x="5" y="11" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="${L.length > 1 ? 8 : 10}" fill="${s.color}">${L}</text><text x="5" y="19" text-anchor="middle" font-size="7" fill="${s.color}">${s.sym}</text>`;

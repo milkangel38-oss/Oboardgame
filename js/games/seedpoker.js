@@ -127,7 +127,7 @@ export function rank(order, chips) {
 // 앞서 베팅한 사람들 중 가장 큰 금액 이상으로만 걸 수 있어요
 export const minBet = (state) => Math.max(1, ...Object.values(state.bets || {}).filter((b) => typeof b === 'number'));
 
-const cardHtml = (n, cls = '') => `<span class="sp-card ${cls}">${n ?? '?'}</span>`;
+const cardHtml = (n, cls = '') => `<span class="sp-card ${cls} ${n == null ? 'back' : ''}">${n ?? '?'}</span>`;
 
 export default {
   id: 'seedpoker',

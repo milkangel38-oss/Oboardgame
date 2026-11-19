@@ -607,7 +607,7 @@ a.cat-banner:active { transform: translateY(0); }
 .sp-pot { text-align: center; font-family: var(--display); font-size: 15px; color: var(--gold); }
 .sp-pot b { font-family: var(--logo); font-weight: 400; font-size: 22px; }
 .sp-pot small { display: block; font-family: Pretendard, sans-serif; font-size: 11px; color: rgba(255, 255, 255, .5); }
-.sp-card { display: inline-grid; place-items: center; width: 34px; height: 48px; border-radius: 6px; background: #fbf8f0; color: #1c1c1c; font-family: var(--logo); font-size: 18px; box-shadow: 0 2px 5px rgba(0, 0, 0, .45); }
+.sp-card { display: inline-grid; place-items: center; width: 34px; height: 48px; border-radius: 6px; background: #fbf8f0 url('../img/cards/face.webp') center / 100% 100%; color: #1c1c1c; font-family: var(--logo); font-size: 18px; box-shadow: 0 2px 5px rgba(0, 0, 0, .45); }
 .sp-card.seed { width: 42px; height: 58px; font-size: 22px; background: linear-gradient(135deg, #fff0b8, #d4a640 55%, #8a5f17); color: #3a2400; }
 .sp-card.open { width: 28px; height: 40px; font-size: 15px; opacity: .9; }
 .sp-card.burned { width: 28px; height: 40px; font-size: 15px; opacity: .45; }
@@ -880,11 +880,10 @@ a.cat-banner:active { transform: translateY(0); }
 .tc-total td { font-weight: 800; color: var(--gold); }
 .tc .up { color: #4ee07a; } .tc .dn { color: #ff5c7a; }
 /* 티츄 카드 */
-.tcard { position: relative; aspect-ratio: 5 / 7; border-radius: 6px; background: #fffdf6; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); overflow: hidden; border: 1px solid #d8cfb8; }
+.tcard { position: relative; aspect-ratio: 5 / 7; border-radius: 6px; background: #fffdf6 url('../img/cards/face.webp') center / 100% 100%; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); overflow: hidden; border: 1px solid #d8cfb8; }
 .tcard svg { width: 100%; height: 100%; display: block; }
 .tcard.sm { width: 36px; } .tcard.xs { width: 26px; border-radius: 4px; }
-.tcard.sp-dr { background: linear-gradient(180deg, #fff3d0, #ffd77a); } .tcard.sp-ph { background: linear-gradient(180deg, #fff1e6, #ffc9a8); }
-.tcard.sp-dog { background: #f3ece2; } .tcard.sp-mj { background: #eef6ea; }
+.tcard.sp { background: linear-gradient(180deg, #232036, #14111f); border-color: #8a6d2c; } /* 특수 카드: 어두운 비단 바탕 + 금테 */
 .tc-cbtn.wishc .tcard { box-shadow: 0 0 0 3px #ffd84d, 0 2px 0 rgba(0, 0, 0, .35); }
 .tc-spdesc { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(255, 216, 77, .1); font-size: 12.5px; line-height: 1.45; }
 .tc-spdesc .tcard { flex: none; width: 30px; }
@@ -1148,9 +1147,9 @@ a.cat-banner:active { transform: translateY(0); }
 .mp-timer b { font-family: var(--logo); font-weight: 400; font-size: 30px; }
 .mp-timer.hurry { color: #ff5c7a; animation: pulse .6s infinite alternate; }
 .mp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px; border-radius: 14px; background: #0f1a3a; box-shadow: inset 0 0 0 2px rgba(201, 168, 90, .3); }
-.mp-back { position: relative; display: grid; place-items: center; aspect-ratio: 5 / 7; border-radius: 8px; background: linear-gradient(160deg, #1c2f5e, #101c3c); box-shadow: inset 0 0 0 1.5px rgba(201, 168, 90, .55), 0 2px 0 rgba(0, 0, 0, .4); color: #c9a85a; overflow: hidden; }
+.mp-back { position: relative; display: grid; place-items: center; aspect-ratio: 5 / 7; border-radius: 8px; background: #1c2f5e url('../img/cards/back.webp') center / 100% 100%; box-shadow: inset 0 0 0 1.5px rgba(201, 168, 90, .55), 0 2px 0 rgba(0, 0, 0, .4); color: #c9a85a; overflow: hidden; }
 .mp-back > i { position: absolute; top: 3px; left: 5px; font-style: normal; font-size: 10px; }
-.mp-back > b { font-family: Georgia, 'Times New Roman', serif; font-size: 32px; line-height: 1; font-weight: 700; }
+.mp-back > b { font-family: Georgia, 'Times New Roman', serif; font-size: 17px; line-height: 1; font-weight: 700; display: grid; place-items: center; width: 1.7em; height: 1.7em; border-radius: 50%; background: rgba(16, 18, 40, .78); box-shadow: 0 0 0 1.5px #c9a85a; color: #f2d27a; }
 .mp-back > small { position: absolute; bottom: 4px; font-size: 6px; letter-spacing: 1px; opacity: .6; }
 .mp-face { display: grid; gap: 2px; }
 /* 웹(넓은 화면)에서도 한 화면에 다 보이도록: 화면 높이에 맞춰 격자 크기 제한 */
@@ -1159,7 +1158,7 @@ a.cat-banner:active { transform: translateY(0); }
 .mp-shared .tcard { width: clamp(48px, 9vh, 64px); }
 @media (min-height: 0) and (max-height: 820px) { .mp { gap: 6px; } .mp-timer { font-size: 18px; } .mp-timer b { font-size: 24px; } .mp-go { padding: 10px; } }
 .mp-face > i { text-align: center; font-style: normal; font-size: 10px; font-weight: 800; color: #c9a85a; }
-.mp-back > small { white-space: nowrap; transform: scale(.85); }
+.mp-back > small { display: none; }
 .mp-shared { display: flex; justify-content: center; gap: 8px; }
 .mp-shared .tcard { width: 64px; }
 .mp-slot { appearance: none; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 8px; }
@@ -1885,3 +1884,5 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .am-ch.flip .am-fx:not(:empty) ~ .am-bub { margin-top: max(20px, 3.4cqw); }
 .am-confirm { margin-top: 6px; }
 .am-confirm:disabled { opacity: .5; }
+
+.sp-card.back { background: #1c2f5e url('../img/cards/back.webp') center / 100% 100%; color: transparent; } /* 시드포커: 안 보이는 카드는 뒷면 */
