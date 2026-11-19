@@ -127,7 +127,7 @@ export function createBackend(config) {
     },
     async topScores(key, n = 10) {
       const snap = await getDocs(query(collection(db, 'users'), orderBy(`best.${key}`, 'desc'), limit(n)));
-      return snap.docs.map((d) => { const p = d.data(); return { uid: d.id, name: p.name || p.authName || '이름 없음', photo: p.photo || p.authPhoto || '', score: p.best?.[key] || 0 }; });
+      return snap.docs.map((d) => { const p = d.data(); return { uid: d.id, name: p.name || p.authName || '이름 없음', photo: p.photo || p.authPhoto || '', score: Number(p.best?.[key]) || 0 }; });
     },
 
     // 나에게 친구 요청을 보낸 사람들 (그 사람의 reqOut에 내가 있음)

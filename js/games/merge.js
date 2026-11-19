@@ -85,6 +85,7 @@ export function newWorld() {
 }
 export function step(w, dt, now, onMerge) {
   const B = w.bodies;
+  for (const b of B) { b.px = b.x; b.py = b.y; }
   for (const b of B) {
     if (b.r < b.tr) b.r = Math.min(b.tr, b.r + (b.tr - b.r) * Math.min(1, dt * 9) + 4 * dt);
     b.vy += G * dt; b.vx *= 0.999;
@@ -130,10 +131,14 @@ export function step(w, dt, now, onMerge) {
     if (b.touch) { b.fall = false; b.w += (b.vx / b.r - b.w) * 0.5; } else b.w *= 0.998;
     if (Math.hypot(b.vx, b.vy) < 8) b.w *= 0.85;
     b.a += b.w * dt;
+    // 실제로 움직인 속도 (쌓인 채 쉬는 캐릭터는 중력과 밀어내기가 상쇄돼 0에 가까워요 → 화면 주사율과 상관없이 멈춤 판정)
+    b.sp = b.px == null ? Math.hypot(b.vx, b.vy) : Math.hypot(b.x - b.px, b.y - b.py) / dt;
   }
 }
 // 모두 멈췄나? (속도가 거의 0이고 자라는 중인 캐릭터도 없음)
-export const settled = (w) => w.bodies.every((b) => !b.fall && Math.hypot(b.vx, b.vy) < 22 && b.r >= b.tr - 0.5);
+export const settled = (w) => w.bodies.every((b) => !b.fall && (b.sp ?? Math.hypot(b.vx, b.vy)) < 22 && b.r >= b.tr - 0.5);
+const STALL_MS = 3000; // 그래도 계속 꿈틀대면 3초 뒤엔 멈춘 것으로 쳐요 (게임이 멈추지 않게)
+const calmNow = (w, now) => settled(w) || now - w.lastDrop > STALL_MS;
 
 export function dropAt(w, x, now) {
   const r = CHARS[w.cur].r;
@@ -198,7 +203,7 @@ function build() {
   return c;
 }
 const goalText = (k) => (k < BONUS_AT.length ? `🎯 ${BONUS_AT[k].toLocaleString()}점을 넘으면 <b>+${BONUS_DROPS}번</b> 더! <small>(${k + 1}/${BONUS_AT.length})</small>` : `🎉 보너스 목표 모두 달성! (+${BONUS_DROPS * BONUS_AT.length}번)`);
-const canDrop = (w, now) => !w.over && w.left > 0 && now - w.lastDrop > 300 && settled(w);
+const canDrop = (w, now) => !w.over && w.left > 0 && now - w.lastDrop > 300 && calmNow(w, now);
 function tryDrop(c) {
   const now = performance.now();
   if (!canDrop(c.w, now)) return;
@@ -217,7 +222,7 @@ async function loadRank(c) {
     const { backend } = await import('../backend/index.js');
     const list = await backend.topScores('merge', 10);
     const me = c.ctx.me;
-    c.$('[data-rank]').innerHTML = list.length ? list.map((r, i) => `<li class="${r.uid === me ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`}</span><b>${esc(r.name)}</b><em>${r.score.toLocaleString()}</em></li>`).join('') : '<li class="muted">아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!</li>';
+    c.$('[data-rank]').innerHTML = list.length ? list.map((r, i) => `<li class="${r.uid === me ? 'me' : ''}"><span>${i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`}</span><b>${esc(r.name)}</b><em>${(Number(r.score) || 0).toLocaleString()}</em></li>`).join('') : '<li class="muted">아직 기록이 없어요. 첫 기록의 주인공이 되어 보세요!</li>';
   } catch {
     c.$('[data-rank]').innerHTML = '<li class="muted">랭킹을 불러오지 못했어요</li>';
   }
@@ -271,7 +276,7 @@ function frame() {
     for (let k = 0; k < sub; k++) step(w, h, now, (a, b) => { const nb = mergeOnce(w, a, b, now); burst(w, nb.x, nb.y, nb.lv, now); sfxMerge(nb.lv); });
     // 목표 점수 → 횟수 +30 (한 번)
     if (checkBonus(w)) { w.banner = { t: now, text: `🎯 ${BONUS_AT[w.bonus - 1].toLocaleString()}점 달성!<br><b>+${BONUS_DROPS}번</b> 더 떨어뜨릴 수 있어요` }; sfxBonus(); }
-    const calm = settled(w) && now - w.lastDrop > 300;
+    const calm = calmNow(w, now) && now - w.lastDrop > 300;
     // 상자 위로 넘친 채 멈추면 끝 / 다 떨어뜨리고 모두 멈추면 끝
     const full = calm && w.bodies.some((b) => b.y - b.r < 0);
     w.overT = full ? (w.overT || now) : 0;

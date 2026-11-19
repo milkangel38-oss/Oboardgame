@@ -415,7 +415,7 @@ function friendRecord(uid) {
   const p = fdocs[uid];
   if (!p) return '';
   const s = summarize(p);
-  return `<span class="fr-rec"><i class="fr-tier" style="--tier:${s.tier.color}">${s.tier.icon} ${s.tier.name}</i><i class="fr-gar">${GARNET}${s.garnets}</i><i>${s.plays ? `${s.plays}전 ${s.wins}승 ${s.losses}패 · ${s.rate}%` : '전적 없음'}</i></span>`;
+  return `<span class="fr-rec"><i class="fr-tier" style="--tier:${s.tier.color}">${s.tier.icon} ${s.tier.name}</i><i class="fr-gar">${GARNET}${Number(s.garnets) || 0}</i><i>${s.plays ? `${Number(s.plays)}전 ${Number(s.wins)}승 ${Number(s.losses)}패 · ${Number(s.rate)}%` : '전적 없음'}</i></span>`;
 }
 
 function drawFriends() {
@@ -1162,7 +1162,7 @@ function drawRoom($main, room, game) {
     const tag = r.aborted ? ''
       : r.draw && mineRank ? '<span class="res-tag draw">DRAW</span>'
       : mineRank && game.coopGame ? `<span class="res-tag ${reward > 0 ? 'win' : reward < 0 ? 'lose' : 'draw'}">${reward > 0 ? 'CLEAR' : reward < 0 ? 'FAIL' : 'DRAW'}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
-      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${mineRank.place}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
+      : mineRank ? `<span class="res-tag ${mineRank.place === 1 ? 'win' : 'lose'}">${game.deathmatch || game.teamGame ? (mineRank.place === 1 ? 'WIN' : 'LOSE') : `${Number(mineRank.place) || 0}등`}</span>${reward ? `<span class="res-garnet ${reward < 0 ? 'minus' : ''}">${GARNET}${reward > 0 ? '+' : '−'}${Math.abs(reward)}</span>` : ''}`
       : r.draw ? '<span class="res-tag draw">DRAW</span>'
       : (r.winners || []).includes(user.uid) ? '<span class="res-tag win">WIN</span>' : '<span class="res-tag lose">LOSE</span>';
     resultBanner = `
