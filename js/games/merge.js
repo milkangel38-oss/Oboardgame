@@ -17,12 +17,20 @@ export const CHARS = [
   { name: '블랙홀', body: '#1a1030', dark: '#b06cff', r: 102 },
 ];
 const MAX = CHARS.length - 1;
-export const SPAWN = [34, 28, 20, 12, 6]; // 떨어뜨리는 확률(%): 별가루·운석·달·화성·금성
+export const SPAWN = [38, 30, 18, 10, 4]; // 떨어뜨리는 확률(%): 별가루·운석·달·화성·금성
 export const pointsFor = (lv) => lv * (lv + 1); // 새로 만든 단계 lv의 점수 (2, 6, 12, 20 …)
 const MAX_BONUS = 300;
 export const LIMIT = 50;        // 기본 떨어뜨리기 횟수
 export const BONUS_DROPS = 30;  // 목표 점수를 넘으면 추가 횟수
-export const BONUS_AT = 450;     // 목표 점수: 시뮬레이션 평균 (마구 떨어뜨리기 ≈400 · 맞춰 떨어뜨리기 ≈520)
+export const BONUS_AT = [450, 1000]; // 목표 점수: 넘을 때마다 +30번 (1차는 시뮬레이션 평균 근처)
+// 목표를 넘었으면 횟수를 늘리고 true (한 번에 하나씩)
+export function checkBonus(w) {
+  const goal = BONUS_AT[w.bonus];
+  if (goal == null || w.score < goal) return false;
+  w.bonus += 1;
+  w.left += BONUS_DROPS;
+  return true;
+}
 export const W = 420, H = 600, DROP_Y = 46;
 const G = 1500;
 
@@ -73,7 +81,7 @@ export function charSvg(lv) {
 
 // ── 물리 (커질 때는 반지름이 서서히 자라며 옆 캐릭터를 미끄러지듯 밀어내고, 구를 때는 회전) ──
 export function newWorld() {
-  return { bodies: [], score: 0, next: pickSpawn(), cur: pickSpawn(), dropX: W / 2, left: LIMIT, bonus: false, lastDrop: -1e9, over: false, overT: 0, id: 1, best: 0, made: Array(CHARS.length).fill(0), fx: [], shake: null, banner: null, reason: '' };
+  return { bodies: [], score: 0, next: pickSpawn(), cur: pickSpawn(), dropX: W / 2, left: LIMIT, bonus: 0, lastDrop: -1e9, over: false, overT: 0, id: 1, best: 0, made: Array(CHARS.length).fill(0), fx: [], shake: null, banner: null, reason: '' };
 }
 export function step(w, dt, now, onMerge) {
   const B = w.bodies;
@@ -166,7 +174,7 @@ function build() {
       <div class="mg-left"><small>남은 횟수</small><b data-left>${LIMIT}</b></div>
       <div class="mg-best"><small>내 최고</small><b data-best>-</b></div>
     </div>
-    <div class="mg-goal" data-goal>🎯 ${BONUS_AT.toLocaleString()}점을 넘으면 <b>+${BONUS_DROPS}번</b> 더!</div>
+    <div class="mg-goal" data-goal>${goalText(0)}</div>
     <div class="mg-box"><canvas></canvas><div class="mg-banner" hidden></div><div class="mg-over" hidden></div></div>
     <div class="mg-chain">${CHARS.map((c, i) => `<img src="${dataUrl(i)}" title="${c.name}" alt="${c.name}" style="width:${14 + i * 2.6}px">`).join('<i>›</i>')}</div>
     <div class="mg-hint">화면을 누른 채로 좌우로 움직이고, 손을 떼면 떨어져요 · 모두 멈춰야 다음 천체를 떨어뜨릴 수 있어요 (PC: 마우스 · ←→ + 스페이스)</div>
@@ -189,6 +197,7 @@ function build() {
   root.addEventListener('click', (e) => { if (e.target.closest('[data-again]')) restart(c); });
   return c;
 }
+const goalText = (k) => (k < BONUS_AT.length ? `🎯 ${BONUS_AT[k].toLocaleString()}점을 넘으면 <b>+${BONUS_DROPS}번</b> 더! <small>(${k + 1}/${BONUS_AT.length})</small>` : `🎉 보너스 목표 모두 달성! (+${BONUS_DROPS * BONUS_AT.length}번)`);
 const canDrop = (w, now) => !w.over && w.left > 0 && now - w.lastDrop > 300 && settled(w);
 function tryDrop(c) {
   const now = performance.now();
@@ -229,7 +238,7 @@ async function gameOver(c, reason) {
   soundEvent(c.ctx.room?.code, `mg:over:${Date.now()}`, isNew ? 'ok' : 'no');
   const top = w.made.reduce((m, n, i) => (n ? i : m), 0);
   c.$('.mg-over').innerHTML = `<div><b>${reason === 'full' ? '상자가 가득 찼어요!' : '모두 떨어뜨렸어요!'}</b><strong>${score.toLocaleString()}점</strong>${isNew ? '<em>🎉 최고 기록 경신!</em>' : `<small>내 최고 ${best.toLocaleString()}점</small>`}
-    ${w.bonus ? '<small>🎯 보너스 +30번 달성!</small>' : ''}
+    ${w.bonus ? `<small>🎯 보너스 +${BONUS_DROPS * w.bonus}번 달성! (${w.bonus}/${BONUS_AT.length})</small>` : ''}
     <span>가장 크게 만든 천체: <img src="${dataUrl(top)}" alt=""> ${CHARS[top].name}</span>
     <button class="mg-again" data-again>다시 하기 ↻</button></div>`;
   c.$('.mg-over').hidden = false;
@@ -261,7 +270,7 @@ function frame() {
     const sub = 4, h = dt / sub;
     for (let k = 0; k < sub; k++) step(w, h, now, (a, b) => { const nb = mergeOnce(w, a, b, now); burst(w, nb.x, nb.y, nb.lv, now); sfxMerge(nb.lv); });
     // 목표 점수 → 횟수 +30 (한 번)
-    if (!w.bonus && BONUS_AT && w.score >= BONUS_AT) { w.bonus = true; w.left += BONUS_DROPS; w.banner = { t: now, text: `🎯 목표 달성!<br><b>+${BONUS_DROPS}번</b> 더 떨어뜨릴 수 있어요` }; sfxBonus(); }
+    if (checkBonus(w)) { w.banner = { t: now, text: `🎯 ${BONUS_AT[w.bonus - 1].toLocaleString()}점 달성!<br><b>+${BONUS_DROPS}번</b> 더 떨어뜨릴 수 있어요` }; sfxBonus(); }
     const calm = settled(w) && now - w.lastDrop > 300;
     // 상자 위로 넘친 채 멈추면 끝 / 다 떨어뜨리고 모두 멈추면 끝
     const full = calm && w.bodies.some((b) => b.y - b.r < 0);
@@ -328,7 +337,8 @@ function frame() {
   }
   const $l = c.$('[data-left]');
   if ($l.textContent !== String(w.left)) { $l.textContent = String(w.left); $l.classList.toggle('low', w.left <= 5); }
-  c.$('[data-goal]').classList.toggle('done', w.bonus);
+  const $g = c.$('[data-goal]');
+  if ($g.dataset.lv !== String(w.bonus)) { $g.dataset.lv = String(w.bonus); $g.innerHTML = goalText(w.bonus); $g.classList.toggle('done', w.bonus >= BONUS_AT.length); }
   const $n = c.$('[data-next]');
   if ($n.dataset.lv !== String(w.next)) { $n.dataset.lv = String(w.next); $n.src = dataUrl(w.next); }
   const $b = c.$('.mg-banner');
@@ -368,7 +378,7 @@ export default {
     `천체는 11단계: ${CHARS.map((c) => c.name).join(' → ')}`,
     `떨어지는 건 작은 5가지뿐이에요 (별가루 ${SPAWN[0]}% · 운석 ${SPAWN[1]}% · 달 ${SPAWN[2]}% · 화성 ${SPAWN[3]}% · 금성 ${SPAWN[4]}%). 큰 천체는 합쳐서만 만들 수 있어요.`,
     '합칠 때마다 점수! 큰 천체를 만들수록 점수가 커져요 (운석 2점 · 달 6점 · … · 블랙홀 110점). 블랙홀 둘을 합치면 +300점 보너스!',
-    `점수가 ${BONUS_AT.toLocaleString()}점을 넘으면 ${BONUS_DROPS}번 더 떨어뜨릴 수 있어요 (한 번).`,
+    `점수가 ${BONUS_AT.map((n) => n.toLocaleString() + '점').join(', ')}을 넘을 때마다 ${BONUS_DROPS}번씩 더 떨어뜨릴 수 있어요.`,
     '다 떨어뜨리거나, 천체가 상자 밖으로 넘친 채 멈추면 게임 끝.',
     '최고 점수는 내 프로필에 저장되고 랭킹에 올라가요. 혼자 하는 게임이라 가넷·전적은 없어요.',
   ],
