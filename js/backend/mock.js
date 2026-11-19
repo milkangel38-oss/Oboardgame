@@ -97,11 +97,11 @@ export function createBackend() {
       const sk = (id) => `og-secret:${code}:${id}`;
       let srv = null; try { srv = JSON.parse(localStorage.getItem(sk('SERVER'))); } catch {}
       let out;
-      try { out = serverApply({ ...rooms[code], code }, srv, me, move); } catch (e) { if (e.message === '__noop') return; throw e; }
+      try { out = serverApply({ ...rooms[code], code }, srv, me, move); }
+      catch (e) { if (e.server) localStorage.setItem(sk('SERVER'), JSON.stringify(e.server)); if (e.message === '__noop') return; throw e; }
       localStorage.setItem(sk('SERVER'), JSON.stringify(out.server));
-      if (out.mineChanged) Object.entries(out.mine).forEach(([u, v]) => localStorage.setItem(sk(u), JSON.stringify({ ...v, match: rooms[code].matchId })));
-      rooms[code] = out.room;
-      saveRooms(rooms);
+      out.changedMine.forEach((u) => localStorage.setItem(sk(u), JSON.stringify({ ...out.mine[u], match: rooms[code].matchId })));
+      if (out.roomChanged) { rooms[code] = out.room; saveRooms(rooms); } else notifyRooms();
     },
     watchSecret(code, uid, cb) {
       const emit = () => { try { cb(JSON.parse(localStorage.getItem(`og-secret:${code}:${uid}`))); } catch { cb(null); } };

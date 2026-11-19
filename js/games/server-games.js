@@ -31,20 +31,27 @@ export function serverApply(room, srv, uid, move, env = {}) {
     if (!srv?.full || !room.game?.nonce || srv.nonce !== room.game.nonce || srv.match !== room.matchId) throw new Error('게임 준비 중이에요. 잠시 후 다시 해 주세요');
     if (srv.result || srv.full.phase === 'done') throw new Error('게임이 끝났어요');
     if (!srv.full.order.includes(uid)) throw new Error('참가자가 아니에요');
-    const out = core.applyMove(srv.full, move, uid, room.players, env);
+    let out;
+    try { out = core.applyMove(srv.full, move, uid, room.players, env); }
+    catch (e) { if (e.state) e.server = { ...srv, full: e.state }; throw e; } // 실패해도 남길 서버 상태 (예: 살펴본 시각)
     full = out.state;
     result = out.result || null;
     id = srv.nonce;
   }
   const { pub, mine } = core.split(full);
   next.game = { ...pub, nonce: id };
+  // 바뀐 것만 저장해요 (안 바뀐 문서를 다시 쓰면 '수정 시각'으로 몰래 일어난 일(공격 시각 등)이 드러나요)
+  const prevMine = move.type === 'deal' || !srv?.full ? {} : core.split(srv.full).mine;
+  Object.values(prevMine).forEach((m) => (m.nonce = id));
+  Object.values(mine).forEach((m) => (m.nonce = id));
+  const changedMine = Object.keys(mine).filter((u) => JSON.stringify(mine[u]) !== JSON.stringify(prevMine[u]));
+  const roomChanged = JSON.stringify(next.game) !== JSON.stringify(room.game) || !!result;
   if (result) {
     next.status = 'finished';
     next.result = { ...result, by: 'server' };
   }
   const server = { full, match: room.matchId, nonce: id, order: full.order, result: result || null };
-  Object.values(mine).forEach((m) => (m.nonce = id));
-  return { room: next, server, mine, mineChanged: (core.SECRET_MOVES || ['deal']).includes(move.type) };
+  return { room: next, server, mine, changedMine, roomChanged, mineChanged: changedMine.length > 0 };
 }
 
 // 가넷 기록용: 서버 사본에 남은 결과 (방 문서의 result는 믿지 않아요)

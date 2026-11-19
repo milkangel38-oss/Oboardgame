@@ -227,7 +227,7 @@ export function createBackend(config) {
       const rdb = m.getDatabase(app);
       const base = m.ref(rdb, `live/${code}`);
       return {
-        send(uid, data) { m.set(m.child(base, uid), data).catch(() => {}); },
+        send(uid, data) { m.set(m.child(base, uid), { ...data, t: m.serverTimestamp() }).catch(() => {}); }, // t: 서버 시각 (보안 규칙의 속도 제한용)
         watch(cb) { return m.onValue(base, (snap) => cb(snap.val() || {}), () => cb({})); },
         onLeave(uid) { try { m.onDisconnect(m.child(base, uid)).remove(); } catch {} },
         close(uid) { m.remove(m.child(base, uid)).catch(() => {}); },

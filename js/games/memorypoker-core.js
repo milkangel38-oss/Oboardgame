@@ -125,6 +125,7 @@ export function applyMove(state, move, uid, players) {
   if (move?.type === 'pick') {
     if (state.phase !== 'pick') throw new Error('지금은 카드를 고를 수 없어요');
     if (state.picks[uid]) throw new Error('이미 골랐어요');
+    if (state.deadline && now > state.deadline + 2000) throw new Error('시간이 지났어요');
     const ix = (move.picks || []).map(Number);
     if (ix.length !== 2 || ix[0] === ix[1] || !ix.every((i) => Number.isInteger(i) && i >= 0 && i < 16)) throw new Error('A~P 중 서로 다른 2곳을 골라 주세요');
     const picks = { ...state.picks, [uid]: ix };

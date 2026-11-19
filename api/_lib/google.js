@@ -45,7 +45,7 @@ async function rtdbToken() {
   return rtdbCache.token;
 }
 async function rtdbGet(path) {
-  const r = await fetch(`${RTDB_URL}/${path}.json`, { headers: { authorization: `Bearer ${await rtdbToken()}` } });
+  const r = await fetch(`${RTDB_URL}/${path}.json`, { headers: { authorization: `Bearer ${await rtdbToken()}` }, signal: AbortSignal.timeout(2000) });
   if (!r.ok) throw new Error(`실시간 DB ${r.status}`);
   return r.json();
 }

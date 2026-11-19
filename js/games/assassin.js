@@ -11,7 +11,7 @@ import { dealing } from './server-deal.js';
 const COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6', '#ff8ad8', '#e8cf8a'];
 // 공개 상태 + 내 비밀 → 화면용 상태 (마피아 본인만 마피아·미션·쓰러진 사람을, 공격받은 사람은 자기만 알아요)
 function view(pub, sec, me) {
-  if (!sec) return pub;
+  if (!sec || (sec.round != null && sec.round !== pub.round)) return pub; // 지난 라운드 비밀은 무시
   const dead = { ...(pub.dead || {}), ...(sec.dead || {}) };
   if (sec.deadMe) dead[me] = sec.deadMe;
   return { ...pub, mafia: sec.mafia ? me : pub.mafia ?? null, mission: sec.mission || pub.mission || null, dead, lastKill: sec.lastKill || pub.lastKill || 0 };
@@ -180,7 +180,7 @@ function interact() {
     if (!s.target) { ctl.shake = now; return; }
     if (now - (state.lastKill || 0) < KILL_CD) { ctl.shake = now; return; }
     const p = ctl.disp[s.target];
-    sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y) });
+    sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y) }, { silent: true, onError: () => { ctl.shake = Date.now(); } });
   } else if (s.body) {
     sendMove({ type: 'shout', body: s.body }, { silent: true, onError: () => { ctl.shake = Date.now(); } }); // 쓰러진 사람이 아니면 흔들림
   } else ctl.shake = now;

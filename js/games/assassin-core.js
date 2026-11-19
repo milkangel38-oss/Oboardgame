@@ -123,7 +123,8 @@ const livePos = (pos, u, state) => {
 };
 
 export function applyMove(state, move, uid, players, env = {}) {
-  const pos = env.positions || null; // 서버가 읽은 실시간 위치 (live/{방}) — 있으면 거리 확인
+  const pos = env.positions || null; // 서버가 읽은 실시간 위치 (live/{방})
+  const strict = !!env.strict; // 서버: 위치를 꼭 확인 (못 하면 거부) · 테스트 모드: 위치 없이 진행
   const now = Date.now();
   const t = move?.type;
   if (t !== 'tick' && !state.order.includes(uid)) throw new Error('참가자가 아니에요');
@@ -150,8 +151,9 @@ export function applyMove(state, move, uid, players, env = {}) {
     const tg = move.target;
     if (!state.order.includes(tg) || tg === uid || state.dead[tg]) throw new Error('공격할 수 없는 대상이에요');
     const pm = livePos(pos, uid, state), pt = livePos(pos, tg, state);
+    if (strict && (!pm || !pt)) throw new Error('위치를 확인할 수 없어요. 조금 움직인 뒤 다시 해 보세요');
     if (pm && pt && dist(pm, pt) > MEET + REACH_SLACK) throw new Error('너무 멀어요'); // 실제로 닿아 있어야 공격
-    const at = pt || { x: Number(move.x) || 0, y: Number(move.y) || 0 };
+    const at = pt || { x: Number(move.x) || 0, y: Number(move.y) || 0 }; // (테스트 모드에서만 화면 좌표 사용)
     const dead = { ...state.dead, [tg]: { x: Math.round(at.x), y: Math.round(at.y), at: now } };
     const s = { ...state, dead, lastKill: now };
     if (aliveCitizens(s).length <= 1) return { state: toVote(s, now, 'auto') };
@@ -161,10 +163,13 @@ export function applyMove(state, move, uid, players, env = {}) {
     if (state.phase !== 'hunt' || uid === state.mafia || state.dead[uid]) throw new Error('__noop');
     if (now < state.mafiaAt + INTRO_MS) throw new Error('__noop');
     // 시민은 누가 쓰러졌는지 몰라요: 가까운 사람에게 상호작용 → 서버가 쓰러진 사람인지 확인
-    if (!state.dead[move.body]) throw new Error('__miss');
+    if (now - (state.shoutAt?.[uid] || 0) < 1000) throw new Error('__miss'); // 1초에 한 번만 살펴볼 수 있어요
+    const s0 = { ...state, shoutAt: { ...(state.shoutAt || {}), [uid]: now } };
     const ps = livePos(pos, uid, state);
-    if (ps && dist(ps, state.dead[move.body]) > MEET + REACH_SLACK) throw new Error('__miss');
-    return { state: toVote({ ...state, found: { by: uid, body: move.body, at: now } }, now, 'found') };
+    if (!state.dead[move.body] || (strict && !ps) || (ps && dist(ps, state.dead[move.body]) > MEET + REACH_SLACK)) {
+      const e = new Error('__miss'); e.state = s0; throw e; // 실패해도 '살펴본 시각'은 기록 (연타 방지)
+    }
+    return { state: toVote({ ...s0, found: { by: uid, body: move.body, at: now } }, now, 'found') };
   }
   if (t === 'advise') {
     if (state.phase !== 'vote') throw new Error('지금은 조언할 수 없어요');
@@ -215,7 +220,7 @@ export function deal(room) {
   return newRound(base, 1);
 }
 export function split(full) {
-  const { pastMafia, ...pub } = full;
+  const { pastMafia, shoutAt, ...pub } = full;
   const open = ['result', 'done'].includes(full.phase);
   if (!open) { pub.mafia = null; pub.mission = null; pub.lastKill = 0; }
   if (full.phase === 'hunt') pub.dead = {}; // 불이 꺼진 동안 누가 쓰러졌는지는 비밀 (회의가 시작되면 공개)
@@ -227,6 +232,7 @@ export function split(full) {
       dead: isM && full.phase === 'hunt' ? full.dead : null,
       deadMe: (full.dead || {})[u] || null,
       lastKill: isM ? full.lastKill || 0 : 0,
+      round: full.round, // 라운드가 바뀌면 지난 비밀은 무시해요
     }];
   }));
   return { pub, mine };
