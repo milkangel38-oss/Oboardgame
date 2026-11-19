@@ -6,9 +6,15 @@ const { recordFor } = require('./_lib/record-logic');
 module.exports = async (req, res) => {
   try {
     if (req.method === 'GET') {
-      await accessToken();
-      await getDoc('rooms', '__check__');
-      return send(res, 200, { ok: true, message: '서버 설정 정상 ✅' });
+      // 단계별 점검 (비밀 값은 보여 주지 않고, 어느 단계에서 막혔는지만 알려 줘요)
+      const step = { node: process.version, fetch: typeof fetch };
+      try { const sa = require('./_lib/firebase-token').getServiceAccount(); step.serviceAccount = 'ok'; step.project = sa.projectId || '(없음)'; }
+      catch (e) { return send(res, 200, { ok: false, step: '1 서비스 계정 읽기', error: e.message, ...step }); }
+      try { await accessToken(); step.token = 'ok'; }
+      catch (e) { return send(res, 200, { ok: false, step: '2 구글 접근 토큰', error: e.message, ...step }); }
+      try { await getDoc('rooms', '__check__'); step.firestore = 'ok'; }
+      catch (e) { return send(res, 200, { ok: false, step: '3 Firestore 읽기', error: e.message, ...step }); }
+      return send(res, 200, { ok: true, message: '서버 설정 정상 ✅', ...step });
     }
     if (req.method !== 'POST') return send(res, 405, { ok: false });
     const uid = await uidFrom(req);

@@ -22,7 +22,7 @@ async function accessToken() {
     body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${jwt}`,
   });
   const j = await r.json();
-  if (!r.ok || !j.access_token) throw new Error(`구글 접근 토큰을 받지 못했어요 (${r.status})`);
+  if (!r.ok || !j.access_token) throw new Error(`구글 접근 토큰을 받지 못했어요 (${r.status} ${j.error || ''} ${String(j.error_description || '').slice(0, 80)})`);
   tokenCache = { token: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
   return tokenCache.token;
 }
@@ -89,7 +89,7 @@ async function call(url, opts = {}) {
   const r = await fetch(url, { ...opts, headers: { authorization: `Bearer ${await accessToken()}`, 'content-type': 'application/json', ...(opts.headers || {}) } });
   if (r.status === 404) return null;
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Firestore ${r.status}: ${j.error?.status || ''}`);
+  if (!r.ok) throw new Error(`Firestore ${r.status}: ${j.error?.status || ''} ${String(j.error?.message || '').slice(0, 120)}`);
   return j;
 }
 async function getDoc(col, id, transaction) {
