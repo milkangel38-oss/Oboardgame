@@ -1,4 +1,4 @@
-// 스플렌더 그림: 보석 6종·금화(사진), 보석 토큰, 카드 배경(단계별 그림), 귀족 초상 10명
+// 스플렌더 그림: 보석 6종·금화(사진), 보석 토큰, 카드 배경(단계×보석 15장), 귀족 초상 10명
 // 그라데이션은 SPL_DEFS 한 곳에만 정의해요 (화면 맨 위에 한 번 넣기)
 
 export const SPL_DEFS = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -16,11 +16,7 @@ export const tokenSvg = (c) => `<svg viewBox="0 0 40 40" class="tok">
   <circle cx="20" cy="20" r="15.5" fill="url(#spg-bg)"/>
   ${c === 'gold' ? gemImg('gold', 4.5, 4.5, 31) : gemImg(c, 7, 7, 26)}</svg>`;
 
-// 카드 배경: 단계별 그림 한 장(1단계 광산 · 2단계 공방 · 3단계 궁전)에서 카드마다 다른 부분을 보여 줘요
-const SCENE_W = { 1: 680, 2: 684, 3: 760 };
-export const sceneSvg = (i, lv = 2) => {
-  const w = (70 * SCENE_W[lv]) / 420, x = -((i * 37) % 7) / 6 * (w - 50);
-  return `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice"><image href="img/splendor/lv${lv}.webp" x="${x.toFixed(1)}" y="0" width="${w.toFixed(1)}" height="70"/></svg>`;
-};
+// 카드 배경: 단계(1 생산 · 2 도시 · 3 궁정) × 보너스 보석 색마다 다른 그림 15장
+export const sceneSvg = (color, lv = 2) => `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice"><image href="img/splendor/bg-${lv}${color}.webp" width="50" height="70" preserveAspectRatio="xMidYMid slice"/></svg>`;
 
 export const portraitSvg = (i) => `<svg viewBox="0 0 60 60" class="spl-portrait"><image href="img/splendor/noble-${i % 10}.webp" width="60" height="60"/></svg>`;

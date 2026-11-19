@@ -295,13 +295,12 @@ export default {
     const myBonus = mp ? bonusOf(mp) : null;
     const nobleIdx = (n) => Object.keys(NOBLES).indexOf(n);
     const nobleHtml = (n) => `<div class="spl-noble">${portraitSvg(nobleIdx(n))}<b>3</b><div class="spl-nreq">${Object.entries(NOBLES[n].req).map(([c, v]) => `<span class="spl-req">${gemSvg(c)}<i>${v}</i></span>`).join('')}</div></div>`;
-    const cardIdx = (id) => [...id].reduce((a, ch) => a + ch.charCodeAt(0), 0);
     const cardHtml = (id, { sm = false, back = false } = {}) => {
       const c = CARDS[id];
       if (back) return `<span class="spl-card back lv${c.lv} sm"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
       const can = !sm && mp && payFor(mp, c);
       return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
-        ${sceneSvg(cardIdx(id), c.lv)}
+        ${sceneSvg(c.bonus, c.lv)}
         <span class="spl-ch"><b>${c.pts || ''}</b>${gemSvg(c.bonus)}</span>
         <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i class="spl-cg ${!sm && myBonus && myBonus[x] ? 'has' : ''}">${gemSvg(x)}<b>${c.cost[x]}</b></i>`).join('')}</span>
       </${sm ? 'span' : 'button'}>`;
