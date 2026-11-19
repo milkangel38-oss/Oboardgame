@@ -8,10 +8,10 @@ import { GARNET } from '../profile.js';
 
 export const SUITS = ['cloud', 'star', 'moon', 'sun']; // 약한 → 강한
 const SUIT = {
-  sun: { name: '해', color: '#e0452e' },
-  moon: { name: '달', color: '#2f9e5b' },
-  star: { name: '별', color: '#e0a11a' },
-  cloud: { name: '구름', color: '#2f5fb8' },
+  sun: { name: '해', color: '#b8222c' },
+  moon: { name: '달', color: '#1f3d99' },
+  star: { name: '별', color: '#1c7444' },
+  cloud: { name: '구름', color: '#4a6fae' },
 };
 const START_CHIPS = 100;
 const handSize = (n) => (n === 4 ? 13 : 12);
@@ -119,16 +119,10 @@ function finalResult(state, players) {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// ── 타일 그림 (직접 그림) ──
-const SYM = {
-  sun: '<circle cx="12" cy="12" r="5.2" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1"/></g>',
-  moon: '<path d="M15.5 3.2A9 9 0 1 0 20.8 16 7.2 7.2 0 0 1 15.5 3.2z" fill="currentColor"/>',
-  star: '<path d="M12 2.2l2.9 6.2 6.8.8-5 4.7 1.3 6.7L12 17.3l-6 3.3 1.3-6.7-5-4.7 6.8-.8z" fill="currentColor"/>',
-  cloud: '<path d="M7 19.5h10.5a4.5 4.5 0 0 0 .6-9 6 6 0 0 0-11.4-1.4A5.2 5.2 0 0 0 7 19.5z" fill="currentColor"/>',
-};
+// ── 타일 그림: 옥 타일(img/tiles/lx.webp) + 무늬 문장(img/tiles/lx-*.webp) ──
 export function tileHtml(id, size = '') {
   const t = tileOf(id);
-  return `<span class="lx-tile ${size} s-${t.suit}" style="--lc:${SUIT[t.suit].color}"><b>${t.num}</b><svg viewBox="0 0 24 24">${SYM[t.suit]}</svg></span>`;
+  return `<span class="lx-tile ${size} s-${t.suit}" style="--lc:${SUIT[t.suit].color}"><b>${t.num}</b><img src="img/tiles/lx-${t.suit}.webp" alt="${SUIT[t.suit].name}" draggable="false" /></span>`;
 }
 
 let ui = { key: '', sel: [] };

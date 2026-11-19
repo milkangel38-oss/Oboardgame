@@ -1901,3 +1901,12 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .av-yes img, .av-no img { width: 34px; height: 34px; border-radius: 50%; }
 .av-yes:disabled img, .av-no:disabled img { filter: grayscale(1) opacity(.5); }
 .tcard .pip { filter: drop-shadow(0 .4px .5px rgba(0, 0, 0, .35)); }
+/* 렉시오 옥 타일 · 루미큐브 상아 타일 (v8.0) */
+.lx-tile { background: none; border: 0 solid transparent; border-image: url(../img/tiles/lx.webp) 44 fill / 7px / 0 stretch; box-shadow: 0 3px 5px rgba(0, 0, 0, .4); gap: 1px; }
+.lx-tile b { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-size: 22px; text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }
+.lx-tile img { width: 72%; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); pointer-events: none; }
+.lx-tile.xs { border-image-width: 4px; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); } .lx-tile.xs b { font-size: 12px; } .lx-tile.xs img { width: 70%; }
+.rk-tile { background: none; border: 0 solid transparent; border-image: url(../img/tiles/rk.webp) 30 fill / 5px / 0 stretch; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+.rk-tile b { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; text-shadow: 0 1px 0 rgba(255, 255, 255, .5); }
+.rk-tile.new { box-shadow: 0 2px 4px rgba(0, 0, 0, .4), 0 0 0 2px #3ddc84; }
+.rk-tile.sm { border-image-width: 3px; }

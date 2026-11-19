@@ -607,12 +607,11 @@ export function cardHtml(id, size = '') {
   const corner = `<text x="5.4" y="9.6" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${L.length > 1 ? 7.4 : 9}" letter-spacing="${L.length > 1 ? -0.6 : 0}" fill="${col}">${L}</text>${pip(5.4, 14.4, 5.2)}`;
   let mid;
   if (c.rank <= 10) mid = PIPS[c.rank].map(([x, y]) => pip(x, y, 8.6, y > 36)).join('');
-  else if (c.rank === 14) mid = `<circle cx="25" cy="35" r="14" fill="${col}" fill-opacity=".05" stroke="#b8963e" stroke-width=".6"/><circle cx="25" cy="35" r="12.4" fill="none" stroke="#b8963e" stroke-width=".3"/>${pip(25, 35, 17)}`;
+  else if (c.rank === 14) mid = pip(25, 35, 20);
   else {
     // J·Q·K: 금테 안에 무늬 색 문장(검·작은 왕관·큰 왕관) + 아래에 무늬
     const em = { 11: 'j', 12: 'q', 13: 'k' }[c.rank];
-    mid = `<rect x="10.5" y="7" width="29" height="56" rx="2.2" fill="${col}" fill-opacity=".05" stroke="#b8963e" stroke-width=".6"/><rect x="12" y="8.5" width="26" height="53" rx="1.6" fill="none" stroke="#b8963e" stroke-width=".25"/>
-      <use href="#emb-${em}" fill="url(#sg-${c.suit})" x="13" y="16" width="24" height="24"/>${pip(25, 48, 9)}`;
+    mid = `<use href="#emb-${em}" fill="url(#sg-${c.suit})" x="13" y="16" width="24" height="24"/>${pip(25, 48, 9)}`;
   }
   return `<div class="tcard ${size}"><svg viewBox="0 0 50 70">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg></div>`;
 }
