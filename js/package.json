@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "브라우저용 ES 모듈 (서버 /api/game에서도 불러와요)"
+}

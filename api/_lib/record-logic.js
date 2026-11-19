@@ -27,26 +27,35 @@ function err(status, message) { const e = new Error(message); e.status = status;
 
 // room: 방 문서, prof: 내 프로필 문서(없으면 null), uid: 나
 // → 저장할 { data, fields } 또는 null(이미 기록함)
-function recordFor(room, prof, uid, now = Date.now()) {
+function recordFor(room, prof, uid, now = Date.now(), srv = null) {
   if (!room) throw err(404, '방을 찾을 수 없어요');
   const meta = GAMES[room.gameId];
   if (!meta) throw err(400, '기록하지 않는 게임이에요');
-  if (room.status !== 'finished' || !room.result || room.result.aborted || !room.matchId) throw err(409, '끝난 게임이 아니에요');
-  if (meta.server && room.result.by !== 'server') throw err(409, '서버가 확인한 결과가 아니에요');
-  const ranking = Array.isArray(room.result.ranking) ? room.result.ranking : [];
-  // 인원·참가 여부는 방의 실제 참가자 명단으로만 판단 (순위표의 uid는 누구나 지어낼 수 있어요)
-  const people = new Set(Object.keys(room.players || {}));
+  let result, people, key;
+  if (meta.server) {
+    // 서버가 진행한 게임: 방 문서(브라우저가 고칠 수 있음)가 아니라 서버 사본(secret/SERVER)의 결과만 믿어요
+    if (!srv || !srv.result || !srv.nonce || srv.match !== room.matchId) throw err(409, '서버가 확인한 결과가 아니에요');
+    result = srv.result;
+    people = new Set(Array.isArray(srv.order) ? srv.order : []);
+    key = `${room.code}:${room.matchId}:${srv.nonce}`;
+  } else {
+    if (room.status !== 'finished' || !room.result || room.result.aborted || !room.matchId) throw err(409, '끝난 게임이 아니에요');
+    result = room.result;
+    // 인원·참가 여부는 방의 실제 참가자 명단으로만 판단 (순위표의 uid는 누구나 지어낼 수 있어요)
+    people = new Set(Object.keys(room.players || {}));
+    key = `${room.code}:${room.matchId}`;
+  }
+  const ranking = Array.isArray(result.ranking) ? result.ranking : [];
   if (!people.has(uid)) throw err(403, '이 게임 참가자가 아니에요');
   if (people.size < meta.min) throw err(409, '인원이 모자란 게임은 기록하지 않아요');
-  const raw = room.result.rewards ? room.result.rewards[uid] : 0;
+  const raw = result.rewards ? result.rewards[uid] : 0;
   const garnets = raw == null ? 0 : Number(raw);
   if (!Number.isInteger(garnets) || garnets > meta.max || garnets < -(meta.minus || 0)) throw err(422, '보상이 올바르지 않아요');
   const mine = ranking.find((r) => r && r.uid === uid);
-  const placeRaw = mine ? Number(mine.place) : (room.result.winners || []).includes(uid) ? 1 : 0;
+  const placeRaw = mine ? Number(mine.place) : (result.winners || []).includes(uid) ? 1 : 0;
   const place = Number.isInteger(placeRaw) && placeRaw >= 0 && placeRaw <= 20 ? placeRaw : 0;
 
   const p = prof || {};
-  const key = `${room.code}:${room.matchId}`;
   const recent = Array.isArray(p.recentMatches) ? p.recentMatches : [];
   if (recent.includes(key) || p.lastMatch === key) return null; // 같은 판을 두 번 기록하지 않음
   const ghist = Array.isArray(p.ghist) ? p.ghist : [];

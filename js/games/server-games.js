@@ -1,10 +1,13 @@
 // 서버가 진행하는 게임 (비밀 정보가 있는 게임). 서버(/api/game)와 테스트 모드가 같은 함수를 써요.
-// 방 문서(rooms/{code})에는 공개 정보만, 비밀은 rooms/{code}/secret/SERVER (아무도 못 읽음),
-// 각자 알아도 되는 비밀은 rooms/{code}/secret/{uid} (본인만 읽음)에 저장해요.
+// 진짜 게임 상태는 전부 rooms/{code}/secret/SERVER (아무도 못 읽음)에 있고,
+// 방 문서(rooms/{code}).game에는 그 공개 사본만, 각자 알아도 되는 비밀은 secret/{uid} (본인만 읽음)에 저장해요.
+// → 방 문서의 game은 브라우저가 고쳐도 서버는 무시해요 (서버는 자기 사본으로만 진행).
 import * as avalon from './avalon-core.js';
 
 export const SERVER_GAMES = { avalon };
 export const isServerGame = (id) => !!SERVER_GAMES[id];
+
+const nonce = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 // room: 방 문서, srv: 서버 비밀 문서(없으면 null), uid: 움직인 사람, move: 동작
 // → { room: 새 방 문서, server: 새 서버 비밀, mine: {uid: 비밀} }
@@ -15,22 +18,35 @@ export function serverApply(room, srv, uid, move) {
   if (!room.players?.[uid]) throw new Error('참가자가 아니에요');
   if (!move || typeof move !== 'object' || typeof move.type !== 'string') throw new Error('알 수 없는 동작이에요');
   const next = JSON.parse(JSON.stringify(room));
-  let full, result = null;
+  let full, result = null, id;
   if (move.type === 'deal') {
-    // 시작은 한 번만 (같은 판 번호로 이미 나눴으면 무시)
-    if (room.game?.phase !== 'deal' || (srv && srv.match === room.matchId)) throw new Error('__noop');
+    // 새 판 시작: 방장이 연 '나눠 주기 전' 상태(아직 nonce 없음)일 때만. 서버가 처음부터 새로 만들어요.
+    if (room.game?.phase !== 'deal' || room.game?.nonce) throw new Error('__noop');
     full = core.deal(room);
+    id = nonce();
   } else {
-    if (!srv || srv.match !== room.matchId) throw new Error('게임 준비 중이에요. 잠시 후 다시 해 주세요');
-    const out = core.applyMove(core.merge(room.game, srv), move, uid, room.players);
+    // 진행: 서버 사본과 방의 판(nonce·판 번호)이 같아야 해요. 방 문서의 game 내용은 쓰지 않아요.
+    if (!srv?.full || !room.game?.nonce || srv.nonce !== room.game.nonce || srv.match !== room.matchId) throw new Error('게임 준비 중이에요. 잠시 후 다시 해 주세요');
+    if (srv.result || srv.full.phase === 'done') throw new Error('게임이 끝났어요');
+    if (!srv.full.order.includes(uid)) throw new Error('참가자가 아니에요');
+    const out = core.applyMove(srv.full, move, uid, room.players);
     full = out.state;
     result = out.result || null;
+    id = srv.nonce;
   }
-  const { pub, server, mine } = core.split(full);
-  next.game = pub;
+  const { pub, mine } = core.split(full);
+  next.game = { ...pub, nonce: id };
   if (result) {
     next.status = 'finished';
     next.result = { ...result, by: 'server' };
   }
-  return { room: next, server: { ...server, match: room.matchId }, mine };
+  const server = { full, match: room.matchId, nonce: id, order: full.order, result: result || null };
+  Object.values(mine).forEach((m) => (m.nonce = id));
+  return { room: next, server, mine };
+}
+
+// 가넷 기록용: 서버 사본에 남은 결과 (방 문서의 result는 믿지 않아요)
+export function serverResult(room, srv) {
+  if (!srv?.result || !srv.nonce || srv.match !== room?.matchId) return null;
+  return { result: srv.result, order: srv.order || [], key: `${room.code}:${room.matchId}:${srv.nonce}` };
 }

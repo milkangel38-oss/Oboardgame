@@ -1340,9 +1340,9 @@ function drawRoom($main, room, game) {
       players: room.players,
       finished: room.status === 'finished',
       room,
-      secret: roomSecret && roomSecret.match === room.matchId ? roomSecret : null,
+      secret: roomSecret && roomSecret.match === room.matchId && roomSecret.nonce && roomSecret.nonce === room.game?.nonce ? roomSecret : null,
       sendMove: game.serverMoves
-        ? (move, opts) => backend.serverMove(room.code, move).catch((e) => { if (opts?.silent || e.message === '__noop') return; showAlert(e.message); })
+        ? (move, opts) => backend.serverMove(room.code, move).catch((e) => { if (e.message === '__noop') return; opts?.onError?.(e); if (opts?.silent) return; showAlert(e.message); })
         : (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent),
     });
   }

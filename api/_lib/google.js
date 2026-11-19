@@ -116,7 +116,8 @@ async function transact(fn, tries = 4) {
       });
       return true;
     } catch (e) {
-      if (!/ABORTED|FAILED_PRECONDITION/.test(e.message) || i === tries - 1) throw e;
+      if (!/ABORTED|FAILED_PRECONDITION/.test(e.message)) throw e;
+      if (i === tries - 1) throw httpError(409, '사람이 몰려서 처리하지 못했어요. 잠시 후 다시 해 주세요');
     }
   }
   return false;

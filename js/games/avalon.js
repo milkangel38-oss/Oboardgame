@@ -48,16 +48,24 @@ export default {
     if (state.phase === 'deal') {
       // 방장이 서버에 역할 나눠 주기를 요청 (한 번만)
       ui.show = false; // 새 판: 역할 카드 닫기
-      // 방장이 바로 요청하고, 5초가 지나도 그대로면 다른 사람도 요청해요 (서버는 한 번만 나눠 줘요)
+      // 방장이 바로 요청하고, 그대로면 다른 사람도 5초·15초·30초 뒤에 다시 요청해요 (서버는 한 번만 나눠 줘요)
       const k = `${room?.code}:${room?.matchId}`;
-      if (room && ui.dealt !== k) {
-        if (ui.dealWait !== k) { ui.dealWait = k; ui.dealFirst = Date.now(); }
-        if (room.hostId === me || Date.now() - ui.dealFirst > 5000) { ui.dealt = k; sendMove({ type: 'deal' }, { silent: true }); }
-        else setTimeout(() => { if (el.isConnected && ui.dealt !== k) this.render(el, { state, me, players, finished, sendMove, room, secret }); }, 5200);
-      }
+      if (room && ui.deal.k !== k) { clearTimeout(ui.deal.timer); ui.deal = { k, first: Date.now(), tries: 0, timer: 0 }; }
+      const d = ui.deal;
+      const waits = room?.hostId === me ? [0, 5000, 15000, 30000] : [5000, 15000, 30000];
+      const tryDeal = () => {
+        d.timer = 0;
+        if (ui.deal !== d || d.tries >= waits.length) return;
+        d.tries += 1;
+        const last = d.tries >= waits.length;
+        sendMove({ type: 'deal' }, { silent: !last }); // 마지막 시도가 실패하면 오류를 보여 줘요
+        if (!last) d.timer = setTimeout(tryDeal, Math.max(0, d.first + waits[d.tries] - Date.now()));
+      };
+      if (room && !d.timer && d.tries < waits.length) d.timer = setTimeout(tryDeal, Math.max(0, d.first + waits[d.tries] - Date.now()));
       el.innerHTML = '<div class="av"><div class="av-msg">🃏 역할을 나눠 주는 중…</div></div>';
       return;
     }
+    if (ui.deal.timer) { clearTimeout(ui.deal.timer); ui.deal.timer = 0; ui.deal.tries = 99; } // 역할을 받았으면 재시도 멈춤
     const roles = state.roles || {}; // 게임이 끝나야 모두 공개돼요
     const votedMap = state.voted || {}, playedMap = state.played || {};
     const name = (u) => esc(players[u]?.name || '나간 사람');
@@ -213,4 +221,4 @@ export default {
     el.querySelectorAll('[data-kill]').forEach((b) => (b.onclick = () => sendMove({ type: 'assassinate', target: b.dataset.kill })));
   },
 };
-const ui = { dealt: '', team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
+const ui = { deal: {}, team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
