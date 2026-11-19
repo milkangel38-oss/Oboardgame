@@ -4,122 +4,19 @@ import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
 import { personHtml } from './face.js';
 
-const W = 1000, H = 700;           // 맵 크기(좌표)
-const R = 50;                       // 캐릭터 반지름 (화면 폭의 10%)
-const MEET = 62;                    // 이 거리 안이면 "만남"
-const SPEED = 230;                  // 초당 이동 거리
-const SLOW = 0.35;                  // 만났을 때 1초 동안 속도 배율
-const SLOW_MS = 500;
-const INTRO_MS = 6500;              // 마피아 선정 연출
-const HUNT_MS = 180000;             // 암전 상태 최대 3분 (아무도 시체를 못 찾으면 불이 켜짐)
-const VOTE_MS = 180000;             // 회의·투표 3분
-const RUNOFF_MS = 60000;            // 동점 결선 투표 1분
-const KILL_CD = 3000;
-const SEND_MS = 100;
+import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult } from './assassin-core.js';
+export { REWARDS, missionText } from './assassin-core.js';
+import { dealing } from './server-deal.js';
+
 const COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6', '#ff8ad8', '#e8cf8a'];
-export const REWARDS = [5, 4, 3];
-
+// 공개 상태 + 내 비밀 → 화면용 상태 (마피아 본인만 마피아·미션·쓰러진 사람을, 공격받은 사람은 자기만 알아요)
+function view(pub, sec, me) {
+  if (!sec) return pub;
+  const dead = { ...(pub.dead || {}), ...(sec.dead || {}) };
+  if (sec.deadMe) dead[me] = sec.deadMe;
+  return { ...pub, mafia: sec.mafia ? me : pub.mafia ?? null, mission: sec.mission || pub.mission || null, dead, lastKill: sec.lastKill || pub.lastKill || 0 };
+}
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const shuffle = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-};
-const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-
-function spawns(order) {
-  const pts = {};
-  order.forEach((u) => {
-    let p, tries = 0;
-    do { p = { x: 70 + Math.random() * (W - 140), y: 80 + Math.random() * (H - 150) }; tries++; }
-    while (tries < 200 && Object.values(pts).some((q) => dist(p, q) < 170));
-    pts[u] = { x: Math.round(p.x), y: Math.round(p.y) };
-  });
-  return pts;
-}
-
-// ── 미션 ──
-function makeMission(state, mafia) {
-  const citizens = shuffle(state.order.filter((u) => u !== mafia));
-  const kind = ['targets', 'count', 'frame'][Math.floor(Math.random() * 3)];
-  if (kind === 'targets') return { kind, targets: citizens.slice(0, 2 + Math.floor(Math.random() * 2)) };
-  if (kind === 'count') { const max = Math.max(4, citizens.length - 1); return { kind, n: 4 + Math.floor(Math.random() * (max - 3)) }; }
-  return { kind, target: citizens[0] };
-}
-export function missionText(m, players) {
-  const nm = (u) => `${players[u]?.name || '?'}님`;
-  if (!m) return '';
-  if (m.kind === 'targets') return `${m.targets.map(nm).join(', ')}만 모두 공격하세요 (다른 사람을 공격하면 실패)`;
-  if (m.kind === 'count') return `유저를 ${m.n}명 이상 공격하세요`;
-  return `${nm(m.target)}이(가) 의심받아 가장 많은 표를 받게 하세요`;
-}
-function missionOk(m, dead, caught) {
-  if (m.kind === 'targets') return m.targets.every((u) => dead[u]) && Object.keys(dead).every((u) => m.targets.includes(u));
-  if (m.kind === 'count') return Object.keys(dead).length >= m.n;
-  return caught === m.target;
-}
-
-function newRound(state, roundNo) {
-  return {
-    ...state, round: roundNo, phase: 'lobby', ready: {}, spawn: spawns(state.order),
-    mafia: null, mafiaAt: 0, mission: null, dead: {}, found: null, votes: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, deadline: 0, lastKill: 0, meeting: null,
-  };
-}
-const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u]);
-function toVote(state, now, why) {
-  return { ...state, phase: 'vote', deadline: now + VOTE_MS, votes: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, meeting: why };
-}
-function resolve(state, players) {
-  const tally = {};
-  Object.values(state.votes).forEach((t) => (tally[t] = (tally[t] || 0) + 1));
-  const max = Math.max(0, ...Object.values(tally));
-  const leaders = Object.keys(tally).filter((u) => tally[u] === max);
-  if (!state.runoff && max > 0 && leaders.length >= 2) {
-    const now = Date.now();
-    const runoff = shuffle(leaders).slice(0, 2); // 3명 이상 동점이면 그중 무작위 2명
-    return { state: { ...state, runoff, runoffAt: now, firstTally: tally, votes: {}, deadline: now + RUNOFF_MS } };
-  }
-  const caught = max > 0 && leaders.length === 1 ? leaders[0] : null;
-  const mafiaCaught = caught === state.mafia;
-  const ok = missionOk(state.mission, state.dead, caught);
-  const scores = { ...state.scores };
-  const breakdown = {};
-  state.order.forEach((u) => {
-    const items = [];
-    if (u === state.mafia) {
-      items.push(mafiaCaught ? ['마피아 검거됨', -5] : ['마피아 생존', 5]);
-      if (ok) items.push(['미션 성공', 3]);
-    } else {
-      items.push(mafiaCaught ? ['마피아 검거', 5] : ['검거 실패', -5]);
-      items.push(state.dead[u] ? ['공격받음', -1] : ['생존', 1]);
-    }
-    breakdown[u] = items;
-    scores[u] += items.reduce((a, [, p]) => a + p, 0);
-  });
-  const last = { runoff: state.runoff || null, round: state.round, mafia: state.mafia, mission: state.mission, missionOk: ok, caught, mafiaCaught, tally, votes: state.votes, dead: Object.keys(state.dead), breakdown };
-  const s = { ...state, phase: 'result', scores, last, deadline: 0, history: [...state.history, { round: state.round, mafia: state.mafia, mafiaCaught }] };
-  if (s.round >= s.rounds) {
-    const done = { ...s, phase: 'done' };
-    return { state: done, result: finalResult(done, players) };
-  }
-  return { state: s };
-}
-function finalResult(state, players) {
-  const ranking = state.order
-    .map((uid) => ({ uid, score: state.scores[uid] }))
-    .sort((a, b) => b.score - a.score)
-    .map((r, _, all) => {
-      const place = 1 + all.filter((o) => o.score > r.score).length;
-      return { ...r, place, garnets: REWARDS[place - 1] || 0 };
-    });
-  const top = ranking.filter((r) => r.place === 1).map((r) => players[r.uid]?.name || '?');
-  return {
-    message: `${top.join(', ')}님 1등! 🗡`,
-    winners: ranking.filter((r) => r.place === 1).map((r) => r.uid),
-    ranking,
-    rewards: Object.fromEntries(ranking.map((r) => [r.uid, r.garnets])),
-  };
-}
 
 // ── 캐릭터 그림 (오리지널: 두건 쓴 꼬마 자객) ──
 export const charSvg = (color, dead = false) => `<svg viewBox="0 0 60 72" aria-hidden="true">
@@ -258,15 +155,16 @@ function surroundings(now) {
     });
     if (best) { out.target = best.u; out.icon = `🗡 ${esc(players[best.u]?.name || '')}`; }
   } else {
+    // 시민은 마피아가 누군지, 누가 쓰러졌는지 몰라요 → 누구와 닿아도 똑같이 ✋ + 잠깐 느려짐
+    let best = null;
     alive.forEach((u) => {
       const d = dist(mine, ctl.disp[u]);
       if (d >= MEET) return;
-      if (u === state.mafia) { if (touch('m:' + u)) out.slow = true; out.icon = '❗'; }
-      else if (!out.icon) out.icon = '✋';
+      if (touch('t:' + u)) out.slow = true;
+      out.icon = '✋';
+      if (!best || d < best.d) best = { u, d };
     });
-    Object.entries(state.dead).forEach(([u, p]) => {
-      if (dist(mine, p) < MEET) { if (touch('b:' + u)) out.slow = true; out.body = u; if (out.icon !== '❗') out.icon = '🚑'; }
-    });
+    if (best) out.body = best.u; // 상호작용 → 서버가 쓰러진 사람인지 확인 (맞으면 시체발견!)
   }
   Object.keys(ctl.enter).forEach((k) => { if (!seen.has(k)) delete ctl.enter[k]; });
   return out;
@@ -284,7 +182,7 @@ function interact() {
     const p = ctl.disp[s.target];
     sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y) });
   } else if (s.body) {
-    sendMove({ type: 'shout', body: s.body });
+    sendMove({ type: 'shout', body: s.body }, { silent: true, onError: () => { ctl.shake = Date.now(); } }); // 쓰러진 사람이 아니면 흔들림
   } else ctl.shake = now;
 }
 
@@ -432,7 +330,7 @@ function frame() {
   let actLabel = '', actOn = false;
   if (state.phase === 'hunt' && !state.dead[me] && now >= state.mafiaAt + INTRO_MS) {
     if (isMafia && sur.target) { actOn = now - (state.lastKill || 0) >= KILL_CD; actLabel = actOn ? `${players[sur.target]?.name || ''} 공격!` : '잠시 후 공격 가능'; }
-    else if (!isMafia && sur.body) { actOn = true; actLabel = '시체발견 외치기'; }
+    else if (!isMafia && sur.body) { actOn = true; actLabel = '살펴보기 (쓰러져 있으면 시체발견!)'; }
   }
   $act.classList.toggle('hot', actOn);
   $act.classList.toggle('mafia', isMafia && state.phase === 'hunt');
@@ -551,97 +449,25 @@ export default {
   rules: [
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용 버튼(스페이스)을 써요.',
     '모두 준비를 누르면 불이 꺼져요. 방장이 마피아 선택을 누르면 1명이 몰래 마피아가 되고 비밀 미션을 받아요.',
-    '어둠 속에선 내 캐릭터만 보여요. 마피아와 몸이 닿으면 둘 다 0.5초 동안 느려지고, 마피아에겐 🗡+이름, 시민에겐 ❗가 떠요. 시민끼리는 ✋만 떠요.',
+    '어둠 속에선 내 캐릭터만 보여요. 누군가와 몸이 닿으면 0.5초 동안 느려져요. 마피아에겐 🗡+이름, 시민에겐 누구든 ✋만 떠요 (마피아인지 알 수 없어요).',
     '마피아는 마주친 순간 상호작용 버튼으로 공격! 공격받은 사람은 그 자리에 쓰러져 움직이거나 채팅할 수 없어요 (💀는 마피아에게만 보여요).',
-    '시민이 쓰러진 사람과 마주치면 🚑가 떠요. 상호작용을 눌러 "시체발견!"을 외치면 그 자리에서 모두 멈추고 불이 켜져요.',
+    '어둠 속에서는 누가 쓰러졌는지 보이지 않아요. 누군가와 닿았을 때 상호작용을 눌러 살펴보세요. 쓰러진 사람이면 "시체발견!"을 외치고 그 자리에서 모두 멈추고 불이 켜져요. (아니면 아무 일도 없어요)',
     '3분 동안 채팅으로 추리하고, 마피아라고 생각하는 사람의 프로필을 눌러 투표해요. 공격받은 사람은 채팅·투표 대신 프로필을 눌러 조언할 수 있어요 (투표란에 "○○님의 조언입니다"로 보여요). 최다 득표 1명이 지목돼요. 동점이면 두 명으로 추려 1분 동안 결선 투표를 한 번 더 해요 (조언 없음, 또 동점이면 지목 없음). 3분 동안 아무도 시체를 못 찾으면 불이 자동으로 켜져요.',
     '마피아 미션: 정해진 2~3명만 공격(다른 사람을 공격하면 실패) / 4명 이상 공격 / 정해진 사람이 가장 많은 표를 받게 하기 중 하나.',
     '점수 — 마피아를 잡으면: 마피아 −5, 시민 모두 +5 / 못 잡으면: 마피아 +5, 시민 모두 −5. 마피아 미션 성공 +3 (실패해도 감점 없음), 시민은 공격받으면 −1, 생존 +1',
     '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
   ],
 
-  setup(players, room) {
-    const order = players.map((p) => p.uid);
-    const rounds = Math.min(10, Math.max(3, Number(room?.options?.rounds) || 3));
-    const base = { order, host: room?.hostId || order[0], rounds, round: 0, scores: Object.fromEntries(order.map((u) => [u, 0])), history: [], pastMafia: [], chat: [], last: null };
-    return newRound(base, 1);
+  // 마피아·미션·공격 여부는 서버가 맡아요 (방 문서엔 공개 정보만, 내 비밀은 secret으로 받아요)
+  serverMoves: true,
+  setup(players) {
+    return { phase: 'deal', order: players.map((p) => p.uid) };
   },
+  move() { throw new Error('자객 마피아는 서버가 진행해요'); },
 
-  move(state, move, uid, players) {
-    const now = Date.now();
-    const t = move?.type;
-    if (t !== 'tick' && !state.order.includes(uid)) throw new Error('참가자가 아니에요');
-    const hostOk = uid === state.host || !players[state.host];
-
-    if (t === 'ready') {
-      if (state.phase !== 'lobby') throw new Error('__noop');
-      const ready = { ...state.ready, [uid]: move.on !== false };
-      if (state.order.every((u) => ready[u])) return { state: { ...state, ready, phase: 'dark' } };
-      return { state: { ...state, ready } };
-    }
-    if (t === 'pickMafia') {
-      if (state.phase !== 'dark') throw new Error('지금은 마피아를 고를 수 없어요');
-      if (!hostOk) throw new Error('방장만 마피아를 고를 수 있어요');
-      let pool = state.order.filter((u) => !state.pastMafia.includes(u));
-      if (!pool.length) pool = state.order;
-      const mafia = pool[Math.floor(Math.random() * pool.length)];
-      return { state: { ...state, phase: 'hunt', mafia, mafiaAt: now, mission: makeMission(state, mafia), pastMafia: [...state.pastMafia, mafia], deadline: now + INTRO_MS + HUNT_MS } };
-    }
-    if (t === 'kill') {
-      if (state.phase !== 'hunt' || uid !== state.mafia) throw new Error('__noop');
-      if (now < state.mafiaAt + INTRO_MS) throw new Error('아직 공격할 수 없어요');
-      if (now - (state.lastKill || 0) < KILL_CD) throw new Error('잠시 후에 다시 공격할 수 있어요');
-      const tg = move.target;
-      if (!state.order.includes(tg) || tg === uid || state.dead[tg]) throw new Error('공격할 수 없는 대상이에요');
-      const dead = { ...state.dead, [tg]: { x: Math.round(Number(move.x) || 0), y: Math.round(Number(move.y) || 0), at: now } };
-      const s = { ...state, dead, lastKill: now };
-      if (aliveCitizens(s).length <= 1) return { state: toVote(s, now, 'auto') };
-      return { state: s };
-    }
-    if (t === 'shout') {
-      if (state.phase !== 'hunt' || uid === state.mafia || state.dead[uid]) throw new Error('__noop');
-      if (!state.dead[move.body]) throw new Error('__noop');
-      return { state: toVote({ ...state, found: { by: uid, body: move.body, at: now } }, now, 'found') };
-    }
-    if (t === 'advise') {
-      if (state.phase !== 'vote') throw new Error('지금은 조언할 수 없어요');
-      if (state.runoff) throw new Error('결선 투표에서는 조언할 수 없어요');
-      if (!state.dead[uid]) throw new Error('__noop');
-      if (!state.order.includes(move.target) || state.dead[move.target]) throw new Error('조언할 수 없는 사람이에요');
-      return { state: { ...state, advice: { ...(state.advice || {}), [uid]: move.target } } };
-    }
-    if (t === 'vote') {
-      if (state.phase !== 'vote') throw new Error('지금은 투표 시간이 아니에요');
-      if (state.dead[uid]) throw new Error('공격당한 사람은 투표할 수 없어요');
-      if (!state.order.includes(move.target) || state.dead[move.target]) throw new Error('투표할 수 없는 사람이에요');
-      if (state.runoff && !state.runoff.includes(move.target)) throw new Error('결선 투표는 동점인 두 사람 중에서만 고를 수 있어요');
-      if (move.target === uid) throw new Error('나에게는 투표할 수 없어요');
-      const votes = { ...state.votes, [uid]: move.target };
-      const s = { ...state, votes };
-      if (state.order.filter((u) => !state.dead[u]).every((u) => votes[u])) return resolve(s, players);
-      return { state: s };
-    }
-    if (t === 'chat') {
-      const text = String(move.text || '').trim().slice(0, 60);
-      if (!text) throw new Error('__noop');
-      if (state.phase === 'dark' || state.phase === 'hunt') throw new Error('불이 꺼진 동안은 채팅할 수 없어요');
-      if (state.phase === 'vote' && state.dead[uid]) throw new Error('공격당한 사람은 채팅할 수 없어요');
-      return { state: { ...state, chat: [...(state.chat || []), { u: uid, text, at: now }].slice(-30) } };
-    }
-    if (t === 'next') {
-      if (state.phase !== 'result') throw new Error('__noop');
-      if (!hostOk) throw new Error('방장만 다음 라운드를 시작할 수 있어요');
-      return { state: newRound(state, state.round + 1) };
-    }
-    if (t === 'tick') {
-      if (state.phase === 'hunt' && now >= state.deadline) return { state: toVote(state, now, 'time') };
-      if (state.phase === 'vote' && now >= state.deadline) return resolve(state, players);
-      throw new Error('__noop');
-    }
-    throw new Error('알 수 없는 동작이에요');
-  },
-
-  render(el, ctx) {
+  render(el, ctx0) {
+    if (ctx0.state.phase === 'deal') { teardown(); dealing(el, ctx0, '🌑 맵을 준비하는 중…'); return; }
+    const ctx = { ...ctx0, state: view(ctx0.state, ctx0.secret, ctx0.me) };
     const code = ctx.room?.code || 'local';
     if (!ctl || ctl.code !== code) {
       teardown();

@@ -27,6 +27,29 @@ async function accessToken() {
   return tokenCache.token;
 }
 
+// Realtime Database 읽기 (자객 마피아 실시간 위치 확인용) — 별도 범위의 토큰을 써요
+const RTDB_URL = process.env.FIREBASE_DATABASE_URL || 'https://oboardgame-fb3f7-default-rtdb.asia-southeast1.firebasedatabase.app';
+let rtdbCache = { token: '', exp: 0 };
+async function rtdbToken() {
+  if (rtdbCache.token && Date.now() < rtdbCache.exp - 60_000) return rtdbCache.token;
+  const { email, key } = getServiceAccount();
+  const now = Math.floor(Date.now() / 1000);
+  const input = `${b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.${b64url(JSON.stringify({
+    iss: email, scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600,
+  }))}`;
+  const jwt = `${input}.${b64url(crypto.createSign('RSA-SHA256').update(input).sign(key))}`;
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${jwt}` });
+  const j = await r.json();
+  if (!r.ok || !j.access_token) throw new Error(`실시간 DB 토큰을 받지 못했어요 (${r.status})`);
+  rtdbCache = { token: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
+  return rtdbCache.token;
+}
+async function rtdbGet(path) {
+  const r = await fetch(`${RTDB_URL}/${path}.json`, { headers: { authorization: `Bearer ${await rtdbToken()}` } });
+  if (!r.ok) throw new Error(`실시간 DB ${r.status}`);
+  return r.json();
+}
+
 // ── 2) 브라우저가 보낸 Firebase 로그인 토큰(ID 토큰) 확인 → uid ──
 const CERT_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 let certCache = { certs: null, exp: 0 };
@@ -138,4 +161,4 @@ async function readJson(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'); } catch { return {}; }
 }
 
-module.exports = { accessToken, verifyIdToken, uidFrom, getDoc, transact, enc, dec, decFields, httpError, send, readJson, projectId };
+module.exports = { rtdbGet, accessToken, verifyIdToken, uidFrom, getDoc, transact, enc, dec, decFields, httpError, send, readJson, projectId };

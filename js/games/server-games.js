@@ -4,15 +4,16 @@
 // → 방 문서의 game은 브라우저가 고쳐도 서버는 무시해요 (서버는 자기 사본으로만 진행).
 import * as avalon from './avalon-core.js';
 import * as memorypoker from './memorypoker-core.js';
+import * as assassin from './assassin-core.js';
 
-export const SERVER_GAMES = { avalon, memorypoker };
+export const SERVER_GAMES = { avalon, memorypoker, assassin };
 export const isServerGame = (id) => !!SERVER_GAMES[id];
 
 const nonce = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 // room: 방 문서, srv: 서버 비밀 문서(없으면 null), uid: 움직인 사람, move: 동작
 // → { room: 새 방 문서, server: 새 서버 비밀, mine: {uid: 비밀} }
-export function serverApply(room, srv, uid, move) {
+export function serverApply(room, srv, uid, move, env = {}) {
   const core = SERVER_GAMES[room?.gameId];
   if (!core) throw new Error('서버가 진행하는 게임이 아니에요');
   if (room.status !== 'playing') throw new Error('게임 중이 아니에요');
@@ -30,7 +31,7 @@ export function serverApply(room, srv, uid, move) {
     if (!srv?.full || !room.game?.nonce || srv.nonce !== room.game.nonce || srv.match !== room.matchId) throw new Error('게임 준비 중이에요. 잠시 후 다시 해 주세요');
     if (srv.result || srv.full.phase === 'done') throw new Error('게임이 끝났어요');
     if (!srv.full.order.includes(uid)) throw new Error('참가자가 아니에요');
-    const out = core.applyMove(srv.full, move, uid, room.players);
+    const out = core.applyMove(srv.full, move, uid, room.players, env);
     full = out.state;
     result = out.result || null;
     id = srv.nonce;

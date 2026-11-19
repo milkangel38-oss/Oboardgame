@@ -8,7 +8,7 @@ const GAMES = {
   rummikub: { min: 2, max: 4 },
   splendor: { min: 2, max: 3 },
   tichu: { min: 4, max: 2 },
-  assassin: { min: 6, max: 5 },
+  assassin: { min: 6, max: 5, server: true },
   combo: { min: 2, max: 2, minus: 2 },
   dongsang: { min: 4, max: 10, minus: 10 },
   memorypoker: { min: 2, max: 3, server: true },
