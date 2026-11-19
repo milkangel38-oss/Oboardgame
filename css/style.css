@@ -1928,3 +1928,17 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .spl-cg b { box-shadow: none; background: rgba(20, 12, 30, .85); }
 .spl-cg.has svg.gem { filter: drop-shadow(0 0 2px #3ddc84) drop-shadow(0 0 2px #3ddc84); }
 .spl-noble .spl-req i { color: #f2d27a; text-shadow: 0 1px 2px #000; }
+/* 스플렌더 v8.4: 귀족 초상이 카드 끝까지, 개발 카드 비용은 왼쪽 아래 세로줄 */
+.spl-noble { aspect-ratio: 78 / 104; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 0; }
+.spl-noble .spl-portrait { position: absolute; inset: 0; width: 100%; height: 100%; }
+.spl-noble > b { z-index: 1; }
+.spl-noble .spl-nreq { position: relative; z-index: 1; padding: 10px 1px 3px; background: linear-gradient(180deg, transparent, rgba(10, 6, 2, .75) 45%); }
+.spl-card { container-type: inline-size; }
+.spl .spl-card .spl-cost { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 1.5cqw; padding: 0 0 4cqw 4cqw; }
+.spl .spl-card .spl-cost .spl-cg { width: 18cqw; height: 18cqw; }
+.spl .spl-card .spl-cg svg.gem { width: 100%; height: 100%; margin: 0; }
+.spl .spl-card .spl-cost .spl-cg b { right: -10cqw; bottom: -1cqw; min-width: 11.5cqw; height: 11.5cqw; padding: 0 1cqw; font-size: 8.5cqw; }
+.spl .spl-card .spl-cost .spl-cg b { right: -13cqw; bottom: -0.5cqw; min-width: 14cqw; height: 14cqw; padding: 0 1.5cqw; font-size: 11cqw; }
+.spl .spl-card .spl-cost { gap: 1cqw; padding: 0 0 3cqw 3cqw; }
+.spl .spl-card .spl-cost .spl-cg { width: 22cqw; height: 22cqw; }
+.spl .spl-card .spl-cost .spl-cg b { right: -15cqw; bottom: 1cqw; min-width: 15cqw; height: 15cqw; font-size: 12cqw; }

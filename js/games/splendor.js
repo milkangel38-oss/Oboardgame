@@ -343,7 +343,7 @@ export default {
     const myGems = mp ? `<div class="spl-gems">${[...COLORS, 'gold'].map((c) => `
       <div class="spl-gem">${tokenSvg(c)}<b>${mp.tokens[c]}</b>${c === 'gold' ? '<small>&nbsp;</small>' : `<small class="${myBonus[c] ? 'on' : ''}">카드 +${myBonus[c]}</small>`}</div>`).join('')}</div>` : '';
 
-    // 모든 플레이어(나 포함): 점수 · 보석 · 산 카드 · 예약 카드를 모두 공개
+    // 다른 플레이어(나 제외): 점수 · 보석 · 산 카드 · 예약 카드
     const playerBox = (u) => {
       const p = state.ps[u];
       const owned = [...p.cards].sort((x, y) => COLORS.indexOf(CARDS[x].bonus) - COLORS.indexOf(CARDS[y].bonus) || CARDS[x].lv - CARDS[y].lv);
@@ -351,8 +351,8 @@ export default {
       return `<div class="spl-op ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}">
         <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}${u === me ? ' (나)' : ''}</b>${p.nobles.length ? `<small>👑 귀족 ${p.nobles.length}명 (+${p.nobles.length * 3})</small>` : ''}<span class="spl-pts big">${pointsOf(p)}<small>점</small></span></div>
         <div class="spl-op-row"><span class="spl-op-t">보석</span><div class="spl-gems sm">${[...COLORS, 'gold'].map((c) => `<div class="spl-gem">${tokenSvg(c)}<b>${p.tokens[c]}</b></div>`).join('')}</div></div>
-        <div class="spl-op-row"><span class="spl-op-t">구매 ${p.cards.length}</span><div class="spl-res sm multi">${owned.length ? owned.map((id) => cardHtml(id, { sm: true })).join('') : '<span class="muted">아직 없음</span>'}</div></div>
-        <div class="spl-op-row"><span class="spl-op-t">예약 ${p.reserved.length}</span><div class="spl-res sm">${p.reserved.length ? p.reserved.map((id) => cardHtml(id, { sm: true, back: !showHidden && (p.hidden || []).includes(id) })).join('') : '<span class="muted">없음</span>'}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">구매 ${p.cards.length}</span><div class="spl-res sm multi">${owned.map((id) => cardHtml(id, { sm: true })).join('')}</div></div>
+        <div class="spl-op-row"><span class="spl-op-t">예약 ${p.reserved.length}</span><div class="spl-res sm">${p.reserved.map((id) => cardHtml(id, { sm: true, back: !showHidden && (p.hidden || []).includes(id) })).join('')}</div></div>
       </div>`;
     };
     const scoreboard = `<div class="spl-board">${state.order.map((u) => `<span class="${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}"><b>${name(u)}</b><i>${pointsOf(state.ps[u])}점</i></span>`).join('')}</div>`;
@@ -375,7 +375,7 @@ export default {
           ${myGems}
           ${mp.reserved.length ? `<div class="spl-me-h">📌 예약한 카드 <small class="muted">눌러서 사기</small></div><div class="spl-res">${mp.reserved.map((id) => cardHtml(id)).join('')}</div>` : ''}
         </div></section>` : ''}
-        <section class="spl-zone all-zone"><div class="spl-zone-t">👥 모든 플레이어 <small>점수 · 보석 · 구매/예약 카드</small></div><div class="spl-ops">${state.order.map(playerBox).join('')}</div></section>
+        <section class="spl-zone all-zone"><div class="spl-zone-t">👥 다른 플레이어 <small>점수 · 보석 · 구매/예약 카드</small></div><div class="spl-ops">${state.order.filter((u) => u !== me).map(playerBox).join('')}</div></section>
         ${guide()}
       </div>`;
 
