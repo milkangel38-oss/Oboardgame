@@ -150,6 +150,7 @@ export function applyMove(state, move, uid, players) {
 }
 
 // ── 서버 진행용 ──
+export const SECRET_MOVES = ['deal', 'vote']; // 사람별 비밀(역할·내 투표)이 바뀌는 동작
 // 게임 시작(서버): 역할을 나눠 주고 처음 상태를 만들어요. 순서는 방 참가자 명단에서 서버가 정해요.
 export function deal(room) {
   const order = shuffle(Object.keys(room.players || {}));

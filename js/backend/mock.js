@@ -99,7 +99,7 @@ export function createBackend() {
       let out;
       try { out = serverApply({ ...rooms[code], code }, srv, me, move); } catch (e) { if (e.message === '__noop') return; throw e; }
       localStorage.setItem(sk('SERVER'), JSON.stringify(out.server));
-      if (['deal', 'vote'].includes(move.type)) Object.entries(out.mine).forEach(([u, v]) => localStorage.setItem(sk(u), JSON.stringify({ ...v, match: rooms[code].matchId })));
+      if (out.mineChanged) Object.entries(out.mine).forEach(([u, v]) => localStorage.setItem(sk(u), JSON.stringify({ ...v, match: rooms[code].matchId })));
       rooms[code] = out.room;
       saveRooms(rooms);
     },

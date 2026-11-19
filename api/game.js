@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
         { col: `rooms/${code}/secret`, id: 'SERVER', data: out.server },
       ];
       // 각자 알아도 되는 비밀 (내 역할·아는 사람·내 투표)
-      if (['deal', 'vote'].includes(move.type)) Object.entries(out.mine).forEach(([u, v]) => writes.push({ col: `rooms/${code}/secret`, id: u, data: { ...v, match: room.matchId } }));
+      if (out.mineChanged) Object.entries(out.mine).forEach(([u, v]) => writes.push({ col: `rooms/${code}/secret`, id: u, data: { ...v, match: room.matchId } }));
       return writes;
     });
     return send(res, 200, { ok: true });

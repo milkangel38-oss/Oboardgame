@@ -1871,3 +1871,8 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .av-rv-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .av-rv-role { font-size: 12px; color: var(--muted); }
 @media (max-width: 420px) { .av-reveal { grid-template-columns: 1fr; } }
+
+/* 서버 진행 게임: 나눠 주는 중 */
+.sv-deal { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 40px 16px; font-weight: 700; color: var(--muted); }
+.sv-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .2); border-top-color: var(--gold); animation: svSpin .8s linear infinite; }
+@keyframes svSpin { to { transform: rotate(360deg); } }

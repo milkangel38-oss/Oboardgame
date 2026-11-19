@@ -3,8 +3,9 @@
 // 방 문서(rooms/{code}).game에는 그 공개 사본만, 각자 알아도 되는 비밀은 secret/{uid} (본인만 읽음)에 저장해요.
 // → 방 문서의 game은 브라우저가 고쳐도 서버는 무시해요 (서버는 자기 사본으로만 진행).
 import * as avalon from './avalon-core.js';
+import * as memorypoker from './memorypoker-core.js';
 
-export const SERVER_GAMES = { avalon };
+export const SERVER_GAMES = { avalon, memorypoker };
 export const isServerGame = (id) => !!SERVER_GAMES[id];
 
 const nonce = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -42,7 +43,7 @@ export function serverApply(room, srv, uid, move) {
   }
   const server = { full, match: room.matchId, nonce: id, order: full.order, result: result || null };
   Object.values(mine).forEach((m) => (m.nonce = id));
-  return { room: next, server, mine };
+  return { room: next, server, mine, mineChanged: (core.SECRET_MOVES || ['deal']).includes(move.type) };
 }
 
 // 가넷 기록용: 서버 사본에 남은 결과 (방 문서의 result는 믿지 않아요)

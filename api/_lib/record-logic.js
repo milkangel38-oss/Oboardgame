@@ -11,7 +11,7 @@ const GAMES = {
   assassin: { min: 6, max: 5 },
   combo: { min: 2, max: 2, minus: 2 },
   dongsang: { min: 4, max: 10, minus: 10 },
-  memorypoker: { min: 2, max: 3 },
+  memorypoker: { min: 2, max: 3, server: true },
   numbers: { min: 4, max: 3 },
   seedpoker: { min: 6, max: 3 },
   stock: { min: 4, max: 5 },

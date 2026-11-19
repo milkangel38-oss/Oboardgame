@@ -5,6 +5,7 @@ import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { faceHtml } from './face.js';
+import { dealing } from './server-deal.js';
 
 import { SIZES, failsNeeded, ROLES, ROLE_SETS, WIN_GARNETS, knowledge } from './avalon-core.js';
 export { SIZES, EVIL_COUNT, failsNeeded, ROLES, ROLE_SETS, dealRoles, knowledge } from './avalon-core.js';
@@ -45,27 +46,7 @@ export default {
 
   render(el, { state, me, players, finished, sendMove, room, secret }) {
     const n = state.order.length;
-    if (state.phase === 'deal') {
-      // 방장이 서버에 역할 나눠 주기를 요청 (한 번만)
-      ui.show = false; // 새 판: 역할 카드 닫기
-      // 방장이 바로 요청하고, 그대로면 다른 사람도 5초·15초·30초 뒤에 다시 요청해요 (서버는 한 번만 나눠 줘요)
-      const k = `${room?.code}:${room?.matchId}`;
-      if (room && ui.deal.k !== k) { clearTimeout(ui.deal.timer); ui.deal = { k, first: Date.now(), tries: 0, timer: 0 }; }
-      const d = ui.deal;
-      const waits = room?.hostId === me ? [0, 5000, 15000, 30000] : [5000, 15000, 30000];
-      const tryDeal = () => {
-        d.timer = 0;
-        if (ui.deal !== d || d.tries >= waits.length) return;
-        d.tries += 1;
-        const last = d.tries >= waits.length;
-        sendMove({ type: 'deal' }, { silent: !last }); // 마지막 시도가 실패하면 오류를 보여 줘요
-        if (!last) d.timer = setTimeout(tryDeal, Math.max(0, d.first + waits[d.tries] - Date.now()));
-      };
-      if (room && !d.timer && d.tries < waits.length) d.timer = setTimeout(tryDeal, Math.max(0, d.first + waits[d.tries] - Date.now()));
-      el.innerHTML = '<div class="av"><div class="av-msg">🃏 역할을 나눠 주는 중…</div></div>';
-      return;
-    }
-    if (ui.deal.timer) { clearTimeout(ui.deal.timer); ui.deal.timer = 0; ui.deal.tries = 99; } // 역할을 받았으면 재시도 멈춤
+    if (dealing(el, { state, room, me, sendMove }, '🃏 역할을 나눠 주는 중…')) { ui.show = false; return; } // 새 판: 역할 카드 닫기
     const roles = state.roles || {}; // 게임이 끝나야 모두 공개돼요
     const votedMap = state.voted || {}, playedMap = state.played || {};
     const name = (u) => esc(players[u]?.name || '나간 사람');
@@ -228,4 +209,4 @@ export default {
     el.querySelectorAll('[data-kill]').forEach((b) => (b.onclick = () => sendMove({ type: 'assassinate', target: b.dataset.kill })));
   },
 };
-const ui = { deal: {}, team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
+const ui = { team: [], show: false, key: '', questSeen: undefined, voteSeen: undefined, chatSeen: {}, chatStarted: false };
