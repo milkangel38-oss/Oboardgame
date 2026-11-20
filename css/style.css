@@ -2016,3 +2016,6 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .lx-tile { box-shadow: 0 3px 6px rgba(0, 0, 0, .55); }
 .lx-tile b { text-shadow: 0 1px 0 rgba(0, 0, 0, .8), 0 0 6px rgba(0, 0, 0, .5); }
 .lx-tile img { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+/* 렉시오 v9.4: 문양 조금 작게 */
+.lx-tile img { width: 60%; } .lx-tile.xs img { width: 58%; }
+.lx-tile { box-shadow: 0 3px 6px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 255, 255, .06); }
