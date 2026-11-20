@@ -2040,3 +2040,24 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
     radial-gradient(circle, #c4232f 0 34%, #fff 35% 38%, #c4232f 39% 61%, transparent 62%),
     conic-gradient(#fff 0 8deg, #c4232f 8deg 37deg, #fff 37deg 45deg, #c4232f 45deg 82deg, #fff 82deg 90deg, #c4232f 90deg 127deg, #fff 127deg 135deg, #c4232f 135deg 172deg, #fff 172deg 180deg, #c4232f 180deg 217deg, #fff 217deg 225deg, #c4232f 225deg 262deg, #fff 262deg 270deg, #c4232f 270deg 307deg, #fff 307deg 315deg, #c4232f 315deg 352deg, #fff 352deg 360deg);
   box-shadow: 0 0 0 1px #7a1018, 0 1px 2px rgba(0, 0, 0, .5); }
+/* 시드포커 v9.7: 가넷 카드 · 칩 쌓기 · 이월 알림 */
+.sp-card { position: relative; padding: 0; overflow: hidden; }
+.sp-card .sp-face { width: 100%; height: 100%; display: block; }
+.sp-card.seed { width: 42px; height: 58px; background: #fbf8f0 url('../img/cards/face.webp') center / 100% 100%; box-shadow: 0 0 0 2px #e2b450, 0 0 10px rgba(226, 180, 80, .7), 0 4px 10px rgba(0, 0, 0, .5); }
+.sp-mine { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 18px; padding: 12px 16px; }
+.sp-mcol { display: grid; justify-items: center; gap: 6px; align-content: start; }
+.sp-mcards { display: flex; gap: 10px; }
+.sp-stack { display: flex; align-items: flex-end; gap: 3px; min-height: 54px; }
+.sp-col { display: flex; flex-direction: column-reverse; }
+.sp-chip { display: block; width: 30px; height: 6px; margin-top: -1px; border-radius: 50% / 50%;
+  background: repeating-linear-gradient(90deg, #c4232f 0 5px, #fff 5px 7px); box-shadow: inset 0 -1.5px 0 rgba(0, 0, 0, .35), 0 1px 1px rgba(0, 0, 0, .4); }
+.sp-col .sp-chip:last-child { height: 8px; background: radial-gradient(ellipse 40% 45% at 50% 50%, #e8414f 0 60%, #fff 62% 72%, transparent 74%), repeating-linear-gradient(90deg, #c4232f 0 5px, #fff 5px 7px); }
+.sp-cnt { font-family: var(--logo); font-weight: 400; font-size: 20px; color: var(--gold); }
+.sp-empty { font-size: 12px; color: var(--muted); }
+.sp-topups { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.sp-notice { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.9); z-index: 9999; display: grid; justify-items: center; gap: 6px; min-width: 240px; max-width: 86vw; padding: 18px 22px; border-radius: 18px; text-align: center;
+  background: linear-gradient(180deg, #1f6a43, #0f3d26); color: #fff; box-shadow: inset 0 0 0 2px #e2b450, 0 14px 40px rgba(0, 0, 0, .6); animation: sp-pop .3s ease-out forwards; transition: opacity .5s, transform .5s; pointer-events: none; }
+.sp-notice b { font-family: var(--logo); font-weight: 400; font-size: 26px; color: #f2d27a; }
+.sp-notice span { font-size: 14px; line-height: 1.45; } .sp-notice small { font-size: 12px; color: rgba(255, 255, 255, .7); }
+.sp-notice.out { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
+@keyframes sp-pop { to { transform: translate(-50%, -50%) scale(1); } }

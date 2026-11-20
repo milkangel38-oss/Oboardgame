@@ -3,7 +3,7 @@
 // - 라운드 시작: 카드 한 장씩 비공개로 받고, 더미 맨 위 1장을 뒤집어 첫 시드카드
 // - 선부터 차례로 [카드 받기: 1장 더 받고 둘 중 하나 공개해서 버리기] 또는 [시드 추가: 더미에서 1장 뒤집어 시드에 추가]
 //   시드는 높은 3장만 남김
-// - 베팅: 모두 기본 1개, 선부터 차례로 포기 또는 1~3개 베팅
+// - 베팅: 모두 기본 1개, 선부터 차례로 포기 또는 1~3개 베팅 → 끝나면 모두 가장 큰 베팅에 맞춰 칩 추가
 // - 승부: 베팅한 사람 카드 공개 → 가장 낮은 카드부터 가장 높은 시드를 차례로 더함 → 합이 가장 큰 사람이 판돈 획득
 // - 10라운드 후 칩 순위로 가넷 1등 3, 2등 2, 3등 1
 import { turnAlert } from './turn-alert.js';
@@ -95,6 +95,19 @@ export function showdown(bettors, hands, seeds) {
 
 function resolve(state, now) {
   const chips = { ...state.chips };
+  const bets = { ...state.bets };
+  let pot = state.pot;
+  // 베팅이 끝나면 모두 가장 큰 베팅에 맞춰 칩을 더 내요. 모자라면 포기(낸 칩은 판돈에 남아요)
+  const top = Math.max(0, ...Object.values(bets).filter((b) => typeof b === 'number'));
+  const topups = [];
+  state.turnOrder.forEach((u) => {
+    const b = bets[u];
+    if (typeof b !== 'number' || b >= top) return;
+    const need = top - b;
+    if (chips[u] >= need) { chips[u] -= need; pot += need; bets[u] = top; topups.push({ uid: u, add: need }); }
+    else { bets[u] = 'fold'; topups.push({ uid: u, add: 0, fold: true }); }
+  });
+  state = { ...state, bets, pot };
   const bettors = state.turnOrder.filter((u) => typeof state.bets[u] === 'number');
   let carry = 0;
   let last;
@@ -103,13 +116,13 @@ function resolve(state, now) {
     let refunded = 0;
     Object.keys(state.base).forEach((u) => { chips[u] += 1; refunded += 1; });
     carry = state.pot - refunded;
-    last = { rows: [], winners: [], pot: state.pot, share: 0, carry, allFold: true };
+    last = { rows: [], winners: [], pot: state.pot, share: 0, carry, allFold: true, topups };
   } else {
     const { rows, winners } = showdown(bettors, state.hands, state.seeds);
     const share = Math.floor(state.pot / winners.length);
     winners.forEach((u) => (chips[u] += share));
     carry = state.pot - share * winners.length;
-    last = { rows, winners, pot: state.pot, share, carry, allFold: false };
+    last = { rows, winners, pot: state.pot, share, carry, allFold: false, topups, top };
   }
   return { ...state, chips, carry, pot: 0, phase: 'reveal', revealUntil: now + REVEAL_MS, last, turnIdx: -1 };
 }
@@ -125,9 +138,49 @@ export function rank(order, chips) {
 }
 
 // 앞서 베팅한 사람들 중 가장 큰 금액 이상으로만 걸 수 있어요
+// 칩을 실제 개수만큼 쌓아요: 10개씩 한 기둥
+function chipStack(n) {
+  const cols = [];
+  for (let i = 0; i < n; i += 10) cols.push(Math.min(10, n - i));
+  return cols.map((k) => `<span class="sp-col">${'<i class="sp-chip"></i>'.repeat(k)}</span>`).join('') || '<span class="sp-empty">없음</span>';
+}
+
+// 가운데 알림창: 모두에게 같은 내용을 잠깐 보여주고 사라져요 (라운드마다 한 번)
+let noticeKey = '';
+function carryNotice(key, { why, n }) {
+  if (typeof document === 'undefined' || noticeKey === key) return;
+  noticeKey = key;
+  const box = document.createElement('div');
+  box.className = 'sp-notice';
+  box.innerHTML = `<b>이월 <i class="sp-coin"></i>${n}개</b><span>${esc(why)}</span><small>다음 라운드 판돈에 더해져요</small>`;
+  document.body.appendChild(box);
+  setTimeout(() => box.classList.add('out'), 3600);
+  setTimeout(() => box.remove(), 4200);
+}
+
 export const minBet = (state) => Math.max(1, ...Object.values(state.bets || {}).filter((b) => typeof b === 'number'));
 
-const cardHtml = (n, cls = '') => `<span class="sp-card ${cls} ${n == null ? 'back' : ''}">${n ?? '?'}</span>`;
+// 카드: 숫자만큼 가넷 (11~15는 큰 가넷 + 작은 가넷 n-11개)
+const GEM = GARNET.replace('class="garnet"', '');
+const SP_PIPS = {
+  1: [[25, 35]], 2: [[25, 20], [25, 50]], 3: [[25, 18], [25, 35], [25, 52]],
+  4: [[17, 20], [33, 20], [17, 50], [33, 50]], 5: [[17, 20], [33, 20], [25, 35], [17, 50], [33, 50]],
+  6: [[17, 18], [33, 18], [17, 35], [33, 35], [17, 52], [33, 52]],
+  7: [[17, 18], [33, 18], [25, 26.5], [17, 35], [33, 35], [17, 52], [33, 52]],
+  8: [[17, 18], [33, 18], [25, 26.5], [17, 35], [33, 35], [25, 43.5], [17, 52], [33, 52]],
+  9: [[17, 16], [33, 16], [17, 28], [33, 28], [25, 35], [17, 42], [33, 42], [17, 54], [33, 54]],
+  10: [[17, 16], [33, 16], [25, 22], [17, 28], [33, 28], [17, 42], [33, 42], [25, 48], [17, 54], [33, 54]],
+};
+const SMALL_AROUND = [[10, 35], [40, 35], [25, 16], [25, 54]];
+const gem = (x, y, w) => `<svg x="${x - w / 2}" y="${y - w / 2}" width="${w}" height="${w}" viewBox="0 0 20 20">${GEM.replace(/^<svg[^>]*>|<\/svg>$/g, '')}</svg>`;
+function faceSvg(n) {
+  let mid;
+  if (n <= 10) mid = SP_PIPS[n].map(([x, y]) => gem(x, y, n >= 7 ? 9 : 10)).join('');
+  else mid = gem(25, 35, 19) + SMALL_AROUND.slice(0, n - 11).map(([x, y]) => gem(x, y, 8)).join('');
+  const corner = `<text x="5.5" y="10" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${n > 9 ? 7.2 : 8.5}" letter-spacing="${n > 9 ? -0.5 : 0}" fill="#8a1028">${n}</text>`;
+  return `<svg viewBox="0 0 50 70" class="sp-face">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg>`;
+}
+export const cardHtml = (n, cls = '') => `<span class="sp-card ${cls} ${n == null ? 'back' : ''}">${n == null ? '' : faceSvg(n)}</span>`;
 
 export default {
   id: 'seedpoker',
@@ -145,6 +198,8 @@ export default {
     '선부터 차례로 둘 중 하나를 골라요: [카드 받기] 1장 더 받고 둘 중 하나를 공개해서 버리기 / [시드 추가] 더미에서 1장을 뒤집어 시드에 추가.',
     '시드카드는 가장 높은 3장만 남아요. 밀려난 시드는 휴지통으로 가요.',
     `베팅: 모두 기본 1개를 내고, 선부터 차례로 [포기] 또는 [1~${MAX_BET}개 베팅]. 앞 사람이 건 것보다 적게 걸 수는 없어요(같거나 많게). 포기한 사람의 카드는 공개되지 않아요.`,
+    '베팅이 한 바퀴 끝나면 모두 가장 큰 베팅에 맞춰 칩을 더 내요. (예: 1번 1개, 2번 2개, 3번 3개 → 1번은 2개, 2번은 1개 추가) 맞출 칩이 모자라면 포기돼요.',
+    '카드에는 숫자만큼 가넷이 있어요. 11~15는 큰 가넷 1개(11) + 작은 가넷이에요.',
     '버린 카드는 누가 버렸는지 함께 공개되고, 시드에서 밀려난 카드는 휴지통으로 가서 보이지 않아요.',
     '참가자 목록은 매 라운드 끝날 때마다 칩이 많은 순서로 다시 정렬돼요. (①②③은 이번 라운드 차례 순서)',
     '승부: 베팅한 사람들의 카드를 공개하고, 가장 낮은 카드부터 가장 높은 시드를 차례로 더해요. 합이 가장 큰 사람이 판돈을 모두 가져가요.',
@@ -283,7 +338,7 @@ export default {
     if (state.phase === 'reveal') {
       banner = last.allFold
         ? '<span>모두 포기! 기본 베팅을 돌려받았어요</span>'
-        : `<span><b>${last.winners.map(name).join(', ')}</b>님 승리! <span class="gold"><i class="sp-coin"></i>${last.share}${last.winners.length > 1 ? '씩' : ''}</span>${last.carry ? ` · 남은 ${last.carry}개는 다음 판돈으로` : ''}</span>`;
+        : `<span><b>${last.winners.map(name).join(', ')}</b>님 승리! <span class="gold"><i class="sp-coin"></i>${last.share}${last.winners.length > 1 ? '씩' : ''}</span>${last.carry ? ` · 남은 ${last.carry}개는 다음 판돈으로` : ''}</span>${last.topups?.length ? `<small class="sp-topups">최대 베팅 <i class="sp-coin"></i>${last.top}에 맞춰 ${last.topups.map((t) => t.fold ? `${name(t.uid)} 칩 부족으로 포기` : `${name(t.uid)} +${t.add}`).join(' · ')}</small>` : ''}`;
     } else if (state.phase === 'bet') {
       const min = minBet(state);
       banner = myTurn
@@ -318,12 +373,19 @@ export default {
 
         ${isPlayer && state.phase !== 'reveal' ? `
           <div class="sp-mine">
+            <div class="sp-mcol">
+              <span class="sp-label">내 칩</span>
+              <div class="sp-stack" title="칩 ${state.chips[me]}개">${chipStack(state.chips[me])}</div>
+              <b class="sp-cnt"><i class="sp-coin"></i>${state.chips[me]}</b>
+            </div>
+            <div class="sp-mcol">
             <span class="sp-label">내 카드</span>
+            <div class="sp-mcards">
             ${pendingMine
               ? `<button class="sp-pick" data-keep="old">${cardHtml(myCard, 'mine big')}<small>원래 카드 남기기</small></button>
                  <button class="sp-pick" data-keep="new">${cardHtml(state.pending.card, 'mine big new')}<small>새 카드 남기기</small></button>`
               : cardHtml(myCard, 'mine big')}
-            <span class="sp-chips">내 칩 <i class="sp-coin"></i><b>${state.chips[me]}</b></span>
+            </div></div>
           </div>` : ''}
 
         ${myTurn && state.phase === 'action' && !pendingMine ? `
@@ -349,6 +411,10 @@ export default {
           }).join('')}
         </ul>
       </div>`;
+
+    if (state.phase === 'reveal' && last?.carry > 0) carryNotice(`${room?.code}:${state.round}`, last.allFold
+      ? { why: '모두 포기해서 이번 판의 승자가 없어요', n: last.carry }
+      : { why: `${last.winners.length}명이 동점이라 판돈 ${last.pot}개를 똑같이 나누고 남은 칩이에요`, n: last.carry });
 
     el.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => sendMove({ type: b.dataset.act })));
     el.querySelectorAll('[data-keep]').forEach((b) => (b.onclick = () => sendMove({ type: 'keep', keep: b.dataset.keep })));
