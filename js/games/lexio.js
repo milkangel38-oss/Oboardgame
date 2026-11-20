@@ -8,10 +8,10 @@ import { GARNET } from '../profile.js';
 
 export const SUITS = ['cloud', 'star', 'moon', 'sun']; // 약한 → 강한
 const SUIT = {
-  sun: { name: '해', color: '#b8222c' },
-  moon: { name: '달', color: '#1f3d99' },
-  star: { name: '별', color: '#1c7444' },
-  cloud: { name: '구름', color: '#2a4f9e' },
+  sun: { name: '해', color: '#ff5d5d' },
+  moon: { name: '달', color: '#f5c842' },
+  star: { name: '별', color: '#3fd98a' },
+  cloud: { name: '구름', color: '#7fb4ff' },
 };
 const START_CHIPS = 100;
 const handSize = (n) => (n === 4 ? 13 : 12);
@@ -119,7 +119,7 @@ function finalResult(state, players) {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// ── 타일 그림: 옥 타일(img/tiles/lx.webp) + 무늬 문장(img/tiles/lx-*.webp) ──
+// ── 타일 그림: 흑대리석 타일(img/tiles/lx-black.webp) + 무늬 문장(img/tiles/lx-*.webp) ──
 export function tileHtml(id, size = '') {
   const t = tileOf(id);
   return `<span class="lx-tile ${size} s-${t.suit}" style="--lc:${SUIT[t.suit].color}"><b>${t.num}</b><img src="img/tiles/lx-${t.suit}.webp" alt="${SUIT[t.suit].name}" draggable="false" /></span>`;
