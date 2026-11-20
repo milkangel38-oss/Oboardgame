@@ -2150,3 +2150,48 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .sx-xc-in { display: block; max-width: 30cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sx-exch .sx-ex-mine { color: #7a6a4a; } .sx-exch .sx-ex-mine b { color: #b4251f; font-size: 13px; }
 .sx-exch .sx-ex-price em.up { color: #d6303e; } .sx-exch .sx-ex-price em.down { color: #2f6fd6; }
+/* 게임 방법 영상 (시작 전) */
+.intro-ov { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(8, 4, 20, .82); backdrop-filter: blur(4px); animation: amIn .25s ease; }
+.intro-box { width: min(640px, 100%); display: grid; gap: 12px; padding: 16px; border-radius: 20px; background: linear-gradient(180deg, #241a4a, #150f2e); box-shadow: 0 0 0 2px #c9a85a, 0 20px 50px rgba(0, 0, 0, .6); }
+.intro-title { text-align: center; font-family: var(--display); font-size: 18px; color: #fff; } .intro-title b { color: var(--gold); }
+.intro-media { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; }
+.intro-video { width: 100%; height: 100%; display: block; object-fit: contain; background: #000; }
+.intro-slides { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr auto; justify-items: center; align-items: center; gap: 6px; padding: 16px 20px 12px; background: radial-gradient(ellipse at 50% 30%, #3a2a7a, #120c28); cursor: pointer; }
+.intro-slides[hidden] { display: none; }
+.intro-emoji { font-size: 34px; }
+.intro-text { margin: 0; text-align: center; font-size: clamp(14px, 3.8vw, 19px); line-height: 1.55; color: #fff; word-break: keep-all; }
+.intro-slides.flip .intro-text { animation: introIn .45s ease; }
+@keyframes introIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.intro-dots { display: flex; gap: 5px; } .intro-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .2); } .intro-dots i.on { background: var(--gold); }
+.intro-btns { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; } .intro-btns[hidden] { display: none; }
+.intro-wait { text-align: center; color: #fff; font-size: 15px; } .intro-wait b { color: var(--gold); } .intro-wait small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* 증권시장 v10.1: 걷는 픽토그램 캐릭터 (머리 = 프로필) */
+.sx-ch { width: 7.2%; transform: translate(-50%, -78%); }
+.wk { position: relative; display: block; width: 100%; container-type: inline-size; }
+.wk > svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .25)); }
+.wk-head { position: absolute; left: 50%; top: -14%; width: 58%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; overflow: hidden; background: #ffe0bd; box-shadow: 0 0 0 2.5px var(--hood), inset 0 -4px 6px rgba(0, 0, 0, .25), 0 3px 4px rgba(0, 0, 0, .35); }
+.wk-head .pf { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; color: #fff; font-weight: 800; font-size: 46cqw; line-height: 1; }
+.wk-head .pf.char svg { width: 100%; height: 100%; display: block; }
+.wk-head::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, .45), transparent 42%); pointer-events: none; }
+.wk g.wk-leg, .wk g.wk-arm { transform-box: view-box; transition: transform .18s; }
+.wk g.wk-leg { transform-origin: 29px 55px; } .wk g.wk-arm { transform-origin: 30px 38px; }
+.wk g.wk-leg.f { transform: rotate(-4deg); } .wk g.wk-leg.b { transform: rotate(4deg); }
+.wk g.wk-arm.f { transform: rotate(6deg); } .wk g.wk-arm.b { transform: rotate(-6deg); }
+.wk .wk-torso { transform-box: view-box; transform-origin: 30px 58px; transition: transform .2s; }
+.sx-ch.walking .wk .wk-torso { transform: rotate(9deg); }
+.sx-ch.walking .wk g.wk-leg.f { animation: wkA .42s ease-in-out infinite alternate; }
+.sx-ch.walking .wk g.wk-leg.b { animation: wkA .42s ease-in-out infinite alternate-reverse; }
+.sx-ch.walking .wk g.wk-arm.f { animation: wkA .42s ease-in-out infinite alternate-reverse; }
+.sx-ch.walking .wk g.wk-arm.b { animation: wkA .42s ease-in-out infinite alternate; }
+.sx-ch.walking .wk { animation: wkBob .21s ease-in-out infinite alternate; }
+@keyframes wkA { from { transform: rotate(-34deg); } to { transform: rotate(34deg); } }
+@keyframes wkBob { to { transform: translateY(-4%); } }
+.sx-ch.left .wk > svg { transform: scaleX(-1); }
+.sx-ch .am-nm { top: 100%; }
+.sx-ch { width: 6.4%; transform: translate(-50%, -72%); }
+.wk { padding-top: 62%; }
+.wk-head { top: 0; width: 82%; }
+.wk g.wk-leg { transform-origin: 20px 31px; } .wk g.wk-arm { transform-origin: 20px 15px; }
+.wk .wk-torso { transform-origin: 20px 33px; }
+.sx-ch.walking .wk .wk-torso { transform: rotate(7deg); }
+.sx-ch .am-nm { font-size: max(8px, 1.25cqw); padding: 0 .8cqw; max-width: 15cqw; overflow: hidden; text-overflow: ellipsis; }

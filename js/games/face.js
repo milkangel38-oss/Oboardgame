@@ -27,3 +27,19 @@ export function personHtml(color, player, dead = false) {
     <span class="pc-head">${faceHtml(player)}</span>${dead ? '<span class="pc-x">✖</span>' : ''}
   </span>`;
 }
+
+// 걷는 사람(비상구 표지판 같은 픽토그램) + 큰 머리(프로필 사진). 이동 중엔 부모에 .walking 클래스
+export function walkerHtml(color, player) {
+  const id = 'wk' + Math.random().toString(36).slice(2, 7);
+  const limb = (cls, x, y1, y2, w) => `<g class="${cls}"><line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/><line x1="${x - w * .22}" y1="${y1 + 2}" x2="${x - w * .22}" y2="${y2 - 2}" stroke="#fff" stroke-opacity=".28" stroke-width="${w * .22}" stroke-linecap="round"/></g>`;
+  return `<span class="wk" style="--hood:${color}">
+    <svg viewBox="0 0 40 52" aria-hidden="true">
+      <defs><linearGradient id="${id}t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".4"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient></defs>
+      <ellipse class="wk-sh" cx="20" cy="49.5" rx="11" ry="2.4" fill="rgba(0,0,0,.3)"/>
+      <g style="filter:brightness(.6)">${limb('wk-leg b', 20, 30, 47, 8.5)}${limb('wk-arm b', 20, 14, 29, 6.5)}</g>
+      <g class="wk-torso"><rect x="12.5" y="10" width="15" height="23" rx="7" fill="${color}"/><rect x="12.5" y="10" width="15" height="23" rx="7" fill="url(#${id}t)"/></g>
+      ${limb('wk-leg f', 20, 30, 47, 8.5)}${limb('wk-arm f', 20, 14, 29, 6.5)}
+    </svg>
+    <span class="wk-head">${faceHtml(player)}</span>
+  </span>`;
+}

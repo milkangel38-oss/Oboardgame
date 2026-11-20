@@ -4,7 +4,7 @@
 // 게임 상태(주가·지갑·번호표·창구)는 방 문서로, 캐릭터 위치는 실시간 채널(backend.live)로 주고받아요.
 import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
-import { personHtml } from './face.js';
+import { walkerHtml } from './face.js';
 const logo = (c) => `<img class="sx-logo" src="img/stock/co${c}.webp" alt="" draggable="false">`;
 import { bigFlash } from './turn-alert.js';
 import { ding } from '../sound.js';
@@ -94,13 +94,16 @@ function build(code) {
     c.joy.x = dx / max; c.joy.y = dy / max;
     c.root.querySelector('.sx-joy i').style.transform = `translate(${dx}px, ${dy}px)`;
   };
+  const seen = () => { if (c.centerKind) c.hideKind = c.centerKind; };
+  c.$('.sx-arena').addEventListener('pointerdown', seen);
+  c.$('.sx-joy').addEventListener('pointerdown', seen);
   c.$('.sx-joy').addEventListener('pointerdown', (e) => { c.joy.id = e.pointerId; c.joyEl = c.$('.sx-joy'); moveJoy(e); e.preventDefault(); });
   c.onPMove = (e) => { if (e.pointerId === c.joy.id) moveJoy(e); };
   c.onPUp = (e) => { if (e.pointerId !== c.joy.id) return; c.joy = { x: 0, y: 0, id: null }; c.root.querySelector('.sx-joy i').style.transform = ''; };
   c.onKey = (e) => {
     if (e.target.closest?.('input, textarea')) return;
     const k = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' }[e.code];
-    if (k) { e.type === 'keydown' ? c.keys.add(k) : c.keys.delete(k); e.preventDefault(); }
+    if (k) { e.type === 'keydown' ? c.keys.add(k) : c.keys.delete(k); e.preventDefault(); if (e.type === 'keydown') seen(); }
     if (e.type === 'keydown' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) { e.preventDefault(); interact(); }
   };
   window.addEventListener('pointermove', c.onPMove);
@@ -108,7 +111,7 @@ function build(code) {
   window.addEventListener('pointercancel', c.onPUp);
   window.addEventListener('keydown', c.onKey);
   window.addEventListener('keyup', c.onKey);
-  c.$('[data-act]').addEventListener('click', () => interact());
+  c.$('[data-act]').addEventListener('click', () => { seen(); interact(); });
   c.$('[data-talk]').addEventListener('click', () => { if (c.near) openDm(c.near, true); });
   dm.querySelector('[data-dmclose]').addEventListener('click', () => { c.dmWith = null; dm.hidden = true; });
   dm.querySelector('form').addEventListener('submit', (e) => {
@@ -288,11 +291,20 @@ function frame() {
     const inEx = state.windows.some((w) => w && w.uid === u && w.st === 'in') || (state.phase === 'info' && !!state.xchg?.in?.[u]);
     el.style.display = p && !inEx ? '' : 'none';
     if (!p) return;
+    // 걷는 모션: 움직이면 다리·팔을 흔들고, 왼쪽으로 가면 몸을 돌려요
+    const lp = c.lastP?.[u];
+    c.lastP ||= {}; c.walkAt ||= {};
+    if (lp) {
+      const dx = p.x - lp.x, dy = p.y - lp.y;
+      if (Math.abs(dx) + Math.abs(dy) > 0.6) { c.walkAt[u] = now; if (Math.abs(dx) > 0.3) el.classList.toggle('left', dx < 0); }
+    }
+    c.lastP[u] = { x: p.x, y: p.y };
+    el.classList.toggle('walking', now - (c.walkAt[u] || 0) < 160);
     el.style.left = `${(p.x / W) * 100}%`;
     el.style.top = `${(p.y / H) * 100}%`;
     el.style.zIndex = String(Math.round(p.y));
     const look = `${COLORS[i % COLORS.length]}|${players[u]?.photo || ''}`;
-    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = personHtml(COLORS[i % COLORS.length], players[u]); }
+    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = walkerHtml(COLORS[i % COLORS.length], players[u]); }
     const nm = players[u]?.name || '나간 사람';
     if (el.dataset.nm !== nm) { el.dataset.nm = nm; el.querySelector('.am-nm').textContent = nm; }
     el.classList.toggle('me', u === me);
@@ -377,12 +389,15 @@ function frame() {
     if ($nx) $nx.textContent = state.phase === 'market' ? `${clockOf(state.round, state.tick + 1)} 변동까지 ${Math.ceil(tickLeft / 1000)}초` : '';
   }
   // 가운데 안내
-  let center = '';
-  if (wi >= 0 && state.windows[wi].st === 'call' && state.phase === 'market' && near !== 'door') center = `<b class="call">📢 ${state.windows[wi].no}번! 거래소로!</b><small>${Math.max(0, Math.ceil((state.windows[wi].until - now) / 1000))}초 안에 위쪽 증권거래소 문으로 가서 입장하세요</small>`;
-  else if (state.phase === 'info' && x && x.pair.includes(me) && !x.in[me]) center = `<b class="call">📨 내 차례! 정보교환소로!</b><small>${Math.max(0, Math.ceil((x.callUntil - now) / 1000))}초 안에 왼쪽 정보교환소 앞에서 상호작용을 눌러 입장하세요</small>`;
-  else if (state.phase === 'info' && x) center = `<b>📨 정보교환 ${x.k + 1} / ${state.order.length}</b><small>${seatNo(state, x.pair[0])}번 ${esc(players[x.pair[0]]?.name || '')}님 · ${seatNo(state, x.pair[1])}번 ${esc(players[x.pair[1]]?.name || '')}님 정보교환소로 입장해 주세요</small>`;
-  else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 3000) center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
+  let center = '', kind = '';
+  if (wi >= 0 && state.windows[wi].st === 'call' && state.phase === 'market' && near !== 'door') kind = `call${state.windows[wi].no}`, center = `<b class="call">📢 ${state.windows[wi].no}번! 거래소로!</b><small>${Math.max(0, Math.ceil((state.windows[wi].until - now) / 1000))}초 안에 위쪽 증권거래소 문으로 가서 입장하세요</small>`;
+  else if (state.phase === 'info' && x && x.pair.includes(me) && !x.in[me]) kind = `xme${x.k}`, center = `<b class="call">📨 내 차례! 정보교환소로!</b><small>${Math.max(0, Math.ceil((x.callUntil - now) / 1000))}초 안에 왼쪽 정보교환소 앞에서 상호작용을 눌러 입장하세요</small>`;
+  else if (state.phase === 'info' && x) kind = `x${x.k}`, center = `<b>📨 정보교환 ${x.k + 1} / ${state.order.length}</b><small>${seatNo(state, x.pair[0])}번 ${esc(players[x.pair[0]]?.name || '')}님 · ${seatNo(state, x.pair[1])}번 ${esc(players[x.pair[1]]?.name || '')}님 정보교환소로 입장해 주세요</small>`;
+  else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 3000) kind = `open${state.round}`, center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
   else if (state.phase === 'done') center = '<b>장 마감</b><small>모든 주식을 마지막 주가로 현금화했어요</small>';
+  // 알림을 본 뒤 내가 움직이거나 버튼을 누르면 바로 사라져요 (같은 알림은 다시 안 떠요)
+  c.centerKind = kind;
+  if (kind && c.hideKind === kind && state.phase !== 'done') center = '';
   const $c = c.$('.sx-center');
   if ($c.dataset.v !== center) { $c.dataset.v = center; $c.innerHTML = center; $c.classList.toggle('on', !!center); }
 

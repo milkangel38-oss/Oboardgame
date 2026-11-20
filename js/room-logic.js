@@ -117,6 +117,27 @@ export function canStart(room, game) {
   return { ok: true, reason: '' };
 }
 
+// 게임 방법 영상: 방장이 시작을 누르면 모두에게 영상을 띄우고, 모두 확인(또는 Skip)하면 진짜로 시작해요
+export const INTRO_MAX_MS = 90 * 1000;
+export function beginIntro(room, game, uid) {
+  if (room.hostId !== uid) throw new Error('방장만 시작할 수 있어요');
+  const check = canStart(room, game);
+  if (!check.ok) throw new Error(check.reason);
+  if (!room.intro) room.intro = { at: Date.now(), ack: {} };
+  return room;
+}
+export function ackIntro(room, uid) {
+  if (room.status !== 'waiting' || !room.intro || !room.players[uid]) throw new Error('__noop');
+  if (room.intro.ack?.[uid]) throw new Error('__noop');
+  room.intro.ack = { ...(room.intro.ack || {}), [uid]: true };
+  return room;
+}
+export function introReady(room, now = Date.now()) {
+  if (room.status !== 'waiting' || !room.intro) return false;
+  const ids = Object.keys(room.players);
+  return ids.every((u) => room.intro.ack?.[u]) || now - room.intro.at > INTRO_MAX_MS;
+}
+
 export function start(room, game, uid) {
   if (room.hostId !== uid) throw new Error('방장만 시작할 수 있어요');
   const check = canStart(room, game);
@@ -126,6 +147,7 @@ export function start(room, game, uid) {
   const now = Date.now();
   Object.values(room.players).forEach((p) => (p.seen = now)); // 접속 확인 시작
   room.status = 'playing';
+  room.intro = null;
   room.startedAt = Date.now();
   room.result = null;
   return room;

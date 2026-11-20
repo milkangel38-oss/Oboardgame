@@ -1072,12 +1072,13 @@ function renderRoom(code) {
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
     // (방 채팅 room.chat만 빼요 — 게임 안 채팅 room.game.chat은 바뀌면 다시 그려야 해요)
     const sig = JSON.stringify(room, function (k, v) { return k === 'seen' || (k === 'chat' && this === room) ? undefined : v; });
-    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); return; }
+    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); return; }
     lastSig = sig;
     drawRoom($main, room, game);
+    drawIntro(room, game);
   });
 
-  return () => { closed = true; unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
+  return () => { closed = true; closeIntro(); unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1132,6 +1133,77 @@ function drawRoomChat(room, full = false) {
     rchat.draft = ''; $in.value = '';
     backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
   };
+}
+
+// ───────── 게임 방법 영상 (시작 전에 모두에게 한 번) ─────────
+// video/rules/{게임id}.mp4 가 있으면 영상, 없으면 규칙 설명을 한 장씩 넘겨 보여줘요
+const intro = { at: 0, $el: null, timer: 0, starting: 0, tick: 0, room: null, game: null };
+function closeIntro() {
+  clearInterval(intro.timer); clearInterval(intro.tick);
+  intro.$el?.remove();
+  intro.$el = null; intro.at = 0;
+}
+function drawIntro(room, game) {
+  if (room.status !== 'waiting' || !room.intro || !room.players?.[user.uid]) { closeIntro(); return; }
+  intro.room = room; intro.game = game;
+  const ack = room.intro.ack || {};
+  const ids = Object.keys(room.players);
+  const done = ids.filter((u) => ack[u]).length;
+  // 방장: 모두 확인했거나 90초가 지나면 진짜로 시작
+  if (room.hostId === user.uid && R.introReady(room) && intro.starting !== room.intro.at) {
+    intro.starting = room.intro.at;
+    backend.mutateRoom(room.code, (r) => (r.intro ? R.start(r, game, user.uid) : r)).catch((e) => { intro.starting = 0; toast(e.message); });
+  }
+  if (intro.at !== room.intro.at) {
+    closeIntro();
+    intro.at = room.intro.at;
+    const rules = (game.rules || []).map((t) => String(t));
+    const $o = document.createElement('div');
+    $o.className = 'intro-ov';
+    $o.innerHTML = `<div class="intro-box">
+      <div class="intro-title">🎬 <b>${esc(game.name)}</b> 게임 방법</div>
+      <div class="intro-media">
+        <video class="intro-video" src="video/rules/${esc(game.id)}.mp4" playsinline autoplay controls preload="auto"></video>
+        <div class="intro-slides" hidden>
+          <div class="intro-emoji">${esc(game.emoji || '🎲')}</div>
+          <p class="intro-text"></p>
+          <div class="intro-dots">${rules.map(() => '<i></i>').join('')}</div>
+        </div>
+      </div>
+      <div class="intro-btns"><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
+      <div class="intro-wait" hidden></div>
+    </div>`;
+    document.body.appendChild($o);
+    intro.$el = $o;
+    intro.tick = setInterval(() => intro.room && drawIntro(intro.room, intro.game), 3000); // 90초 제한 확인
+    const $v = $o.querySelector('video');
+    const slides = () => {
+      $v.remove();
+      const $s = $o.querySelector('.intro-slides'); $s.hidden = false;
+      if (!rules.length) { $o.querySelector('.intro-text').textContent = '준비되면 확인을 눌러 주세요!'; return; }
+      let i = 0;
+      const show = () => {
+        $o.querySelector('.intro-text').textContent = rules[i];
+        $o.querySelectorAll('.intro-dots i').forEach(($d, k) => $d.classList.toggle('on', k <= i));
+        $s.classList.remove('flip'); void $s.offsetWidth; $s.classList.add('flip');
+      };
+      show();
+      intro.timer = setInterval(() => { if (i < rules.length - 1) { i++; show(); } else clearInterval(intro.timer); }, 4200);
+      $s.onclick = () => { if (i < rules.length - 1) { i++; show(); } };
+    };
+    $v.addEventListener('error', slides);
+    $v.play?.()?.catch(() => { $v.muted = true; $v.play().catch(() => {}); });
+    const ok = () => backend.mutateRoom(room.code, (r) => R.ackIntro(r, user.uid)).catch((e) => { if (e.message !== '__noop') toast(e.message); });
+    $o.querySelector('[data-iskip]').onclick = ok;
+    $o.querySelector('[data-iok]').onclick = ok;
+  }
+  const $w = intro.$el.querySelector('.intro-wait');
+  if (ack[user.uid]) {
+    intro.$el.querySelector('.intro-btns').hidden = true;
+    intro.$el.querySelector('video')?.pause();
+    $w.hidden = false;
+    $w.innerHTML = `다른 사람을 기다리는 중… <b>${done}/${ids.length}</b><small>모두 확인하면 바로 시작해요</small>`;
+  }
 }
 
 // ───────── 게임 중 채팅: 초상화 위 말풍선 ─────────
@@ -1325,7 +1397,7 @@ function drawRoom($main, room, game) {
     const p = room.players[b.dataset.kick];
     if (p && confirm(`${p.name}님을 방에서 내보낼까요? (이 방에는 다시 들어올 수 없어요)`)) act((r) => R.kick(r, user.uid, b.dataset.kick));
   }));
-  $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.start(r, game, user.uid)));
+  $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.beginIntro(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
   $main.querySelectorAll('[data-opt]').forEach((sel) => {
     sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number.isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
