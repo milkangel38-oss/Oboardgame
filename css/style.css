@@ -2092,3 +2092,18 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .sp-table .sp-card.seed { width: 36px; height: 50px; }
 .sp-table .sp-dis small { display: none; }
 .sp-table .sp-card.open:not(.seat) { width: 26px; height: 36px; }
+/* 시드포커 v9.9: 원탁 카드 크게, 자리 옆 보유 칩, 버린 사람 표시 */
+.sp-table .sp-card.seed { width: 50px; height: 70px; }
+.sp-table .sp-card.open:not(.seat) { width: 40px; height: 56px; }
+.sp-table .sp-dis { display: grid; justify-items: center; gap: 2px; }
+.sp-table .sp-dis small { display: block; max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; font-weight: 800; color: #f2d27a; text-shadow: 0 1px 2px #000; }
+.sp-table .sp-felt { inset: 11% 6%; gap: 6px; }
+.sp-schips { position: absolute; top: 18px; right: calc(50% + 22px); display: flex; align-items: center; gap: 1px; padding: 1px 5px 1px 2px; border-radius: 999px; background: rgba(10, 6, 20, .72); box-shadow: 0 0 0 1px rgba(242, 210, 122, .5); font-family: var(--logo); font-size: 12px; color: #f2d27a; white-space: nowrap; }
+.sp-schips .sp-coin { width: 13px; height: 13px; }
+@media (min-width: 560px) { .sp-table .sp-card.seed { width: 60px; height: 84px; } .sp-table .sp-card.open:not(.seat) { width: 48px; height: 67px; } .sp-schips { top: 24px; right: calc(50% + 28px); font-size: 14px; } }
+.sp-table .sp-dis small { order: 2; max-width: 54px; }
+.sp-seat.rt .sp-schips { right: auto; left: calc(50% + 20px); top: 50px; }
+@media (min-width: 560px) { .sp-seat.rt .sp-schips { left: calc(50% + 26px); top: 66px; } }
+.sp-table { aspect-ratio: 1 / 1.22; }
+.sp-table .sp-felt { inset: 12% 6% 14%; }
+@media (min-width: 560px) { .sp-table { aspect-ratio: 1.35 / 1; } }

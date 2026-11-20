@@ -396,12 +396,13 @@ export default {
       const r = state.phase === 'reveal' ? lastRow(u) : null;
       const showCard = r ? cardHtml(r.card, 'seat open') : (state.phase !== 'reveal' && !fold ? cardHtml(null, 'seat') : '');
       const bet = typeof state.bets?.[u] === 'number' ? `<em class="sp-sbet"><i class="sp-coin"></i>${state.bets[u]}</em>` : '';
-      return `<div data-u="${esc(u)}" class="sp-seat ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${fold ? 'fold' : ''} ${r && last.winners.includes(u) ? 'win' : ''} ${y < 50 ? 'up' : ''}" style="left:${x}%;top:${y}%">
+      return `<div data-u="${esc(u)}" class="sp-seat ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${fold ? 'fold' : ''} ${r && last.winners.includes(u) ? 'win' : ''} ${y < 50 ? 'up' : ''} ${x > 55 ? 'rt' : ''}" style="left:${x}%;top:${y}%">
         <span class="seat-bubble sp-bub" data-bub="${esc(u)}"></span>
         <span class="sp-body">${personHtml(color, players[u] || { name: '?' })}</span>
         <b class="sp-sname">${name(u)}</b>
         <span class="sp-sstat">${statusOf(u)}</span>
         <span class="sp-shand">${showCard}${bet}</span>
+        <span class="sp-schips"><i class="sp-coin"></i>${state.chips[u]}</span>
       </div>`;
     }).join('');
     const trash = state.table.filter((t) => t.kind === 'burned').length;
