@@ -245,7 +245,7 @@ export default {
             ${ranking.map((r) => `<li class="${r.uid === me ? 'me' : ''}">
               <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
               <span class="nb-name">${name(r.uid)}</span>
-              <span class="nb-score">🪙${r.score}</span>
+              <span class="nb-score"><i class="sp-coin"></i>${r.score}</span>
               <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span>
             </li>`).join('')}
           </ol>
@@ -270,7 +270,7 @@ export default {
       if (state.phase === 'bet') {
         const b = state.bets[u];
         if (b === 'fold') return '<span class="sp-fold">포기</span>';
-        if (typeof b === 'number') return `<span class="sp-bet">🪙${b} 베팅</span>`;
+        if (typeof b === 'number') return `<span class="sp-bet"><i class="sp-coin"></i>${b} 베팅</span>`;
         return u === turnUid ? '<span class="sp-now">고민 중…</span>' : '';
       }
       const a = state.actions[u];
@@ -283,12 +283,12 @@ export default {
     if (state.phase === 'reveal') {
       banner = last.allFold
         ? '<span>모두 포기! 기본 베팅을 돌려받았어요</span>'
-        : `<span><b>${last.winners.map(name).join(', ')}</b>님 승리! <span class="gold">🪙${last.share}${last.winners.length > 1 ? '씩' : ''}</span>${last.carry ? ` · 남은 ${last.carry}개는 다음 판돈으로` : ''}</span>`;
+        : `<span><b>${last.winners.map(name).join(', ')}</b>님 승리! <span class="gold"><i class="sp-coin"></i>${last.share}${last.winners.length > 1 ? '씩' : ''}</span>${last.carry ? ` · 남은 ${last.carry}개는 다음 판돈으로` : ''}</span>`;
     } else if (state.phase === 'bet') {
       const min = minBet(state);
       banner = myTurn
-        ? `<span><b>내 베팅 차례!</b> 포기하거나 칩을 거세요 · 최소 <b>🪙${min}</b>${min > state.chips[me] ? ' (칩이 모자라 포기만 가능)' : ''}</span>`
-        : `<span><b>${name(turnUid)}</b>님 베팅 차례 · 현재 최소 🪙${min}</span>`;
+        ? `<span><b>내 베팅 차례!</b> 포기하거나 칩을 거세요 · 최소 <b><i class="sp-coin"></i>${min}</b>${min > state.chips[me] ? ' (칩이 모자라 포기만 가능)' : ''}</span>`
+        : `<span><b>${name(turnUid)}</b>님 베팅 차례 · 현재 최소 <i class="sp-coin"></i>${min}</span>`;
     } else {
       banner = myTurn ? (pendingMine ? '<span><b>둘 중 남길 카드</b>를 고르세요. 다른 한 장은 공개돼요</span>' : '<span><b>내 차례!</b> 카드를 받거나 시드를 추가하세요</span>') : `<span><b>${name(turnUid)}</b>님 차례</span>`;
     }
@@ -309,7 +309,7 @@ export default {
             <span class="sp-label">시드</span>
             ${state.seeds.map((n) => cardHtml(n, 'seed')).join('')}
           </div>
-          <div class="sp-pot">${state.phase === 'bet' ? `판돈 🪙<b>${state.pot}</b>` : state.carry ? `이월 🪙${state.carry}` : ''} <small>더미 ${state.deck.length}장${trash ? ` · 🗑️ 휴지통 ${trash}장` : ''}</small></div>
+          <div class="sp-pot">${state.phase === 'bet' ? `판돈 <i class="sp-coin"></i><b>${state.pot}</b>` : state.carry ? `이월 <i class="sp-coin"></i>${state.carry}` : ''} <small>더미 ${state.deck.length}장${trash ? ` · 🗑️ 휴지통 ${trash}장` : ''}</small></div>
           ${discards.length ? `<div class="sp-seen"><span class="sp-label">버린 카드</span>${discards.map((t) => `
             <span class="sp-dis"><small>${name(t.by)}</small>${cardHtml(t.card, 'open')}</span>`).join('')}</div>` : ''}
         </div>
@@ -323,7 +323,7 @@ export default {
               ? `<button class="sp-pick" data-keep="old">${cardHtml(myCard, 'mine big')}<small>원래 카드 남기기</small></button>
                  <button class="sp-pick" data-keep="new">${cardHtml(state.pending.card, 'mine big new')}<small>새 카드 남기기</small></button>`
               : cardHtml(myCard, 'mine big')}
-            <span class="sp-chips">내 칩 🪙<b>${state.chips[me]}</b></span>
+            <span class="sp-chips">내 칩 <i class="sp-coin"></i><b>${state.chips[me]}</b></span>
           </div>` : ''}
 
         ${myTurn && state.phase === 'action' && !pendingMine ? `
@@ -334,7 +334,7 @@ export default {
         ${myTurn && state.phase === 'bet' ? `
           <div class="sp-actions bet">
             <button class="btn ghost big" data-fold>포기</button>
-            ${[1, 2, 3].map((n) => `<button class="btn primary big" data-bet="${n}" ${n > state.chips[me] || n < minBet(state) ? 'disabled' : ''}>🪙${n}</button>`).join('')}
+            ${[1, 2, 3].map((n) => `<button class="btn primary big" data-bet="${n}" ${n > state.chips[me] || n < minBet(state) ? 'disabled' : ''}><i class="sp-coin"></i>${n}</button>`).join('')}
           </div>` : ''}
 
         <ul class="sp-players">
@@ -344,7 +344,7 @@ export default {
             <li class="${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${state.phase === 'reveal' && last?.winners?.includes(u) ? 'win' : ''}">
               <span class="sp-pname"><i class="sp-no">${'①②③④⑤⑥⑦'[i]}</i>${i === 0 ? '<i class="sp-dealer">선</i>' : ''}${name(u)}</span>
               <span class="sp-pstat">${statusOf(u)}</span>
-              <span class="sp-pchips">🪙${state.chips[u]}</span>
+              <span class="sp-pchips"><i class="sp-coin"></i>${state.chips[u]}</span>
             </li>`;
           }).join('')}
         </ul>

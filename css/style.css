@@ -2022,3 +2022,21 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 /* 렉시오 v9.5: 숫자-문양 간격, 문양 크기 통일 */
 .lx-tile { gap: 5px; } .lx-tile.xs { gap: 2px; }
 .lx-tile img { width: 56%; aspect-ratio: 1; } .lx-tile.xs img { width: 54%; }
+/* 시드포커 v9.6: 카지노 테이블 · 포커칩 · 카드 숫자 */
+.sp-felt { position: relative; padding: 18px 14px; border-radius: 60px / 40px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 45%, rgba(255, 255, 255, .10), transparent 70%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 40%, #1d7a4a, #0f4a2b 70%, #0a3520);
+  box-shadow: inset 0 0 0 2px rgba(232, 207, 138, .55), inset 0 0 0 9px #4a2a14, inset 0 0 0 10px #2a170a, inset 0 2px 0 9px #6e4322, inset 0 0 24px 12px rgba(0, 0, 0, .45), 0 6px 14px rgba(0, 0, 0, .45); }
+.sp-felt::before { content: ''; position: absolute; inset: 16px; border-radius: 48px / 30px; border: 1px solid rgba(232, 207, 138, .35); pointer-events: none; }
+.sp-label { color: rgba(242, 226, 170, .8); }
+.sp-pot { color: #f2d27a; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.sp-pot small { color: rgba(242, 226, 170, .6); }
+.sp-card { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; color: #1d2340; box-shadow: 0 2px 0 rgba(0, 0, 0, .25), 0 4px 8px rgba(0, 0, 0, .45); }
+.sp-card.seed { background: linear-gradient(145deg, #fff3c4, #e2b450 45%, #a7731e 80%, #e2b450); color: #3a2400; text-shadow: 0 1px 0 rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .45), inset 0 0 0 3px rgba(120, 80, 10, .5), 0 4px 10px rgba(0, 0, 0, .5); }
+.sp-coin { display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -.17em; margin-right: 2px; border-radius: 50%; font-style: normal;
+  background:
+    radial-gradient(circle, #c4232f 0 34%, #fff 35% 38%, #c4232f 39% 61%, transparent 62%),
+    conic-gradient(#fff 0 8deg, #c4232f 8deg 37deg, #fff 37deg 45deg, #c4232f 45deg 82deg, #fff 82deg 90deg, #c4232f 90deg 127deg, #fff 127deg 135deg, #c4232f 135deg 172deg, #fff 172deg 180deg, #c4232f 180deg 217deg, #fff 217deg 225deg, #c4232f 225deg 262deg, #fff 262deg 270deg, #c4232f 270deg 307deg, #fff 307deg 315deg, #c4232f 315deg 352deg, #fff 352deg 360deg);
+  box-shadow: 0 0 0 1px #7a1018, 0 1px 2px rgba(0, 0, 0, .5); }
