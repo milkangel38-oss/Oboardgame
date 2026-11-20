@@ -8,6 +8,9 @@
 // - 10라운드 후 칩 순위로 가넷 1등 3, 2등 2, 3등 1
 import { turnAlert } from './turn-alert.js';
 import { GARNET } from '../profile.js';
+import { personHtml } from './face.js';
+
+const SEAT_COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6', '#ff8ad8'];
 
 const START_CHIPS = 20;
 const ROUNDS = 10;
@@ -143,6 +146,36 @@ function chipStack(n) {
   const cols = [];
   for (let i = 0; i < n; i += 10) cols.push(Math.min(10, n - i));
   return cols.map((k) => `<span class="sp-col">${'<i class="sp-chip"></i>'.repeat(k)}</span>`).join('') || '<span class="sp-empty">없음</span>';
+}
+
+// 카드를 내거나 칩을 걸면 그 자리에서 테이블 가운데로 날아가요
+let fx = { key: '', table: 0, bets: {} };
+function flyEffects(el, state, code) {
+  const key = `${code}:${state.round}`;
+  const prev = fx.key === key ? fx : { table: state.table.length, bets: { ...state.bets } };
+  const $t = el.querySelector('.sp-table');
+  const from = (u) => el.querySelector(`.sp-seat[data-u="${CSS.escape(u)}"] .sp-body`);
+  const shoot = (u, html, target) => {
+    const a = from(u), b = el.querySelector(target);
+    if (!a || !b || !$t) return;
+    const T = $t.getBoundingClientRect(), A = a.getBoundingClientRect(), B = b.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'sp-fly'; f.innerHTML = html;
+    f.style.left = `${A.left - T.left + A.width / 2}px`; f.style.top = `${A.top - T.top + A.height / 2}px`;
+    $t.appendChild(f);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      f.style.transform = `translate(${B.left + B.width / 2 - A.left - A.width / 2}px, ${B.top + B.height / 2 - A.top - A.height / 2}px) rotate(${u.length % 2 ? 8 : -8}deg)`;
+      f.style.opacity = '.2';
+    }));
+    setTimeout(() => f.remove(), 750);
+  };
+  state.table.slice(prev.table).forEach((t) => {
+    if (t.by && (t.kind === 'discard' || t.kind === 'seed')) shoot(t.by, cardHtml(t.card, t.kind === 'seed' ? 'seed' : 'open'), t.kind === 'seed' ? '.sp-seeds' : '.sp-seen, .sp-seeds');
+  });
+  Object.entries(state.bets || {}).forEach(([u, b]) => {
+    if (typeof b === 'number' && prev.bets[u] !== b) shoot(u, '<i class="sp-coin big"></i>'.repeat(Math.min(3, b)), '.sp-pot');
+  });
+  fx = { key, table: state.table.length, bets: { ...state.bets } };
 }
 
 // 가운데 알림창: 모두에게 같은 내용을 잠깐 보여주고 사라져요 (라운드마다 한 번)
@@ -349,6 +382,28 @@ export default {
     }
 
     const discards = state.table.filter((t) => t.kind === 'discard');
+    // 테이블 자리: 나는 맨 아래, 나머지는 시계 방향으로 둘러앉아요
+    const n = state.order.length;
+    const meIdx = Math.max(0, state.order.indexOf(me));
+    const seatPos = {};
+    const seatsHtml = state.order.map((u, k) => {
+      const i = (k - meIdx + n) % n;
+      const ang = Math.PI / 2 + (i / n) * Math.PI * 2;
+      const x = 50 + Math.cos(ang) * 44, y = 50 + Math.sin(ang) * 42;
+      seatPos[u] = { x, y };
+      const color = SEAT_COLORS[k % SEAT_COLORS.length];
+      const fold = state.bets?.[u] === 'fold';
+      const r = state.phase === 'reveal' ? lastRow(u) : null;
+      const showCard = r ? cardHtml(r.card, 'seat open') : (state.phase !== 'reveal' && !fold ? cardHtml(null, 'seat') : '');
+      const bet = typeof state.bets?.[u] === 'number' ? `<em class="sp-sbet"><i class="sp-coin"></i>${state.bets[u]}</em>` : '';
+      return `<div data-u="${esc(u)}" class="sp-seat ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${fold ? 'fold' : ''} ${r && last.winners.includes(u) ? 'win' : ''} ${y < 50 ? 'up' : ''}" style="left:${x}%;top:${y}%">
+        <span class="seat-bubble sp-bub" data-bub="${esc(u)}"></span>
+        <span class="sp-body">${personHtml(color, players[u] || { name: '?' })}</span>
+        <b class="sp-sname">${name(u)}</b>
+        <span class="sp-sstat">${statusOf(u)}</span>
+        <span class="sp-shand">${showCard}${bet}</span>
+      </div>`;
+    }).join('');
     const trash = state.table.filter((t) => t.kind === 'burned').length;
 
     el.innerHTML = `
@@ -359,6 +414,8 @@ export default {
         </div>
         <div class="nb-bar"><i data-bar></i></div>
 
+        <div class="sp-table">
+        ${seatsHtml}
         <div class="sp-felt">
           <div class="sp-seeds">
             <span class="sp-label">시드</span>
@@ -367,6 +424,7 @@ export default {
           <div class="sp-pot">${state.phase === 'bet' ? `판돈 <i class="sp-coin"></i><b>${state.pot}</b>` : state.carry ? `이월 <i class="sp-coin"></i>${state.carry}` : ''} <small>더미 ${state.deck.length}장${trash ? ` · 🗑️ 휴지통 ${trash}장` : ''}</small></div>
           ${discards.length ? `<div class="sp-seen"><span class="sp-label">버린 카드</span>${discards.map((t) => `
             <span class="sp-dis"><small>${name(t.by)}</small>${cardHtml(t.card, 'open')}</span>`).join('')}</div>` : ''}
+        </div>
         </div>
 
         <div class="nb-banner">${banner}</div>
@@ -415,6 +473,8 @@ export default {
     if (state.phase === 'reveal' && last?.carry > 0) carryNotice(`${room?.code}:${state.round}`, last.allFold
       ? { why: '모두 포기해서 이번 판의 승자가 없어요', n: last.carry }
       : { why: `${last.winners.length}명이 동점이라 판돈 ${last.pot}개를 똑같이 나누고 남은 칩이에요`, n: last.carry });
+
+    flyEffects(el, state, room?.code);
 
     el.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => sendMove({ type: b.dataset.act })));
     el.querySelectorAll('[data-keep]').forEach((b) => (b.onclick = () => sendMove({ type: 'keep', keep: b.dataset.keep })));
