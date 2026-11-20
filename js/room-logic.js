@@ -118,7 +118,7 @@ export function canStart(room, game) {
 }
 
 // 게임 방법 영상: 방장이 시작을 누르면 모두에게 영상을 띄우고, 모두 확인(또는 Skip)하면 진짜로 시작해요
-export const INTRO_MAX_MS = 90 * 1000;
+export const INTRO_MAX_MS = 120 * 1000;
 export function beginIntro(room, game, uid) {
   if (room.hostId !== uid) throw new Error('방장만 시작할 수 있어요');
   const check = canStart(room, game);

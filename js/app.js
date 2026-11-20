@@ -1193,7 +1193,13 @@ function drawIntro(room, game) {
       $s.onclick = () => { if (i < rules.length - 1) { i++; show(); } };
     };
     $v.addEventListener('error', slides);
-    $v.play?.()?.catch(() => { $v.muted = true; $v.play().catch(() => {}); });
+    $v.play?.()?.catch(() => {
+      // 소리 있는 자동 재생이 막히면 음소거로 재생하고, 눌러서 소리를 켤 수 있게 해요
+      $v.muted = true; $v.play().catch(() => {});
+      const $u = document.createElement('button'); $u.className = 'intro-unmute'; $u.textContent = '🔇 눌러서 소리 켜기';
+      $u.onclick = () => { $v.muted = false; $v.play().catch(() => {}); $u.remove(); };
+      $o.querySelector('.intro-media').appendChild($u);
+    });
     const ok = () => backend.mutateRoom(room.code, (r) => R.ackIntro(r, user.uid)).catch((e) => { if (e.message !== '__noop') toast(e.message); });
     $o.querySelector('[data-iskip]').onclick = ok;
     $o.querySelector('[data-ireplay]').onclick = () => {
