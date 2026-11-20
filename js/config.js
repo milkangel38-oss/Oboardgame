@@ -1,6 +1,6 @@
 // 앱 이름
 export const APP_NAME = 'O게임';
-export const APP_VERSION = 'v9.4';
+export const APP_VERSION = 'v9.5';
 
 // Firebase 설정 — Firebase 콘솔 > 프로젝트 설정 > 내 앱 에서 복사한 값
 // apiKey를 비우면 "테스트 모드"로 동작합니다
