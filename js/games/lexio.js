@@ -11,7 +11,7 @@ const SUIT = {
   sun: { name: '해', color: '#b8222c' },
   moon: { name: '달', color: '#1f3d99' },
   star: { name: '별', color: '#1c7444' },
-  cloud: { name: '구름', color: '#4a6fae' },
+  cloud: { name: '구름', color: '#2a4f9e' },
 };
 const START_CHIPS = 100;
 const handSize = (n) => (n === 4 ? 13 : 12);
