@@ -195,8 +195,8 @@ export default {
     const melded = !!state.melded[me];
 
     const tile = (t, extra = '', attrs = '') => {
-      if (isJ(t)) return `<span class="rk-tile joker ${extra}" ${attrs}><i>☺</i></span>`;
-      return `<span class="rk-tile ${extra}" style="--tc:${COLORS[colorOf(t)].hex}" ${attrs}><b>${numOf(t)}</b><i></i></span>`;
+      if (isJ(t)) return `<span class="rk-tile joker ${t === 'J2' ? 'blk' : 'red'} ${extra}" ${attrs}><i>☺</i></span>`;
+      return `<span class="rk-tile ${extra}" style="--tc:${COLORS[colorOf(t)].hex}" ${attrs}><b class="${numOf(t) > 9 ? 'n2' : ''}">${numOf(t)}</b><i></i></span>`;
     };
     const sorted = [...R].sort(ui.sort === 'num'
       ? (a, b) => (isJ(a) ? 99 : numOf(a)) - (isJ(b) ? 99 : numOf(b)) || CK.indexOf(colorOf(a)) - CK.indexOf(colorOf(b))
