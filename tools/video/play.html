@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><base href="/"><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/vid/vid.css">
+<div id="st"></div>
+<script type="module">
+import { play } from '/vid/engine.js';
+const g = new URLSearchParams(location.search).get('g');
+const m = await import(`/vid/g/${g}.js`);
+play(m.default);
+</script>
