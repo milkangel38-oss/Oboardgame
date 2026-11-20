@@ -20,9 +20,9 @@ export const CALL_MS = 10000;       // 번호가 불리면 10초 안에 입장
 export const STAY_MS = 30000;       // 거래소에 머무는 시간
 export const TALK = 125;            // 이만큼 가까우면 '대화하기'
 export const W = 1000, H = 700, R = 50;
-export const DOOR = { x: 500, y: 92 };
-export const KIOSK = { x: 110, y: 560 };
-export const XCHG = { x: 140, y: 250 };
+export const DOOR = { x: 500, y: 175 };
+export const KIOSK = { x: 208, y: 628 };
+export const XCHG = { x: 222, y: 330 };
 export const NEAR = 95;
 export const SPEED = 260;
 export const SEND_MS = 100;

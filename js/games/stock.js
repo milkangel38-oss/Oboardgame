@@ -5,6 +5,7 @@
 import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
 import { personHtml } from './face.js';
+const logo = (c) => `<img class="sx-logo" src="img/stock/co${c}.webp" alt="" draggable="false">`;
 import { bigFlash } from './turn-alert.js';
 import { ding } from '../sound.js';
 
@@ -247,7 +248,7 @@ function frame() {
     const len = Math.hypot(vx, vy);
     if (len > 1) { vx /= len; vy /= len; }
     c.pos.x = Math.max(R, Math.min(W - R, c.pos.x + vx * SPEED * dt));
-    c.pos.y = Math.max(DOOR.y + 40, Math.min(H - R, c.pos.y + vy * SPEED * dt));
+    c.pos.y = Math.max(DOOR.y + 62, Math.min(H - R, c.pos.y + vy * SPEED * dt));
   }
   if (iAmIn && c.pos && c.live) {
     const key = `${Math.round(c.pos.x)},${Math.round(c.pos.y)},${inside ? 1 : 0}`;
@@ -418,7 +419,7 @@ function paint() {
   ctl.root.classList.toggle('done', state.phase === 'done' || !!finished);
 
   // 로비 전광판 (현재가)
-  ctl.$('.sx-ticker').innerHTML = COMPANIES.map((co, c) => `<div style="--cc:${co.color}"><b><i>${co.emoji}</i>${co.name}</b><strong>${state.prices[c].toLocaleString()}</strong>${arrow(chg(state, c))}</div>`).join('');
+  ctl.$('.sx-ticker').innerHTML = COMPANIES.map((co, c) => `<div style="--cc:${co.color}"><b><i>${logo(c)}</i>${co.name}</b><strong>${state.prices[c].toLocaleString()}</strong>${arrow(chg(state, c))}</div>`).join('');
 
   // 번호표 대기판
   const myQ = state.queue.find((q) => q.uid === me);
@@ -463,7 +464,7 @@ function paint() {
         const left = state.stock[c], mine = state.hold[me][c], price = state.prices[c];
         const canBuy = left > 0 && mine < MAX_HOLD && state.cash[me] >= price;
         return `<div class="sx-ex-row" style="--cc:${co.color}">
-          <div class="sx-ex-co"><i>${co.emoji}</i><b>${co.name}</b><small>남은 주식 ${left}주</small></div>
+          <div class="sx-ex-co">${logo(c)}<b>${co.name}</b><small>남은 주식 ${left}주</small></div>
           <div class="sx-ex-spark">${spark(state.hist[c], co.color)}</div>
           <div class="sx-ex-price"><strong>${price.toLocaleString()}</strong>${arrow(chg(state, c))}</div>
           <div class="sx-ex-mine">보유 <b>${mine}</b>/${MAX_HOLD}</div>
@@ -483,17 +484,17 @@ function paint() {
     html = `<div class="dm-title" style="color:var(--gold)">📈 최종 순위</div>
       <ol class="nb-final">${ranking.map((r) => `<li class="${r.uid === me ? 'me' : ''}">
         <span class="nb-place">${r.place <= 3 ? ['🥇', '🥈', '🥉'][r.place - 1] : r.place + '등'}</span>
-        <span class="nb-name">${nm(r.uid)}<small class="ud-break">${COMPANIES.map((co, c) => state.hold[r.uid][c] ? `${co.emoji}${state.hold[r.uid][c]}` : '').join(' ') || '주식 없음'} + 현금 ${won(state.cash[r.uid])}</small></span>
+        <span class="nb-name">${nm(r.uid)}<small class="ud-break">${COMPANIES.map((co, c) => state.hold[r.uid][c] ? `${logo(c)}${state.hold[r.uid][c]}` : '').join(' ') || '주식 없음'} + 현금 ${won(state.cash[r.uid])}</small></span>
         <span class="nb-score">${won(r.score)}</span>
         <span class="nb-reward">${r.garnets ? `${GARNET}+${r.garnets}` : ''}</span></li>`).join('')}</ol>
       ${state.history.map((h) => `<details class="sx-allinfo"><summary>${h.round}라운드 전체 정보 ${h.info.length}개 보기</summary>
-        <div>${[...h.info].sort((a, b) => a.t - b.t || a.c - b.c).map((e) => `<span style="--cc:${COMPANIES[e.c].color}">${clockOf(h.round, e.t)} ${COMPANIES[e.c].emoji}${COMPANIES[e.c].name} <b class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '+' : ''}${e.d}</b> <small>${e.pair.map(nm).join('·')}</small></span>`).join('')}</div></details>`).join('')}`;
+        <div>${[...h.info].sort((a, b) => a.t - b.t || a.c - b.c).map((e) => `<span style="--cc:${COMPANIES[e.c].color}">${clockOf(h.round, e.t)} ${logo(e.c)}${COMPANIES[e.c].name} <b class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '+' : ''}${e.d}</b> <small>${e.pair.map(nm).join('·')}</small></span>`).join('')}</div></details>`).join('')}`;
   } else if (iAmIn) {
     const mine = state.info.filter((e) => e.pair && e.pair.includes(me)).sort((a, b) => a.t - b.t);
     const n = state.order.length;
     const order = state.phase === 'info' && state.xchg ? `<div class="sx-xorder"><div class="sx-info-t">📨 정보교환 순서 <small>내 순서는 <b>${seatNo(state, me)}번</b> · 두 명씩 차례로 정보교환소에 들어가 봉투를 골라요</small></div>
       <ol>${Array.from({ length: n }, (_, k) => [state.seats[k], state.seats[(k + 1) % n]]).map((pr, k) => `<li class="${k < state.xchg.k ? 'done' : k === state.xchg.k ? 'now' : ''} ${pr.includes(me) ? 'me' : ''}">${k < state.xchg.k ? '✔' : k === state.xchg.k ? '▶ 지금' : `${k + 1}차`} · ${pr.map((u) => `${seatNo(state, u)}번 ${nm(u)}`).join(' + ')}</li>`).join('')}</ol></div>` : '';
-    const holdTxt = COMPANIES.map((co, c) => state.hold[me][c] ? `${co.emoji}${co.name} ${state.hold[me][c]}주` : '').filter(Boolean).join(' · ') || '보유 주식 없음';
+    const holdTxt = COMPANIES.map((co, c) => state.hold[me][c] ? `${logo(c)}${co.name} ${state.hold[me][c]}주` : '').filter(Boolean).join(' · ') || '보유 주식 없음';
     html = `
       <div class="sx-wallet"><div><small>현금</small><b>${won(state.cash[me])}</b></div><div><small>보유 주식</small><span>${holdTxt}</span></div><div><small>총자산</small><b class="gold">${won(totalOf(state, me))}</b></div></div>
       ${order}
@@ -501,7 +502,7 @@ function paint() {
         <div class="sx-cards">${mine.map((e) => {
           const co = COMPANIES[e.c], partner = e.pair.find((u) => u !== me);
           const past = state.phase === 'market' && e.t <= state.tick;
-          return `<div class="sx-card ${past ? 'past' : ''}" style="--cc:${co.color}"><small>${clockOf(state.round, e.t)}</small><b>${co.emoji} ${co.name}</b><strong class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '▲ +' : '▼ '}${e.d}</strong><em>${nm(partner)}님도 알아요</em></div>`;
+          return `<div class="sx-card ${past ? 'past' : ''}" style="--cc:${co.color}"><small>${clockOf(state.round, e.t)}</small><b>${logo(e.c)} ${co.name}</b><strong class="${e.d > 0 ? 'up' : 'down'}">${e.d > 0 ? '▲ +' : '▼ '}${e.d}</strong><em>${nm(partner)}님도 알아요</em></div>`;
         }).join('')}</div>
       </div>
       ${state.notes.length ? `<div class="sx-notes">${state.notes.slice(-2).map((n) => `<span>📢 ${esc(n.text)}</span>`).join('')}</div>` : ''}`;

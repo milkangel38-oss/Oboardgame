@@ -2107,3 +2107,46 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .sp-table { aspect-ratio: 1 / 1.22; }
 .sp-table .sp-felt { inset: 12% 6% 14%; }
 @media (min-width: 560px) { .sp-table { aspect-ratio: 1.35 / 1; } }
+/* 증권시장 v10.0: 회사 엠블럼 · 장난감 광장 · LED 시세판 · 은행 창구 */
+.sx-logo { display: inline-block; width: 1.4em; height: 1.4em; vertical-align: -.35em; border-radius: 50%; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+/* 광장 */
+.sx-floor { background: #ece8e2 url(../img/stock/plaza.webp) center / 100% 100%; }
+.sx-arena { box-shadow: 0 0 0 3px #c9a85a, 0 8px 24px rgba(0, 0, 0, .5); }
+.sx-door { width: 26%; top: auto; }
+.sx-door b, .sx-kiosk b, .sx-xc b { padding: .35cqw 1.4cqw; border-radius: 99px; background: rgba(26, 16, 51, .82); color: #f2d27a; box-shadow: 0 0 0 1.5px #c9a85a, 0 2px 6px rgba(0, 0, 0, .35); font-family: var(--display); font-size: max(10px, 1.8cqw); white-space: nowrap; }
+.sx-door > i { width: 11%; aspect-ratio: 1 / 1.6; border-radius: 1cqw 1cqw 0 0; background: transparent; box-shadow: none; margin-top: 1cqw; }
+.sx-door.open > i { background: rgba(255, 231, 168, .75); box-shadow: 0 0 2cqw #ffe7a8; }
+.sx-door.mine > i { background: rgba(61, 220, 132, .55); box-shadow: 0 0 0 .4cqw #3ddc84, 0 0 3cqw #3ddc84; }
+.sx-door-in { color: #2a1d08; text-shadow: 0 1px 0 rgba(255, 255, 255, .8); font-weight: 800; }
+.sx-kiosk { width: 14%; aspect-ratio: auto; background: none; box-shadow: none; transform: translate(-50%, -165%); }
+.sx-kiosk span { padding: 0 1cqw; border-radius: 6px; background: rgba(255, 255, 255, .9); }
+.sx-xc { width: auto; background: none; box-shadow: none; padding: 0; transform: translate(-50%, -150%); }
+.sx-xc i { display: none; }
+.sx-xc-in { font-size: max(8px, 1.3cqw); font-weight: 800; color: #1d4734; background: rgba(255, 255, 255, .85); padding: 0 1cqw; border-radius: 6px; }
+.sx-xc-in:empty { display: none; }
+.sx-clock { top: 84%; }
+.sx-dial { display: none; }
+.sx-time { color: #2a1d08; text-shadow: 0 1px 0 #fff, 0 0 6px rgba(255, 255, 255, .9); }
+.sx-tick { color: #3a2f20; text-shadow: 0 1px 0 rgba(255, 255, 255, .8); }
+/* LED 시세판 */
+.sx-ticker { background: linear-gradient(180deg, #0a0c12, #020306); box-shadow: inset 0 0 0 2px #2b2f3d, inset 0 0 0 4px #0b0d14, 0 0 0 2px #c9a85a, 0 6px 16px rgba(0, 0, 0, .5); }
+.sx-ticker > div { background: radial-gradient(rgba(255, 255, 255, .06) 1px, transparent 1.3px) 0 0 / 4px 4px, rgba(255, 255, 255, .02); box-shadow: none; border: 1px solid rgba(255, 255, 255, .05); }
+.sx-ticker b { color: #e8e2d0; display: grid; justify-items: center; gap: 2px; } .sx-ticker b i { margin: 0; }
+.sx-ticker b .sx-logo { width: clamp(22px, 6vw, 34px); height: auto; }
+.sx-ticker strong { font-family: 'DSEG7 Classic', 'Courier New', monospace; font-weight: 700; color: #ffb43a; text-shadow: 0 0 6px rgba(255, 170, 40, .75), 0 0 1px #ffd27a; letter-spacing: .04em; }
+.sx-ticker em { text-shadow: 0 0 6px currentColor; }
+@media (max-width: 420px) { .sx-ticker b i { display: block; } }
+/* 은행 창구 */
+.sx-exch { background: linear-gradient(180deg, #f6efdc, #e6dabb); color: #2a1d08; box-shadow: 0 0 0 3px #8a6a2a, 0 0 0 6px #c9a85a, 0 10px 26px rgba(0, 0, 0, .5); }
+.sx-ex-head { color: #6a4a12; padding-bottom: 6px; border-bottom: 2px solid rgba(138, 106, 42, .35); }
+.sx-ex-stay { color: #2a1d08; } .sx-ex-stay b { color: #b4251f; } .sx-ex-clock { color: #6a5a3a; }
+.sx-ex-row { background: #fffaf0; box-shadow: inset 4px 0 0 var(--cc), 0 1px 3px rgba(0, 0, 0, .15); }
+.sx-ex-co .sx-logo { grid-row: 1 / 3; width: 34px; height: 34px; }
+.sx-ex-co b { color: #2a1d08; } .sx-ex-co small { color: #7a6a4a; }
+.sx-exch .muted, .sx-exch small { color: #7a6a4a; }
+.sx-xc.on, .sx-xc.mine { box-shadow: none; }
+.sx-xc.on b { box-shadow: 0 0 0 1.5px #7fe0b0, 0 0 14px rgba(127, 224, 176, .9); }
+.sx-xc.mine b { box-shadow: 0 0 0 2px #ffd84d, 0 0 18px #ffd84d; }
+.sx-xc-in { display: block; max-width: 30cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sx-exch .sx-ex-mine { color: #7a6a4a; } .sx-exch .sx-ex-mine b { color: #b4251f; font-size: 13px; }
+.sx-exch .sx-ex-price em.up { color: #d6303e; } .sx-exch .sx-ex-price em.down { color: #2f6fd6; }
