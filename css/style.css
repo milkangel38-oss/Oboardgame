@@ -2163,7 +2163,7 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .intro-slides.flip .intro-text { animation: introIn .45s ease; }
 @keyframes introIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .intro-dots { display: flex; gap: 5px; } .intro-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, .2); } .intro-dots i.on { background: var(--gold); }
-.intro-btns { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; } .intro-btns[hidden] { display: none; }
+.intro-btns { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; } .intro-btns[hidden] { display: none; }
 .intro-wait { text-align: center; color: #fff; font-size: 15px; } .intro-wait b { color: var(--gold); } .intro-wait small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 /* 증권시장 v10.1: 걷는 픽토그램 캐릭터 (머리 = 프로필) */
 .sx-ch { width: 7.2%; transform: translate(-50%, -78%); }

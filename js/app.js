@@ -1170,7 +1170,7 @@ function drawIntro(room, game) {
           <div class="intro-dots">${rules.map(() => '<i></i>').join('')}</div>
         </div>
       </div>
-      <div class="intro-btns"><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
+      <div class="intro-btns"><button class="btn ghost" data-ireplay>다시보기</button><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
       <div class="intro-wait" hidden></div>
     </div>`;
     document.body.appendChild($o);
@@ -1178,6 +1178,7 @@ function drawIntro(room, game) {
     intro.tick = setInterval(() => intro.room && drawIntro(intro.room, intro.game), 3000); // 90초 제한 확인
     const $v = $o.querySelector('video');
     const slides = () => {
+      clearInterval(intro.timer);
       $v.remove();
       const $s = $o.querySelector('.intro-slides'); $s.hidden = false;
       if (!rules.length) { $o.querySelector('.intro-text').textContent = '준비되면 확인을 눌러 주세요!'; return; }
@@ -1195,6 +1196,9 @@ function drawIntro(room, game) {
     $v.play?.()?.catch(() => { $v.muted = true; $v.play().catch(() => {}); });
     const ok = () => backend.mutateRoom(room.code, (r) => R.ackIntro(r, user.uid)).catch((e) => { if (e.message !== '__noop') toast(e.message); });
     $o.querySelector('[data-iskip]').onclick = ok;
+    $o.querySelector('[data-ireplay]').onclick = () => {
+      if ($v.isConnected) { $v.currentTime = 0; $v.play().catch(() => {}); } else slides();
+    };
     $o.querySelector('[data-iok]').onclick = ok;
   }
   const $w = intro.$el.querySelector('.intro-wait');
