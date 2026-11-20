@@ -1,0 +1,114 @@
+<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/style.css">
+<style>
+*{animation:none!important;transition:none!important}
+html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#140c2c}
+#st{position:relative;width:1280px;height:720px;overflow:hidden;font-family:Pretendard,sans-serif;
+ background:radial-gradient(ellipse at 50% 35%,#2a1d5a,#120a26 75%)}
+.felt{position:absolute;left:190px;top:95px;width:900px;height:430px;border-radius:50%;
+ background:radial-gradient(ellipse at 50% 40%,#1d7a4a,#0f4a2b 70%,#0a3520);
+ box-shadow:inset 0 0 0 3px rgba(232,207,138,.6),inset 0 0 0 16px #4a2a14,inset 0 0 0 18px #2a170a,inset 0 0 40px 18px rgba(0,0,0,.45),0 14px 30px rgba(0,0,0,.5)}
+.felt::before{content:'';position:absolute;inset:30px;border-radius:50%;border:1.5px solid rgba(232,207,138,.35)}
+.obj{position:absolute;left:0;top:0;will-change:transform}
+.cardw{width:72px;height:101px;margin:-50px 0 0 -36px;perspective:600px}
+.cardw .sp-card{width:72px;height:101px;border-radius:7px}
+.seat{width:120px;margin:-60px 0 0 -60px;display:grid;justify-items:center;gap:2px}
+.seat .body{width:74px;filter:drop-shadow(0 4px 4px rgba(0,0,0,.5))}
+.seat b{font-size:21px;color:#fff;text-shadow:0 1px 3px #000}
+.seat em{font-style:normal;font-size:19px;font-weight:800;color:#f2d27a;text-shadow:0 1px 3px #000;min-height:20px}
+.seat.fold{filter:grayscale(.85) brightness(.6)}
+.seat.win .pc-head{box-shadow:0 0 0 3px var(--hood),0 0 0 6px #fff,0 0 26px #ffe36a}
+.chip{width:30px;height:30px;margin:-15px 0 0 -15px}
+.chip .sp-coin{width:30px;height:30px;display:block}
+.cap{position:absolute;z-index:3000;left:0;right:0;bottom:22px;text-align:center}
+.cap span{display:inline-block;padding:12px 28px;border-radius:16px;background:rgba(10,6,24,.86);box-shadow:0 0 0 2px #c9a85a;color:#fff;font-size:30px;font-weight:800;letter-spacing:-.5px}
+.cap span i{font-style:normal;color:#f2d27a}
+.step{position:absolute;z-index:3000;left:28px;top:22px;padding:6px 16px;border-radius:99px;background:#c9a85a;color:#2a1d08;font-size:20px;font-weight:900}
+.sub{position:absolute;z-index:2000;padding:8px 16px;border-radius:12px;background:#fff;color:#1a1033;font-size:22px;font-weight:900;box-shadow:0 4px 12px rgba(0,0,0,.4);white-space:nowrap;transform:translate(-50%,-50%)}
+.pot{position:absolute;z-index:1500;left:640px;top:410px;transform:translate(-50%,-50%);font-size:26px;font-weight:900;color:#f2d27a;text-shadow:0 2px 4px #000;display:flex;align-items:center;gap:6px}
+.pot .sp-coin{width:28px;height:28px}
+.lab{position:absolute;transform:translate(-50%,-50%);font-size:15px;font-weight:800;color:rgba(242,226,170,.85);letter-spacing:.1em}
+.sum{position:absolute;z-index:1500;transform:translate(-50%,-50%);font-size:34px;font-weight:900;color:#fff;text-shadow:0 2px 6px #000;white-space:nowrap}
+.sum.w{color:#ffe36a;font-size:46px}.sum small{font-size:22px;color:#e8e2d0;margin-right:2px}
+.full{position:absolute;inset:0;z-index:5000;display:grid;place-content:center;justify-items:center;gap:18px;text-align:center;background:radial-gradient(ellipse at 50% 40%,rgba(42,29,90,.97),rgba(14,8,32,.98))}
+.full h1{margin:0;font-size:84px;color:#f2d27a;letter-spacing:-2px;text-shadow:0 4px 18px rgba(242,210,122,.4)}
+.full p{margin:0;font-size:30px;color:#fff;font-weight:700}
+.full .row{display:flex;gap:16px}
+.full .pill{padding:10px 22px;border-radius:14px;background:rgba(255,255,255,.08);box-shadow:0 0 0 1.5px rgba(242,210,122,.5);font-size:26px;color:#fff;font-weight:800}
+.full .pill b{color:#f2d27a}
+.box{display:grid;gap:22px;padding:34px 48px;border-radius:24px;background:rgba(10,6,24,.75);box-shadow:0 0 0 2px #c9a85a}
+.box div{font-size:34px;font-weight:800;color:#fff}.box div i{font-style:normal;color:#f2d27a}
+</style>
+<div id="st"><div class="felt"></div><div id="layer"></div></div>
+<script type="module">
+import { cardHtml } from '/js/games/seedpoker.js';
+import { personHtml } from '/js/games/face.js';
+const L=document.getElementById('layer');
+const C={x:640,y:300};
+const NAMES=['나','하나','두리','세찌','네모','다섯'], COLS=['#ff4f6e','#3d7bff','#3ddc84','#ffb02e','#b26bff','#2ee6d6'];
+const seats=NAMES.map((n,i)=>{const a=Math.PI/2+i/6*Math.PI*2;return{x:C.x+Math.cos(a)*520,y:C.y+Math.sin(a)*250+(i===0?40:0),n,c:COLS[i]}});
+const hand=(i)=>({x:seats[i].x+(C.x-seats[i].x)*.3, y:seats[i].y+(C.y-seats[i].y)*(i===0?.22:.3)});
+const mk=(cls,html)=>{const e=document.createElement('div');e.className='obj '+cls;e.innerHTML=html;L.appendChild(e);return e};
+const E=(t)=>t<0?0:t>1?1:t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+// keyframe track: [[t,{x,y,r,s,o,f}],...]
+function at(tr,t){if(t<=tr[0][0])return tr[0][1];for(let i=1;i<tr.length;i++){const[t1,v1]=tr[i],[t0,v0]=tr[i-1];if(t<=t1){if(i===1)return t<t1?v0:v1;const k=E((t-t0)/(t1-t0||1));const o={};for(const key in v1)o[key]=lerp(v0[key]??v1[key],v1[key],k);return{...v0,...o}}}return tr[tr.length-1][1]}
+const objs=[];
+function card(n,tr){const e=mk('cardw','<div class="fl" style="position:relative;width:72px;height:101px"><div class="bk" style="position:absolute;inset:0">'+cardHtml(null)+'</div><div class="fr" style="position:absolute;inset:0">'+cardHtml(n)+'</div></div>');objs.push({e,tr,card:1});return e}
+function chip(tr){const e=mk('chip','<i class="sp-coin"></i>');objs.push({e,tr});return e}
+const D={x:640,y:205};
+const SEED=[{x:500,y:225},{x:640,y:225},{x:780,y:225}];
+const DIS={x:850,y:330}, POT={x:430,y:400};
+const P=(x,y,o={})=>({x,y,r:0,s:.8,o:1,f:0,...o});
+const H=i=>hand(i);
+// 손에 든 카드
+const hold=(i,n,extra=[])=>{const h=H(i),r=i%2?8:-8;return card(n,[[0,P(D.x,D.y,{o:0})],[3.6+i*.18,P(D.x,D.y)],[4.2+i*.18,P(h.x,h.y,{r})],...extra.map(([t,v])=>[t,{...P(h.x,h.y,{r}),...v}])])};
+hold(0,7,[[6.2,{}],[6.7,{f:1,s:1}],[9.4,{f:1,s:1}],[9.9,{f:0}]]);
+hold(1,3,[[10.8,{}],[32.3,{}],[33.1,{f:1}],[33.6,{f:1}],[35,{x:500,y:345,r:0,s:1,f:1}]]);
+// 하나: 새로 받은 10을 공개해서 버림
+(()=>{const h=H(1);card(10,[[0,P(D.x,D.y,{o:0})],[10.8,P(D.x,D.y)],[11.6,P(h.x+46,h.y-10,{r:14})],[12.4,P(h.x+46,h.y-10,{r:14})],[13.4,P(DIS.x,DIS.y,{f:1,s:.75,r:6})]])})();
+hold(2,12,[[32.3,{}],[33.1,{f:1}],[33.6,{f:1}],[35,{x:780,y:345,r:0,s:1,f:1}]]);
+hold(3,9,[[32.3,{}],[33.1,{f:1}],[33.6,{f:1}],[35,{x:640,y:345,r:0,s:1,f:1}]]);
+hold(4,5); hold(5,14);
+// 시드
+const seed=(n,t,slot,extra=[])=>card(n,[[0,P(D.x,D.y,{o:0})],[t,P(D.x,D.y)],[t+.8,P(slot.x,slot.y,{f:1,s:.9})],...extra]);
+seed(6,7.0,SEED[2]); seed(13,15.0,SEED[0]); seed(11,17.0,SEED[1]);
+seed(2,18.9,{x:410,y:225},[[20.0,P(410,225,{f:1,s:.9})],[20.8,P(380,300,{f:1,s:.7,o:0,r:-30})]]);
+// 칩
+const fly=(from,to,t,extra=[])=>chip([[0,{x:from.x,y:from.y,o:0,s:1,r:0}],[t,{x:from.x,y:from.y,o:1,s:1,r:0}],[t+.6,{x:to.x,y:to.y,o:1,s:1,r:0}],[t+.75,{x:to.x,y:to.y,o:0,s:1,r:0}]]);
+const SP=i=>({x:seats[i].x,y:seats[i].y});
+seats.forEach((_,i)=>fly(SP(i),POT,21.3+i*.12));
+[[1,1,23],[2,2,24],[3,3,25],[1,2,28.5],[2,1,29.3]].forEach(([i,n,t])=>{for(let k=0;k<n;k++)fly(SP(i),POT,t+k*.15)});
+for(let k=0;k<8;k++)fly(POT,SP(3),39.6+k*.12);
+// 자리
+const seatEls=seats.map((s,i)=>{const e=mk('seat',`<span class="body">${personHtml(s.c,{name:s.n,uid:'u'+i})}</span><b>${s.n}</b><em></em>`);e.style.transform=`translate(${s.x}px,${s.y}px)`;e.style.zIndex=1;return e});
+// 글자 요소
+const add=(cls,html,x,y)=>{const e=document.createElement('div');e.className=cls;e.innerHTML=html;if(x!=null){e.style.left=x+'px';e.style.top=y+'px'}document.getElementById('st').appendChild(e);return e};
+const lab1=add('lab','시드',640,170), lab2=add('lab','버린 카드',850,268);
+const pot=add('pot','',POT.x,POT.y);
+const sums=[[500,'3+13=','16',37],[640,'9+11=','20',37.6],[780,'12+6=','18',38.2]].map(([x,a,b,at])=>({e:add('sum',`<small>${a}</small>${b}`,x,432),at}));
+const subs=[[1,'카드 받기',10.3,14.3],[2,'시드 추가',14.5,16.6],[3,'시드 추가',16.6,18.6],[4,'시드 추가',18.7,20.8],[0,'내 카드는 나만 봐요',6.2,9.8]].map(([i,t,a,b])=>{const s=seats[i];const e=add('sub',t,i===0?s.x-190:s.x,i===0?s.y-10:s.y-92);return{e,a,b}});
+const step=add('step','');
+const cap=add('cap','<span></span>');
+const CAPS=[[3.5,'1','<i>①</i> 모두 카드 1장을 몰래 받고, 시드 1장이 공개돼요'],[10,'2','<i>②</i> 차례대로 <i>카드 받기</i> 또는 <i>시드 추가</i>'],[11.6,'2','<i>카드 받기</i>: 1장 더 받고, 하나는 공개해서 버려요'],[14.5,'2','<i>시드 추가</i>: 더미에서 1장을 시드로 공개해요'],[18.7,'2','시드는 <i>높은 3장</i>만 남아요'],[21,'3','<i>③</i> 베팅: 모두 기본 1개를 내요'],[22.8,'3','차례대로 <i>포기</i>하거나 <i>1~3개</i>를 걸어요'],[28.1,'3','가장 큰 베팅(<i>3개</i>)에 맞춰 칩을 더 내요'],[32,'4','<i>④</i> 승부: 베팅한 사람의 카드를 공개!'],[34.8,'4','<i>가장 낮은 카드</i>부터 <i>가장 높은 시드</i>를 더해요'],[38.8,'4','합이 가장 큰 <i>세찌</i>가 판돈을 모두 가져가요!']];
+const BETS=[[23,1,'1개'],[24,2,'2개'],[25,3,'3개'],[26,4,'포기'],[26.6,5,'포기'],[27.2,0,'포기'],[28.9,1,'3개'],[29.7,2,'3개']];
+const POTV=[[22.1,6],[23.7,7],[24.9,9],[26.1,12],[29.2,14],[30,15],[40.6,0]];
+const full=add('full','');full.style.display='none';
+const FULL=[[0,3.5,'<h1>시드포커</h1><p>더 지니어스 · 6~7명</p><div class="row"><span class="pill">칩 <b>20개</b>로 시작</span><span class="pill">총 <b>10라운드</b></span></div>'],
+[43.6,50,'<div class="box"><div>동점이면 판돈을 나누고, <i>남은 칩은 다음 판</i>으로 이월</div><div>모두 포기하면 기본 베팅을 돌려받아요</div><div>⑤ <i>10라운드</i> 후 칩이 많은 순서로 가넷 <i>🥇3 · 🥈2 · 🥉1</i></div></div>'],
+[50,54,'<h1 style="font-size:64px">준비됐나요?</h1><p>확인을 누르면 게임이 시작돼요!</p>']];
+window.renderAt=(t)=>{
+ for(const o of objs){const v=at(o.tr,t);o.e.style.transform=`translate(${v.x}px,${v.y}px) rotate(${v.r}deg) scale(${v.s})`;o.e.style.opacity=v.o;o.e.style.zIndex=Math.round(v.y)+(o.card?100:600);
+  if(o.card){const fl=o.e.querySelector('.fl');fl.style.transform=`scaleX(${Math.max(.02,Math.abs(Math.cos(v.f*Math.PI)))})`;o.e.querySelector('.fr').style.visibility=v.f>=.5?'visible':'hidden';o.e.querySelector('.bk').style.visibility=v.f>=.5?'hidden':'visible'}}
+ const c=[...CAPS].reverse().find(x=>t>=x[0]);const sp=cap.firstChild;
+ const ct=c&&t<43.6?c[2]:'';if(sp.dataset.v!==ct){sp.dataset.v=ct;sp.innerHTML=ct}sp.style.display=ct?'':'none';
+ const sv=c&&t<43.6?['','카드 배분','행동','베팅','승부'][+c[1]]:'';step.textContent=sv?`STEP ${c[1]} · ${sv}`:'';step.style.display=sv?'':'none';
+ subs.forEach(s=>{const on=t>=s.a&&t<s.b;s.e.style.display=on?'':'none'});
+ seatEls.forEach((e,i)=>{const b=[...BETS].reverse().find(x=>x[1]===i&&t>=x[0]);const em=e.querySelector('em');const txt=t<31.8||t>=43?(b&&t<43?b[2]:''):(b?b[2]:'');em.textContent=t>=21&&t<43?txt:'';e.classList.toggle('fold',!!b&&b[2]==='포기'&&t<43);e.classList.toggle('win',i===3&&t>=38.8&&t<43.6)});
+ const pv=[...POTV].reverse().find(x=>t>=x[0]);pot.innerHTML=t>=21&&t<43.6&&pv?`판돈 <i class="sp-coin"></i>${pv[1]}`:'';
+ sums.forEach(s=>{s.e.style.display=t>=s.at&&t<43.6?'':'none';s.e.classList.toggle('w',s.e.textContent.endsWith('20')&&t>=38.8)});
+ lab2.style.display=t>=12.6&&t<43.6?'':'none'; lab1.style.display=t>=7&&t<43.6?'':'none';
+ const f=FULL.find(x=>t>=x[0]&&t<x[1]);full.style.display=f?'':'none';if(f&&full.dataset.v!==f[2]){full.dataset.v=f[2];full.innerHTML=f[2]}
+ const fo=f? Math.min(1,(t-f[0])/.4,(f[1]-t)/.4):0; full.style.opacity=f?(f[0]===0?Math.min(1,(f[1]-t)/.4):fo):0;
+};
+window.DUR=54; window.ready=true;
+</script>
