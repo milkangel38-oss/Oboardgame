@@ -262,7 +262,7 @@ function setupState(players, room) {
     const order = players.map((p) => p.uid);
     const n = order.length;
     const spawn = {};
-    order.forEach((u, i) => { spawn[u] = { x: 230 + (i % 4) * 180, y: 470 + Math.floor(i / 4) * 110 }; });
+    order.forEach((u, i) => { spawn[u] = { x: 380 + (i % 4) * 150, y: 470 + Math.floor(i / 4) * 110 }; });
     const base = {
       order, seats: shuffle(order), round: 1, phase: 'info', ready: {}, deadline: 0,
       prices: COMPANIES.map(() => START_PRICE), hist: COMPANIES.map(() => [START_PRICE]), stock: COMPANIES.map(() => supplyFor(n)),

@@ -1149,10 +1149,15 @@ function drawIntro(room, game) {
   const ack = room.intro.ack || {};
   const ids = Object.keys(room.players);
   const done = ids.filter((u) => ack[u]).length;
-  // 방장: 모두 확인했거나 90초가 지나면 진짜로 시작
+  // 방장: 모두 확인했거나 2분이 지나면 진짜로 시작
   if (room.hostId === user.uid && R.introReady(room) && intro.starting !== room.intro.at) {
     intro.starting = room.intro.at;
-    backend.mutateRoom(room.code, (r) => (r.intro ? R.start(r, game, user.uid) : r)).catch((e) => { intro.starting = 0; toast(e.message); });
+    // 다음 틱에 시작해요: 저장이 바로 화면에 반영되는 경우(테스트 모드) 이 함수가 옛 방 정보로 창을 다시 만들지 않게
+    setTimeout(() => backend.mutateRoom(room.code, (r) => (r.intro ? R.start(r, game, user.uid) : r)).catch((e) => {
+      // 시작할 수 없으면(누가 빠지거나 준비가 풀림) 영상을 닫고 대기실로 돌아가요 — 계속 재시도하지 않아요
+      toast(`${e.message} · 대기실로 돌아가요`);
+      backend.mutateRoom(room.code, (r) => R.cancelIntro(r)).catch(() => {});
+    }), 0);
   }
   if (intro.at !== room.intro.at) {
     closeIntro();
@@ -1163,22 +1168,23 @@ function drawIntro(room, game) {
     $o.innerHTML = `<div class="intro-box">
       <div class="intro-title">🎬 <b>${esc(game.name)}</b> 게임 방법</div>
       <div class="intro-media">
-        <video class="intro-video" src="video/rules/${esc(game.id)}.mp4" playsinline autoplay controls preload="auto"></video>
+        <video class="intro-video" src="video/rules/${esc(game.id)}.mp4" playsinline autoplay controls preload="metadata"></video>
         <div class="intro-slides" hidden>
           <div class="intro-emoji">${esc(game.emoji || '🎲')}</div>
           <p class="intro-text"></p>
           <div class="intro-dots">${rules.map(() => '<i></i>').join('')}</div>
         </div>
       </div>
-      <div class="intro-btns"><button class="btn ghost" data-ireplay>다시보기</button><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
+      <button class="intro-x" data-ileave title="방 나가기">✕ 나가기</button><div class="intro-btns"><button class="btn ghost" data-ireplay>다시보기</button><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
       <div class="intro-wait" hidden></div>
     </div>`;
     document.body.appendChild($o);
     intro.$el = $o;
-    intro.tick = setInterval(() => intro.room && drawIntro(intro.room, intro.game), 3000); // 90초 제한 확인
+    intro.tick = setInterval(() => intro.room && drawIntro(intro.room, intro.game), 3000); // 2분 제한 확인
     const $v = $o.querySelector('video');
     const slides = () => {
       clearInterval(intro.timer);
+      $o.querySelector('.intro-unmute')?.remove();
       $v.remove();
       const $s = $o.querySelector('.intro-slides'); $s.hidden = false;
       if (!rules.length) { $o.querySelector('.intro-text').textContent = '준비되면 확인을 눌러 주세요!'; return; }
@@ -1195,6 +1201,7 @@ function drawIntro(room, game) {
     $v.addEventListener('error', slides);
     $v.play?.()?.catch(() => {
       // 소리 있는 자동 재생이 막히면 음소거로 재생하고, 눌러서 소리를 켤 수 있게 해요
+      if ($v.error) return;
       $v.muted = true; $v.play().catch(() => {});
       const $u = document.createElement('button'); $u.className = 'intro-unmute'; $u.textContent = '🔇 눌러서 소리 켜기';
       $u.onclick = () => { $v.muted = false; $v.play().catch(() => {}); $u.remove(); };
@@ -1202,6 +1209,7 @@ function drawIntro(room, game) {
     });
     const ok = () => backend.mutateRoom(room.code, (r) => R.ackIntro(r, user.uid)).catch((e) => { if (e.message !== '__noop') toast(e.message); });
     $o.querySelector('[data-iskip]').onclick = ok;
+    $o.querySelector('[data-ileave]').onclick = () => { closeIntro(); document.querySelector('[data-leave]')?.click(); };
     $o.querySelector('[data-ireplay]').onclick = () => {
       if ($v.isConnected) { $v.currentTime = 0; $v.play().catch(() => {}); } else slides();
     };

@@ -94,7 +94,8 @@ function build(code) {
     c.joy.x = dx / max; c.joy.y = dy / max;
     c.root.querySelector('.sx-joy i').style.transform = `translate(${dx}px, ${dy}px)`;
   };
-  const seen = () => { if (c.centerKind) c.hideKind = c.centerKind; };
+  // 알림이 1초 이상 보인 뒤에 행동해야 닫혀요 (걷던 중에 뜬 알림이 바로 사라지지 않게)
+  const seen = () => { if (c.centerKind && Date.now() - (c.centerShownAt || 0) > 1000) c.hideKind = c.centerKind; };
   c.$('.sx-arena').addEventListener('pointerdown', seen);
   c.$('.sx-joy').addEventListener('pointerdown', seen);
   c.$('.sx-joy').addEventListener('pointerdown', (e) => { c.joy.id = e.pointerId; c.joyEl = c.$('.sx-joy'); moveJoy(e); e.preventDefault(); });
@@ -103,7 +104,7 @@ function build(code) {
   c.onKey = (e) => {
     if (e.target.closest?.('input, textarea')) return;
     const k = { ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r' }[e.code];
-    if (k) { e.type === 'keydown' ? c.keys.add(k) : c.keys.delete(k); e.preventDefault(); if (e.type === 'keydown') seen(); }
+    if (k) { e.type === 'keydown' ? c.keys.add(k) : c.keys.delete(k); e.preventDefault(); if (e.type === 'keydown' && !e.repeat) seen(); }
     if (e.type === 'keydown' && (e.code === 'Space' || e.code === 'KeyE') && !e.repeat) { e.preventDefault(); interact(); }
   };
   window.addEventListener('pointermove', c.onPMove);
@@ -396,6 +397,7 @@ function frame() {
   else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 3000) kind = `open${state.round}`, center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
   else if (state.phase === 'done') center = '<b>장 마감</b><small>모든 주식을 마지막 주가로 현금화했어요</small>';
   // 알림을 본 뒤 내가 움직이거나 버튼을 누르면 바로 사라져요 (같은 알림은 다시 안 떠요)
+  if (kind !== c.centerKind) c.centerShownAt = Date.now();
   c.centerKind = kind;
   if (kind && c.hideKind === kind && state.phase !== 'done') center = '';
   const $c = c.$('.sx-center');

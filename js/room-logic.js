@@ -36,6 +36,7 @@ export function join(room, user, game) {
   if (room.players[user.uid]) return room;
   if (room.kicked?.[user.uid]) throw new Error('방장이 내보낸 방이에요');
   if (room.status !== 'waiting') throw new Error('이미 게임이 진행 중이에요');
+  if (room.intro) throw new Error('곧 게임이 시작돼요. 다음 판에 들어와 주세요');
   const list = sortedPlayers(room);
   if (list.length >= game.maxPlayers) throw new Error('방이 가득 찼어요');
   const order = list.length ? list[list.length - 1].order + 1 : 0;
@@ -51,6 +52,7 @@ export function leave(room, uid, reason = 'leave') {
   const rest = sortedPlayers(room);
   if (!rest.length) return null; // 마지막 사람이 나가면 방 삭제
   if (room.hostId === uid) room.hostId = rest[0].uid;
+  if (room.intro) room.intro = null; // 영상 보는 중에 누가 나가면 대기실로 돌아가요
   if (room.status === 'playing') {
     room.status = 'finished';
     room.result = {
@@ -88,11 +90,13 @@ export function kick(room, hostUid, uid) {
   if (uid === hostUid || !room.players[uid]) return room;
   delete room.players[uid];
   room.kicked = { ...(room.kicked || {}), [uid]: true };
+  if (room.intro) room.intro = null;
   return room;
 }
 
 export function setReady(room, uid, ready) {
   if (room.status !== 'waiting') return room;
+  if (room.intro && !ready) return room; // 영상 보는 중엔 준비 취소 안 돼요
   if (room.players[uid]) room.players[uid].ready = !!ready;
   return room;
 }
@@ -123,7 +127,13 @@ export function beginIntro(room, game, uid) {
   if (room.hostId !== uid) throw new Error('방장만 시작할 수 있어요');
   const check = canStart(room, game);
   if (!check.ok) throw new Error(check.reason);
-  if (!room.intro) room.intro = { at: Date.now(), ack: {} };
+  if (!room.intro || introReady(room)) room.intro = { at: Date.now(), ack: {} };
+  return room;
+}
+// 시작에 실패하면(누가 빠지거나 준비가 풀림) 영상을 닫고 대기실로 돌아가요
+export function cancelIntro(room) {
+  if (!room.intro) throw new Error('__noop');
+  room.intro = null;
   return room;
 }
 export function ackIntro(room, uid) {
@@ -178,6 +188,7 @@ export function chat(room, uid, text) {
 export function reset(room, uid) {
   if (room.hostId !== uid) throw new Error('방장만 새 게임을 열 수 있어요');
   room.status = 'waiting';
+  room.intro = null;
   room.game = null;
   room.result = null;
   Object.values(room.players).forEach((p) => (p.ready = false));
