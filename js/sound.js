@@ -11,6 +11,9 @@ export function getVolume() { if (typeof localStorage === 'undefined') return 0.
 export function isMuted() { return localStorage.getItem(MUTE_KEY) === '1'; }
 export function setVolume(v) { try { localStorage.setItem(VOL_KEY, String(v)); if (v > 0) localStorage.setItem(MUTE_KEY, '0'); } catch {} apply(); }
 export function setMuted(m) { try { localStorage.setItem(MUTE_KEY, m ? '1' : '0'); } catch {} apply(); }
+// 음성 채팅 중엔 배경음악을 작게
+let ducked = false;
+export function setDuck(on) { ducked = !!on; if (musicBus) musicBus.gain.setTargetAtTime(ducked ? 0.3 : 1, ctx.currentTime, 0.2); }
 export function onSoundChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 function ensure() {
@@ -20,7 +23,7 @@ function ensure() {
   ctx = new AC();
   master = ctx.createGain();
   master.connect(ctx.destination);
-  musicBus = ctx.createGain(); musicBus.gain.value = 1; musicBus.connect(master);
+  musicBus = ctx.createGain(); musicBus.gain.value = ducked ? 0.3 : 1; musicBus.connect(master);
   sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
   apply();
   return ctx;

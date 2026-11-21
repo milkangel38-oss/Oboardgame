@@ -6,7 +6,8 @@ import { summarize, gameRecord, tierOf, AVATAR_PRESETS, GARNET } from './profile
 import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 import { showAlert } from './alert.js';
-import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange } from './sound.js';
+import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange, setDuck } from './sound.js';
+import { createVoice } from './voice.js';
 import { bindPreview, hidePreview, justPreviewed } from './preview.js';
 
 const $app = document.getElementById('app');
@@ -1005,6 +1006,7 @@ function renderRoom(code) {
   const missing = {}; // uid → 처음 안 보인 시각 (내 시계 기준)
   const enteredAt = Date.now();
   let rp = null, closed = false;
+  voiceRoom = code; voiceLatest = null;
   if (presenceOn && backend.roomPresence) {
     backend.roomPresence(code, user.uid).then((h) => {
       if (!h) return;
@@ -1072,13 +1074,14 @@ function renderRoom(code) {
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
     // (방 채팅 room.chat만 빼요 — 게임 안 채팅 room.game.chat은 바뀌면 다시 그려야 해요)
     const sig = JSON.stringify(room, function (k, v) { return k === 'seen' || (k === 'chat' && this === room) ? undefined : v; });
-    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); return; }
+    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); drawVoice(room, game); return; }
     lastSig = sig;
     drawRoom($main, room, game);
     drawIntro(room, game);
+    drawVoice(room, game);
   });
 
-  return () => { closed = true; closeIntro(); unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
+  return () => { closed = true; closeIntro(); closeVoice(); unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1133,6 +1136,57 @@ function drawRoomChat(room, full = false) {
     rchat.draft = ''; $in.value = '';
     backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
   };
+}
+
+// ───────── 음성 채팅 (방 안에서만, 혼자 하는 게임 제외) ─────────
+let voice = null, voiceRoom = '', voiceLatest = null, $vdock = null, voiceBusy = false;
+function closeVoice() {
+  voice?.stop(); voice = null; setDuck(false);
+  $vdock?.remove(); $vdock = null; voiceRoom = '';
+}
+function drawVoice(room, game) {
+  voiceLatest = room;
+  if (game?.solo || !room.players?.[user.uid] || room.code !== voiceRoom) { if (game?.solo) closeVoice(); return; }
+  if (!$vdock) {
+    $vdock = document.createElement('div');
+    $vdock.className = 'vdock';
+    document.body.appendChild($vdock);
+    $vdock.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-v]'); if (!b || voiceBusy) return;
+      if (b.dataset.v === 'join') {
+        voiceBusy = true;
+        try {
+          voice = createVoice({ backend, code: room.code, uid: user.uid, members: () => Object.keys(voiceLatest?.players || {}), onChange: () => paintVoice() });
+          const st = await voice.start();
+          setDuck(true);
+          if (st.listenOnly) toast('마이크를 쓸 수 없어서 듣기만 해요 (브라우저에서 마이크를 허용해 주세요)');
+        } catch (err) { voice = null; toast(err.message); }
+        voiceBusy = false;
+      } else if (b.dataset.v === 'mute') voice?.toggleMute();
+      else if (b.dataset.v === 'leave') { voice?.stop(); voice = null; setDuck(false); }
+      paintVoice();
+    });
+  }
+  // 게임 규칙상 말하면 안 되는 순간엔 자동 음소거
+  const reason = room.status === 'playing' && room.game ? (game?.voiceMute?.(room.game, user.uid) || '') : '';
+  voice?.setForced(reason);
+  voice?.refresh();
+  paintVoice();
+}
+function paintVoice() {
+  if (!$vdock) return;
+  const room = voiceLatest;
+  if (!voice?.on) { $vdock.className = 'vdock off'; $vdock.innerHTML = `<button class="vbtn" data-v="join" title="방 음성 채팅 참여">🎙️<span>음성채팅</span></button>`; return; }
+  const st = voice.state();
+  const faces = st.members.filter((u) => room?.players?.[u]).map((u) => {
+    const p = room.players[u], muted = st.info[u]?.m;
+    return `<span class="vface ${st.speaking.has(u) ? 'talk' : ''} ${muted ? 'muted' : ''} ${u !== user.uid && !st.connected.includes(u) ? 'wait' : ''}" title="${esc(p.name)}">${avatar(p, 'xs')}${muted ? '<i>🔇</i>' : ''}</span>`;
+  }).join('');
+  $vdock.className = 'vdock';
+  $vdock.innerHTML = `<div class="vfaces">${faces}</div>
+    <button class="vbtn ${st.muted ? 'muted' : 'live'}" data-v="mute" ${st.listenOnly || st.forced ? 'disabled' : ''} title="${st.forced ? esc(st.forced) : '마이크 켜기/끄기'}">${st.muted ? '🔇' : '🎙️'}</button>
+    <button class="vbtn ghost" data-v="leave" title="음성 채팅 나가기">✕</button>
+    ${st.forced ? `<div class="vnote">${esc(st.forced)}</div>` : ''}`;
 }
 
 // ───────── 게임 방법 영상 (시작 전에 모두에게 한 번) ─────────

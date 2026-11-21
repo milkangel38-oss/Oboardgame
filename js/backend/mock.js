@@ -202,6 +202,27 @@ export function createBackend() {
       };
     },
 
+    // 음성 채팅 (테스트 모드: 같은 브라우저 탭끼리 BroadcastChannel)
+    async voice(code, uid) {
+      const ch = new BroadcastChannel(`mbg-voice-${code}`);
+      const peers = {}; let mine = { m: false }; let peerCb = null, sigCb = null;
+      const push = () => peerCb?.({ ...peers, [uid]: mine });
+      ch.onmessage = (e) => {
+        const d = e.data;
+        if (d.t === 'hi') { peers[d.uid] = d.info; push(); if (!d.reply) ch.postMessage({ t: 'hi', uid, info: mine, reply: true }); }
+        else if (d.t === 'bye') { delete peers[d.uid]; push(); }
+        else if (d.t === 'sig' && d.to === uid) sigCb?.(d.from, d.msg);
+      };
+      ch.postMessage({ t: 'hi', uid, info: mine });
+      return {
+        publish(info) { mine = { ...mine, ...info }; ch.postMessage({ t: 'hi', uid, info: mine, reply: true }); push(); },
+        send(to, msg) { ch.postMessage({ t: 'sig', to, from: uid, msg }); },
+        watchPeers(cb) { peerCb = cb; push(); },
+        onSignal(cb) { sigCb = cb; },
+        close() { ch.postMessage({ t: 'bye', uid }); ch.close(); },
+      };
+    },
+
     async saveBest(uid, key, score) {
       let best = 0;
       await this.updateProfile(uid, (p) => { best = Math.max(p.best?.[key] || 0, score); return { ...p, best: { ...(p.best || {}), [key]: best } }; });

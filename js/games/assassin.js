@@ -439,6 +439,8 @@ function paintPanel() {
 }
 
 export default {
+  // 음성 채팅: 어둠 속(마피아 고르기·사냥)에는 모두, 쓰러진 사람은 계속 음소거
+  voiceMute: (s, me) => (['dark', 'hunt'].includes(s?.phase) ? '🌑 어둠 속에서는 말할 수 없어요' : s?.dead?.[me] ? '💀 쓰러진 사람은 말할 수 없어요' : ''),
   id: 'assassin',
   name: '자객 마피아',
   emoji: '🗡',

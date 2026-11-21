@@ -234,6 +234,28 @@ export function createBackend(config) {
       };
     },
 
+    // 음성 채팅 연결 정보 (Realtime Database: voice/{방코드}/peers/{uid}, voice/{방코드}/sig/{받는uid}/{push})
+    async voice(code, uid) {
+      if (!config.databaseURL) return null;
+      const m = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+      const rdb = m.getDatabase(app);
+      const me = m.ref(rdb, `voice/${code}/peers/${uid}`);
+      const inbox = m.ref(rdb, `voice/${code}/sig/${uid}`);
+      m.onDisconnect(me).remove().catch(() => {});
+      m.onDisconnect(inbox).remove().catch(() => {});
+      await m.set(me, { m: false, t: m.serverTimestamp() });
+      const offs = [];
+      return {
+        publish(d) { m.update(me, d).catch(() => {}); },
+        send(to, msg) { m.push(m.ref(rdb, `voice/${code}/sig/${to}`), { ...msg, from: uid }).catch(() => {}); },
+        watchPeers(cb) { offs.push(m.onValue(m.ref(rdb, `voice/${code}/peers`), (s) => cb(s.val() || {}), () => cb({}))); },
+        onSignal(cb) {
+          offs.push(m.onChildAdded(inbox, (s) => { const v = s.val(); m.remove(s.ref).catch(() => {}); if (v?.from) cb(v.from, v); }));
+        },
+        close() { offs.forEach((f) => f()); m.remove(me).catch(() => {}); m.remove(inbox).catch(() => {}); },
+      };
+    },
+
     // 방 접속 확인 (Realtime Database: presence/{방코드}/{uid}) — 창을 닫거나 연결이 끊기면 서버가 알아서 지워요.
     // cb(온라인 uid Set) · 사용할 수 없으면 cb(null) → 예전 방식(seen)으로 확인
     async roomPresence(code, uid) {

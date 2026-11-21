@@ -104,6 +104,8 @@ function ensureBar(code) {
 }
 
 export default {
+  // 음성 채팅: 키워드 쓰기·정답 맞히기 동안 정답자 말고는 음소거 (힌트 금지)
+  voiceMute: (s, me) => (['write', 'guess'].includes(s?.phase) && s.guesser !== me ? '🤐 정답자가 맞힐 때까진 말할 수 없어요' : ''),
   id: 'dongsang',
   name: '동상이몽퀴즈',
   emoji: '🪧',

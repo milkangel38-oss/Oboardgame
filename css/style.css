@@ -2198,3 +2198,20 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .intro-unmute { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 20px; border: 0; border-radius: 99px; background: rgba(10, 6, 24, .85); color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 0 0 2px #c9a85a; cursor: pointer; }
 .intro-box { position: relative; }
 .intro-x { position: absolute; right: 12px; top: 12px; padding: 4px 10px; border: 0; border-radius: 99px; background: rgba(255, 255, 255, .1); color: var(--muted); font-size: 12px; font-weight: 800; cursor: pointer; }
+/* 음성 채팅 */
+.vdock { position: fixed; left: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 800; display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 999px; background: rgba(14, 9, 30, .9); box-shadow: 0 0 0 1.5px rgba(201, 168, 90, .6), 0 6px 18px rgba(0, 0, 0, .5); backdrop-filter: blur(6px); flex-wrap: wrap; max-width: calc(100vw - 90px); }
+.vdock.off { padding: 0; background: none; box-shadow: none; backdrop-filter: none; }
+.vbtn { display: inline-flex; align-items: center; gap: 6px; height: 38px; min-width: 38px; padding: 0 12px; border: 0; border-radius: 999px; background: linear-gradient(180deg, #ff6b9a, #e8417a); color: #fff; font-weight: 900; font-size: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, .45); cursor: pointer; }
+.vdock.off .vbtn span { font-size: 13px; }
+.vbtn.live { background: linear-gradient(180deg, #3ddc84, #22a85f); padding: 0 10px; }
+.vbtn.muted { background: #4a4560; padding: 0 10px; }
+.vbtn.ghost { background: rgba(255, 255, 255, .1); color: var(--muted); font-size: 13px; padding: 0 10px; box-shadow: none; }
+.vbtn:disabled { opacity: .55; cursor: default; }
+.vfaces { display: flex; gap: 4px; padding-left: 2px; }
+.vface { position: relative; display: block; width: 32px; height: 32px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 255, 255, .15); transition: box-shadow .15s; }
+.vface .avatar { width: 32px; height: 32px; font-size: 14px; }
+.vface.talk { box-shadow: 0 0 0 3px #3ddc84, 0 0 12px #3ddc84; }
+.vface.wait { opacity: .45; }
+.vface i { position: absolute; right: -4px; bottom: -4px; font-size: 11px; font-style: normal; }
+.vnote { flex-basis: 100%; padding: 2px 8px 2px; font-size: 11px; font-weight: 800; color: #ffd27a; }
+.voice-audio { display: none; }

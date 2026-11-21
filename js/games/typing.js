@@ -135,6 +135,8 @@ const drafts = {};
 let focusKey = '';
 
 export default {
+  // 음성 채팅: 설명자는 말로 설명하면 반칙이라 음소거
+  voiceMute: (s, me) => (['trap', 'play'].includes(s?.phase) && (s.describers?.A === me || s.describers?.B === me) ? '⌨️ 설명자는 타이핑으로만 설명해요' : ''),
   id: 'typing',
   name: '타이핑 퀴즈',
   emoji: '⌨️',
