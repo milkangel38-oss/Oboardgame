@@ -1,4 +1,5 @@
 import { backend } from './backend/index.js';
+import { themeHtml } from './games/themes.js';
 import { GAMES, CATEGORIES, getGame, getCategory } from './games/index.js';
 import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
@@ -1534,7 +1535,7 @@ function drawRoom($main, room, game) {
          <div class="waiting-art">${game.art}</div>
          <div class="ribbon static"><span><i>◆</i>${esc(game.name)}<i>◆</i></span></div>
          <p class="muted">${playerCount(game)} · ${esc(game.duration)}</p>
-         ${game.rules ? `<ol class="rules">${game.rules.map((r) => `<li>${esc(r)}</li>`).join('')}</ol>` : ''}
+         ${themeHtml(game)}
          ${(game.options || []).map((o) => {
            const val = room.options?.[o.key] ?? o.default;
            return `<div class="game-opt"><span>${esc(o.label)}</span>${isHost

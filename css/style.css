@@ -2788,3 +2788,11 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .am-ej-next { font-size: 12.5px; color: var(--muted); }
 .am-ej-fig .ab { filter: drop-shadow(0 0 3px rgba(255, 255, 255, .9)) drop-shadow(0 0 10px rgba(255, 240, 200, .55)); }
 @keyframes amEjFly { 0% { transform: translate(0, 0) scale(.9); opacity: 1; } 15% { transform: translate(12cqw, -8cqw) scale(1); } 55% { transform: translate(52cqw, -18cqw) scale(.6); opacity: 1; } 100% { transform: translate(80cqw, -24cqw) scale(.1); opacity: 0; } }
+/* 대기실 게임 테마 (포스터 느낌) */
+.theme-card { width: 100%; max-width: 440px; margin-top: 12px; padding: 16px 16px 14px; border-radius: 6px; text-align: left; color: #1d1a22;
+  background: linear-gradient(180deg, #f7f3ea, #ece5d6); box-shadow: 0 0 0 1px rgba(0, 0, 0, .25), 0 8px 18px rgba(0, 0, 0, .45); position: relative; }
+.theme-card::before { content: ''; position: absolute; inset: 6px; border: 1px solid rgba(60, 40, 20, .25); border-radius: 3px; pointer-events: none; }
+.theme-title { text-align: center; font-family: Georgia, 'Times New Roman', serif; font-weight: 900; font-size: 24px; letter-spacing: .12em; color: #141218; }
+.theme-place { margin: 8px 0 6px; font-weight: 900; font-size: 14px; color: #141218; }
+.theme-story { margin: 0; font-size: 13.5px; line-height: 1.75; word-break: keep-all; color: #2a2630; }
+.theme-story em { font-style: normal; font-weight: 800; color: #d4202c; }
