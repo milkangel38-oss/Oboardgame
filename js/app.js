@@ -1489,6 +1489,7 @@ function drawRoom($main, room, game) {
         <h2 class="room-code">방 코드 <span class="code">${esc(room.code)}</span></h2>
       </div>
       <div class="row">
+        ${isHost && room.status !== 'waiting' ? '<button class="btn" data-restart title="같은 사람들로 처음부터 다시 시작">🔄 다시하기</button>' : ''}
         <button class="btn primary" data-invite>친구 초대</button>
         <button class="btn ghost" data-leave>나가기</button>
       </div>
@@ -1539,6 +1540,14 @@ function drawRoom($main, room, game) {
   }));
   $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.beginIntro(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
+  $main.querySelector('[data-restart]')?.addEventListener('click', () => {
+    if (!confirm(room.status === 'playing' ? '게임을 처음부터 다시 시작할까요?\n지금 판은 기록 없이 끝나요.' : '같은 사람들로 바로 다시 시작할까요?')) return;
+    closeEndModal();
+    backend.mutateRoom(room.code, (r) => R.abortForRestart(r, user.uid))
+      .catch((e) => { if (e.message !== '__noop') throw e; })
+      .then(() => backend.mutateRoom(room.code, (r) => R.restart(r, getGame(r.gameId), user.uid)))
+      .catch((e) => showAlert(e.message));
+  });
   $main.querySelectorAll('[data-opt]').forEach((sel) => {
     sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number.isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
   });

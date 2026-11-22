@@ -279,6 +279,7 @@ export default {
           <button class="rk-x" data-rkleave aria-label="나가기">✕</button>
           <span class="rk-turn ${myTurn ? 'me' : ''}">${myTurn ? '내 차례!' : `${name(state.turn)}님 차례`}</span>
           ${state.deadline ? `<span class="rk-timer"><b data-left>${Math.ceil(left / 1000)}</b>초</span>` : ''}
+          ${room?.hostId === me ? '<button class="rk-re" data-rkre title="같은 사람들로 처음부터 다시" aria-label="다시하기">🔄<span class="rk-re-t"> 다시하기</span></button>' : ''}
         </div>
         <aside class="rk-side">${seatOrder.map(profile).join('')}</aside>
         <div class="rk-mid">
@@ -296,8 +297,8 @@ export default {
           <div class="rk-shelf">${sorted.map((t) => tile(t, `${ui.sel === t ? 'sel' : ''} ${myTurn ? 'touch' : ''} ${dealing && !dealing.landed(t, now) ? 'deal-hide' : ''}`, `data-rt="${t}" ${myTurn ? `data-t="${t}"` : ''}`)).join('')}</div>
         </div>` : '<div class="rk-stand empty"></div>'}
         <div class="rk-right">
-          <button class="rk-sortb ${ui.sort !== 'num' ? 'on' : ''}" data-sort="color" title="색깔별 · 숫자순 정렬">789</button>
-          <button class="rk-sortb ${ui.sort === 'num' ? 'on' : ''}" data-sort="num" title="같은 숫자끼리 정렬">777</button>
+          <button class="rk-sortb ${ui.sort !== 'num' ? 'on' : ''}" data-sort="color" title="색깔별로 모아 숫자순 정렬">색깔순<small>789</small></button>
+          <button class="rk-sortb ${ui.sort === 'num' ? 'on' : ''}" data-sort="num" title="같은 숫자끼리 모아 정렬">숫자순<small>777</small></button>
           <button class="rk-pool2" data-draw ${myTurn ? '' : 'disabled'} title="더미에서 1개 가져오고 차례 넘기기">
             <span class="rk-pool-stack"><i></i><i></i><i></i></span><b data-pool>${poolShown}</b><small>${myTurn ? '가져오기' : '남은 타일'}</small>
           </button>
@@ -316,6 +317,7 @@ export default {
         $f.onsubmit = (e) => { e.preventDefault(); const text = $in.value.trim(); if (!text) return; chatUi.draft = ''; $in.value = ''; sendMove({ type: 'chat', text }, { silent: true }); };
       }
       root.querySelector('[data-rkleave]')?.addEventListener('click', () => document.querySelector('[data-leave]')?.click());
+      root.querySelector('[data-rkre]')?.addEventListener('click', () => document.querySelector('[data-restart]')?.click());
       // 말풍선은 6초 뒤 사라지게 다시 그리기
       const nextBub = Object.values(bubbles).map((m) => m.at + 6000 - now).filter((x) => x > 0);
       clearTimeout(bubTimer);

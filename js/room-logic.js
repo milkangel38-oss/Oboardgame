@@ -163,6 +163,32 @@ export function start(room, game, uid) {
   return room;
 }
 
+// 방장 '다시하기': 같은 사람들로 처음부터 다시 (영상·준비 없이 바로)
+// 서버가 진행하는 게임은 게임 중에 상태를 못 바꾸니, 먼저 '중단'으로 끝낸 뒤 새로 시작해요 (두 번에 나눠 저장)
+export function abortForRestart(room, uid) {
+  if (room.hostId !== uid) throw new Error('방장만 다시 시작할 수 있어요');
+  if (room.status !== 'playing') throw new Error('__noop');
+  room.status = 'finished';
+  room.result = { aborted: true, message: '방장이 게임을 다시 시작하고 있어요…' };
+  return room;
+}
+export function restart(room, game, uid) {
+  if (room.hostId !== uid) throw new Error('방장만 다시 시작할 수 있어요');
+  if (room.status === 'waiting') throw new Error('아직 시작하지 않은 게임이에요');
+  const list = sortedPlayers(room);
+  if (list.length < game.minPlayers) throw new Error(`최소 ${game.minPlayers}명이 필요해요`);
+  if (list.length > game.maxPlayers) throw new Error(`최대 ${game.maxPlayers}명까지 가능해요`);
+  room.game = game.setup(list, room);
+  room.matchId = (room.matchId || 0) + 1;
+  const now = Date.now();
+  Object.values(room.players).forEach((p) => (p.seen = now));
+  room.status = 'playing';
+  room.intro = null;
+  room.startedAt = now;
+  room.result = null;
+  return room;
+}
+
 export function applyMove(room, game, uid, move) {
   if (room.status !== 'playing') throw new Error('게임 중이 아니에요');
   if (!room.players[uid]) throw new Error('참가자가 아니에요');
