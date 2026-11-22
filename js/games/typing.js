@@ -6,13 +6,16 @@
 // - 설명자 말고 누구나 정답을 외칠 수 있음. 먼저 맞힌 사람의 팀 +1점. 오답이면 그 팀 10초 잠금
 // - 라운드 시작 후 20초 동안 두 설명자가 상대 설명자용 함정단어(최대 3개)를 설치
 //   상대 설명에 함정단어가 들어가면 "함정단어입니다" — 보낼 수 없음. 라운드가 끝나면 함정 공개
-// - 맞히는 사람들의 채팅은 모두에게 보이고, 팀 캐릭터 옆 말풍선으로 나옴 (설명자는 채팅 없음)
+// - 맞히는 사람들도 캐릭터(얼굴 = 프로필)로 아래에 서 있고, 채팅·정답은 그 캐릭터 머리 위 말풍선으로 (정답을 외치면 손을 들어요)
 // - 라운드(5~10) 후 이긴 팀 모두 가넷 +2
 import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
+import { personHtml } from './face.js';
 import { WORDS, mainWord, allAnswers } from './typing-words.js';
 
 const LOCK_MS = 10000;
+const BUB_MS = 6000;     // 말풍선이 떠 있는 시간
+let bubT = 0;
 const REVEAL_MS = 5000;
 const REWARD = 2;
 const MAX_LINE = 60;
@@ -214,7 +217,7 @@ export default {
       if (isDescriber && state.phase === 'play') throw new Error('설명자는 채팅을 쓸 수 없어요');
       const text = String(move.text ?? '').trim().slice(0, MAX_CHAT);
       if (!text) throw new Error('메시지를 입력해 주세요');
-      return { state: { ...state, chat: [...(state.chat || []), { team: myTeam, uid, text }].slice(-40) } };
+      return { state: { ...state, chat: [...(state.chat || []), { team: myTeam, uid, text, t: now }].slice(-40) } };
     }
 
     if (move?.type === 'skip') {
@@ -232,7 +235,7 @@ export default {
       const text = String(move.text ?? '').trim().slice(0, 30);
       if (!text) throw new Error('정답을 입력해 주세요');
       if (allAnswers(state.word).some((w) => norm(text) === norm(w))) {
-        return { state: { ...state, scores: { ...state.scores, [myTeam]: state.scores[myTeam] + 1 }, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: uid, solvedTeam: myTeam } };
+        return { state: { ...state, scores: { ...state.scores, [myTeam]: state.scores[myTeam] + 1 }, phase: 'reveal', revealUntil: now + REVEAL_MS, solvedBy: uid, solvedTeam: myTeam, solvedText: text, solvedAt: now } };
       }
       return { state: { ...state, lockUntil: { ...state.lockUntil, [myTeam]: now + LOCK_MS }, wrong: [...state.wrong, { uid, team: myTeam, text, t: now }].slice(-6) } };
     }
@@ -297,6 +300,26 @@ export default {
         <div class="tq-cb tq-${t} ${c.uid === me ? 'mine' : ''}"><small>${name(c.uid)}</small>${esc(c.text)}</div>`).join('')}</div>`;
     };
     const lockLeft = myTeam ? Math.max(0, (state.lockUntil[myTeam] || 0) - Date.now()) : 0;
+    // 맞히는 사람들: 팀별 세로 칸(왼쪽 잘생긴팀 · 오른쪽 못생긴팀), 머리 위에 채팅·정답 말풍선
+    const now0 = Date.now();
+    const shout = {};
+    (state.chat || []).forEach((c) => { if (c.t && now0 - c.t < BUB_MS) shout[c.uid] = { t: c.t, text: c.text, kind: 'chat' }; });
+    (state.wrong || []).forEach((w) => { if (w.t && now0 - w.t < BUB_MS && (!shout[w.uid] || shout[w.uid].t <= w.t)) shout[w.uid] = { t: w.t, text: w.text, kind: 'wrong' }; });
+    if (state.solvedBy && state.solvedAt && now0 - state.solvedAt < BUB_MS) shout[state.solvedBy] = { t: state.solvedAt, text: state.solvedText || mainWord(state.word), kind: 'right' };
+    const crowdCol = (t) => `
+      <div class="tq-col tq-${t}">
+        <div class="tq-team-name">${TEAM[t].name} <b>${state.scores[t]}</b></div>
+        <div class="tq-folks">${state.teams[t].map((u) => {
+          const m = shout[u];
+          const desc = state.describers[t] === u;
+          const hand = m && m.kind !== 'chat';
+          return `<div class="tq-folk ${u === me ? 'me' : ''} ${desc ? 'desc' : ''} ${hand ? 'hand' : ''} ${m ? m.kind : ''}">
+            ${m ? `<span class="tq-say-b ${m.kind}" style="animation-delay:-${now0 - m.t}ms">${m.kind === 'right' ? '🙋 ' : m.kind === 'wrong' ? '🙋 ' : ''}${esc(m.text)}${m.kind === 'right' ? ' ⭕' : m.kind === 'wrong' ? ' ❌' : ''}</span>` : ''}
+            <span class="tq-fig">${personHtml(TEAM[t].color, { ...(players[u] || {}), uid: u })}<i class="tq-arm" style="background:${TEAM[t].color}"></i></span>
+            <small>${u === state.leaders[t] ? '👑' : ''}${name(u)}${desc ? ' · 설명' : ''}</small>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
     const isHost = me === state.host;
 
     let banner = '';
@@ -319,14 +342,12 @@ export default {
         <div class="tq-score"><span class="tq-A">${TEAM.A.name} <b>${state.scores.A}</b></span><i>:</i><span class="tq-B"><b>${state.scores.B}</b> ${TEAM.B.name}</span></div>
 
         <div class="tq-descs">${descBubble('A')}${descBubble('B')}</div>
-        <div class="tq-stage">
-          ${chatCol('A', 'left')}
+        <div class="tq-stage2">
           ${['A', 'B'].map((t) => `
             <div class="tq-side tq-${t} ${state.solvedTeam === t ? 'scored' : ''}">
-              <div class="tq-char">${t === 'A' ? HANDSOME : GOOFY}</div>
+              <div class="tq-char tq-person">${personHtml(TEAM[t].color, { ...(players[state.describers[t]] || {}), uid: state.describers[t] })}<span class="tq-mascot">${t === 'A' ? HANDSOME : GOOFY}</span></div>
               <div class="tq-plate"><small>${TEAM[t].short} 설명</small>${name(state.describers[t])}</div>
             </div>`).join('')}
-          ${chatCol('B', 'right')}
         </div>
 
         <div class="nb-banner">${banner}</div>
@@ -371,8 +392,11 @@ export default {
         ${state.phase === 'play' && isHost ? '<button class="btn ghost sm tq-skip" data-skip>⏭ 문제 넘기기 (방장)</button>' : ''}
 
         ${state.wrong.length ? `<div class="tq-wrong">오답: ${state.wrong.map((w) => `<span class="tq-${w.team}">${name(w.uid)} "${esc(w.text)}"</span>`).join(' ')}</div>` : ''}
-        ${teamList('A')}${teamList('B')}
+        <div class="tq-crowd">${['A', 'B'].map(crowdCol).join('')}</div>
       </div>`;
+    clearTimeout(bubT);
+    const nextExp = Math.min(...Object.values(shout).map((m) => m.t + BUB_MS - Date.now()).filter((x) => x > 0), Infinity);
+    if (nextExp < Infinity) bubT = setTimeout(() => { if (el.isConnected) this.render(el, { state, me, players, finished, sendMove, room }); }, nextExp + 60);
 
     // 설명 말풍선은 항상 최신 줄이 보이게
     el.querySelectorAll('.tq-bubble').forEach((b) => (b.scrollTop = b.scrollHeight));
