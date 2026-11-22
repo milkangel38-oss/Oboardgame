@@ -200,6 +200,7 @@ function surroundings(now) {
       const d = dist(mine, ctl.disp[u]);
       if (d >= MEET) return;
       if (touch('t:' + u)) out.slow = true;
+      out.near.push(u);
       out.icon = '👋'; // 시민끼리는 이름 없이 인사만 (마피아에겐 이름이 보여요)
       if (!best || d < best.d) best = { u, d };
     });
@@ -325,6 +326,11 @@ function frame() {
 
   // 이동
   const sur = surroundings(t);
+  // 변호사: 손바닥(👋)으로 닿아 있는 사람 목록이 바뀌면 알려 줘요 (붙어 있으면 공격당하지 않아요)
+  if (state.myRole === 'lawyer' && state.phase === 'hunt' && !state.dead[me] && !state.outs?.[me]) {
+    const w = sur.near.slice().sort().join(',');
+    if (c.guardSent !== w || (w && now - c.guardAt > 5000)) { c.guardSent = w; c.guardAt = now; sendMove({ type: 'guard', with: sur.near }, { silent: true }); }
+  }
   // 경찰·의사: 누군가와 닿으면 자동으로 살펴봐요
   if (['doctor', 'coward'].includes(state.myRole) && sur.body && state.phase === 'hunt' && now >= (state.goAt || 0) && !state.dead[me] && !state.outs?.[me]) {
     const pk = sur.body;

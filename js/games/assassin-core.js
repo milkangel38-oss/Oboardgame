@@ -85,7 +85,7 @@ export function newRound(state, roundNo) {
   return {
     ...state, round: roundNo, phase: 'lobby', ready: {}, spawn: spawns(state.order),
     mafia: null, mafiaAt: 0, goAt: 0, mission: null, dead: {}, found: null, votes: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, deadline: 0, lastKill: 0, meeting: null,
-    roles: {}, outs: {}, reported: {}, kills: [], used: {}, mskill: null, eyeAt: 0, siren: null, counter: null, revive: null, policeHit: null, guess: null, kick: null, outCount: 0, probes: {}, reaped: null, scare: null,
+    roles: {}, outs: {}, reported: {}, kills: [], used: {}, mskill: null, eyeAt: 0, siren: null, counter: null, revive: null, policeHit: null, guess: null, kick: null, outCount: 0, probes: {}, reaped: null, scare: null, guards: {},
   };
 }
 export const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u] && !(s.outs || {})[u]);
@@ -216,7 +216,9 @@ export function applyMove(state, move, uid, players, env = {}) {
     if (!state.order.includes(tg) || tg === uid || !canAct(state, tg)) throw new Error('공격할 수 없는 대상이에요');
     const pm = touching(pos, strict, state, uid, tg);
     const pt = livePos(pos, tg, state);
-    // 변호사: 다른 사람(마피아 말고)과 붙어 있으면 공격당하지 않아요
+    // 변호사: 다른 사람(마피아 말고)과 붙어 있으면(👋 표시) 공격당하지 않아요
+    const gd = state.guards?.[tg];
+    if (state.roles[tg] === 'lawyer' && gd && now - gd.at < 8000 && gd.with.some((u) => u !== uid && canAct(state, u))) throw new Error('변호사가 다른 사람과 붙어 있어서 공격할 수 없어요');
     if (state.roles[tg] === 'lawyer' && pt) {
       const guard = state.order.some((u) => u !== tg && u !== uid && canAct(state, u) && livePos(pos, u, state) && dist(livePos(pos, u, state), pt) <= MEET + 20);
       if (guard) throw new Error('변호사가 다른 사람과 붙어 있어서 공격할 수 없어요');
@@ -313,6 +315,12 @@ export function applyMove(state, move, uid, players, env = {}) {
     }
     return { state: { ...state, probes } };
   }
+  // 변호사: 지금 손바닥(👋)으로 닿아 있는 사람 목록을 알려 줘요 (바뀔 때마다)
+  if (t === 'guard') {
+    if (state.phase !== 'hunt' || state.roles?.[uid] !== 'lawyer') throw new Error('__noop');
+    const w = (Array.isArray(move.with) ? move.with : []).filter((u) => state.order.includes(u) && u !== uid).slice(0, 8);
+    return { state: { ...state, guards: { ...(state.guards || {}), [uid]: { with: w, at: now } } } };
+  }
   if (t === 'reviveDone') {
     const r = state.revive;
     if (state.phase !== 'hunt' || !r || r.by !== uid || !state.dead[r.target]) throw new Error('__noop');
@@ -371,7 +379,7 @@ export function applyMove(state, move, uid, players, env = {}) {
 }
 
 // ── 서버 진행용 ──
-export const SECRET_MOVES = ['deal', 'pickMafia', 'kill', 'next', 'skill', 'mskill', 'reviveDone', 'probe'];
+export const SECRET_MOVES = ['deal', 'pickMafia', 'kill', 'next', 'skill', 'mskill', 'reviveDone', 'probe', 'guard'];
 export const needsPositions = (move) => ['kill', 'shout', 'reviveDone', 'probe'].includes(move?.type) || (move?.type === 'skill' && !!move.near);
 export function deal(room) {
   const order = Object.keys(room.players || {}).sort((x, y) => (room.players[x].joinedAt || 0) - (room.players[y].joinedAt || 0));
@@ -381,7 +389,7 @@ export function deal(room) {
   return newRound(base, 1);
 }
 export function split(full) {
-  const { pastMafia, shoutAt, roles, used, mskill, eyeAt, counter, revive, policeHit, guess, lastTally, revived, probes, ...pub } = full;
+  const { pastMafia, shoutAt, roles, used, mskill, eyeAt, counter, revive, policeHit, guess, lastTally, revived, probes, guards, ...pub } = full;
   const open = ['result', 'done'].includes(full.phase);
   if (!open) { pub.mafia = null; pub.mission = null; pub.lastKill = 0; pub.kills = []; }
   if (full.phase === 'hunt') { // 불이 꺼진 동안 새로 쓰러진 사람은 비밀 (이미 회의에서 드러난 사람만 공개)
