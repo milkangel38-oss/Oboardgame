@@ -163,6 +163,34 @@ export function start(room, game, uid) {
   return room;
 }
 
+// 방장 '다시하기' 투표: 방장이 요청하면 모두 동의해야 다시 시작해요 (한 명이라도 거절하거나 30초가 지나면 취소)
+export const RESTART_VOTE_MS = 30 * 1000;
+export function requestRestart(room, uid) {
+  if (room.hostId !== uid) throw new Error('방장만 다시하기를 요청할 수 있어요');
+  if (room.status === 'waiting') throw new Error('아직 시작하지 않은 게임이에요');
+  if (room.restartVote && Date.now() - room.restartVote.at < RESTART_VOTE_MS) throw new Error('이미 다시하기 동의를 기다리는 중이에요');
+  room.restartVote = { at: Date.now(), yes: { [uid]: true } };
+  room.restartDenied = null;
+  return room;
+}
+export function voteRestart(room, uid, yes) {
+  const v = room.restartVote;
+  if (!v || !room.players[uid] || v.yes?.[uid]) throw new Error('__noop');
+  if (yes) v.yes = { ...(v.yes || {}), [uid]: true };
+  else { room.restartVote = null; room.restartDenied = { by: uid, name: room.players[uid].name, at: Date.now() }; }
+  return room;
+}
+export function cancelRestart(room, why = 'timeout') {
+  if (!room.restartVote) throw new Error('__noop');
+  room.restartVote = null;
+  room.restartDenied = { by: '', name: '', why, at: Date.now() };
+  return room;
+}
+export function restartReady(room) {
+  const v = room.restartVote;
+  return !!v && Object.keys(room.players).every((u) => v.yes?.[u]);
+}
+
 // 방장 '다시하기': 같은 사람들로 처음부터 다시 (영상·준비 없이 바로)
 // 서버가 진행하는 게임은 게임 중에 상태를 못 바꾸니, 먼저 '중단'으로 끝낸 뒤 새로 시작해요 (두 번에 나눠 저장)
 export function abortForRestart(room, uid) {
@@ -184,6 +212,7 @@ export function restart(room, game, uid) {
   Object.values(room.players).forEach((p) => (p.seen = now));
   room.status = 'playing';
   room.intro = null;
+  room.restartVote = null;
   room.startedAt = now;
   room.result = null;
   return room;
@@ -214,6 +243,7 @@ export function chat(room, uid, text) {
 export function reset(room, uid) {
   if (room.hostId !== uid) throw new Error('방장만 새 게임을 열 수 있어요');
   room.status = 'waiting';
+  room.restartVote = null;
   room.intro = null;
   room.game = null;
   room.result = null;

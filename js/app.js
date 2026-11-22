@@ -1074,15 +1074,16 @@ function renderRoom(code) {
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
     // (방 채팅 room.chat만 빼요 — 게임 안 채팅 room.game.chat은 바뀌면 다시 그려야 해요)
     const sig = JSON.stringify(room, function (k, v) { return k === 'seen' || (k === 'chat' && this === room) ? undefined : v; });
-    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); drawVoice(room, game); drawEndModal(room, game); return; }
+    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); drawVoice(room, game); drawEndModal(room, game); drawRestartVote(room); return; }
     lastSig = sig;
     drawRoom($main, room, game);
     drawIntro(room, game);
     drawVoice(room, game);
     drawEndModal(room, game);
+    drawRestartVote(room);
   });
 
-  return () => { closed = true; closeIntro(); closeVoice(); closeEndModal(); endModal.key = ''; unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
+  return () => { closed = true; closeIntro(); closeVoice(); closeEndModal(); endModal.key = ''; closeRestartVote(); unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1193,6 +1194,61 @@ function paintVoice() {
 // ───────── 게임 방법 영상 (시작 전에 모두에게 한 번) ─────────
 // video/rules/{게임id}.mp4 가 있으면 영상, 없으면 규칙 설명을 한 장씩 넘겨 보여줘요
 const intro = { at: 0, $el: null, timer: 0, starting: 0, tick: 0, room: null, game: null };
+// ── 다시하기 동의 창 (모든 게임 공통) ──
+const rv = { $: null, at: 0, starting: 0, denied: 0, tick: 0 };
+function doRestart(code) {
+  closeEndModal();
+  return backend.mutateRoom(code, (r) => R.abortForRestart(r, user.uid))
+    .catch((e) => { if (e.message !== '__noop') throw e; })
+    .then(() => backend.mutateRoom(code, (r) => R.restart(r, getGame(r.gameId), user.uid)))
+    .catch((e) => showAlert(e.message));
+}
+function closeRestartVote() { rv.$?.remove(); rv.$ = null; rv.at = 0; clearInterval(rv.tick); rv.tick = 0; }
+function drawRestartVote(room) {
+  const isHost = room.hostId === user.uid;
+  const d = room.restartDenied;
+  if (d && d.at !== rv.denied) {
+    const first = rv.denied === 0 && Date.now() - d.at > 5000; // 방에 막 들어왔을 때 옛 알림은 건너뛰기
+    rv.denied = d.at;
+    if (!first) toast(d.why === 'timeout' ? '다시하기: 30초 안에 모두 동의하지 않아 취소됐어요' : d.why === 'host' ? '방장이 다시하기 요청을 취소했어요' : `${d.name || '누군가'}님이 다시하기를 거절했어요`);
+  }
+  const v = room.restartVote;
+  if (!v || !room.players?.[user.uid]) { closeRestartVote(); return; }
+  const ids = Object.keys(room.players);
+  const yes = ids.filter((u) => v.yes?.[u]).length;
+  // 모두 동의 → 방장 화면이 다시 시작
+  if (isHost && R.restartReady(room) && rv.starting !== v.at) { rv.starting = v.at; closeRestartVote(); doRestart(room.code); return; }
+  if (rv.at !== v.at) {
+    closeRestartVote();
+    rv.at = v.at;
+    rv.$ = document.createElement('div');
+    rv.$.className = 'rv-ov';
+    document.body.appendChild(rv.$);
+    rv.tick = setInterval(() => {
+      if (!rv.$) return;
+      const left = Math.max(0, Math.ceil((v.at + R.RESTART_VOTE_MS - Date.now()) / 1000));
+      const $s = rv.$.querySelector('[data-rvleft]'); if ($s) $s.textContent = left;
+      if (left <= 0 && isHost) { clearInterval(rv.tick); backend.mutateRoom(room.code, (r) => (r.restartVote?.at === v.at ? R.cancelRestart(r, 'timeout') : r)).catch(() => {}); }
+    }, 500);
+  }
+  const mine = !!v.yes?.[user.uid];
+  const host = room.players[room.hostId]?.name || '방장';
+  rv.$.innerHTML = `<div class="rv-box" role="dialog" aria-modal="true">
+    <div class="rv-ico">🔄</div>
+    <h3>${isHost ? '다시하기 동의를 기다리는 중' : `${esc(host)}님이 다시하기를 요청했어요`}</h3>
+    <p>${isHost ? '모두 동의하면 바로 새 판이 시작돼요' : '동의하면 지금 판은 기록 없이 끝나고 같은 사람들로 처음부터 다시 시작해요'}</p>
+    <ul class="rv-list">${ids.map((u) => `<li class="${v.yes?.[u] ? 'ok' : ''}">${avatar(room.players[u])}<b>${esc(room.players[u].name)}</b><span>${v.yes?.[u] ? '✔ 동의' : '…'}</span></li>`).join('')}</ul>
+    <div class="rv-cnt">${yes}/${ids.length}명 동의 · 남은 시간 <b data-rvleft>${Math.max(0, Math.ceil((v.at + R.RESTART_VOTE_MS - Date.now()) / 1000))}</b>초</div>
+    <div class="rv-btns">${isHost
+      ? '<button class="btn ghost" data-rvcancel>요청 취소</button>'
+      : mine ? '<span class="muted">동의했어요. 다른 사람을 기다리는 중…</span>'
+      : '<button class="btn ghost" data-rvno>거절</button><button class="btn primary" data-rvyes>동의</button>'}</div>
+  </div>`;
+  rv.$.querySelector('[data-rvyes]')?.addEventListener('click', () => backend.mutateRoom(room.code, (r) => R.voteRestart(r, user.uid, true)).catch((e) => e.message !== '__noop' && toast(e.message)));
+  rv.$.querySelector('[data-rvno]')?.addEventListener('click', () => backend.mutateRoom(room.code, (r) => R.voteRestart(r, user.uid, false)).catch((e) => e.message !== '__noop' && toast(e.message)));
+  rv.$.querySelector('[data-rvcancel]')?.addEventListener('click', () => backend.mutateRoom(room.code, (r) => R.cancelRestart(r, 'host')).catch(() => {}));
+}
+
 // ── 게임 종료 결과창: 끝나면 한 번 띄워 순위·승자·가넷을 정리해 보여 줘요 (모든 게임 공통) ──
 const endModal = { key: '', $el: null, timer: 0 };
 function closeEndModal() {
@@ -1541,12 +1597,12 @@ function drawRoom($main, room, game) {
   $main.querySelector('[data-start]')?.addEventListener('click', () => act((r) => R.beginIntro(r, game, user.uid)));
   $main.querySelector('[data-reset]')?.addEventListener('click', () => act((r) => R.reset(r, user.uid)));
   $main.querySelector('[data-restart]')?.addEventListener('click', () => {
-    if (!confirm(room.status === 'playing' ? '게임을 처음부터 다시 시작할까요?\n지금 판은 기록 없이 끝나요.' : '같은 사람들로 바로 다시 시작할까요?')) return;
-    closeEndModal();
-    backend.mutateRoom(room.code, (r) => R.abortForRestart(r, user.uid))
-      .catch((e) => { if (e.message !== '__noop') throw e; })
-      .then(() => backend.mutateRoom(room.code, (r) => R.restart(r, getGame(r.gameId), user.uid)))
-      .catch((e) => showAlert(e.message));
+    if (Object.keys(room.players).length <= 1) { // 혼자면 바로
+      if (!confirm('처음부터 다시 시작할까요?')) return;
+      return doRestart(room.code);
+    }
+    if (!confirm('다른 사람들에게 다시하기 동의를 요청할까요?\n모두 동의하면 같은 사람들로 처음부터 다시 시작해요.')) return;
+    act((r) => R.requestRestart(r, user.uid));
   });
   $main.querySelectorAll('[data-opt]').forEach((sel) => {
     sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number.isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));

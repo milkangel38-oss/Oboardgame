@@ -12,6 +12,7 @@ const CK = ['r', 'b', 'y', 'k'];
 const START = 14;
 const FIRST = 30;
 const JOKER_PENALTY = 30;
+const TURN_MS = 60 * 1000; // 차례마다 1분
 export const rewardsFor = (n) => Array.from({ length: n }, (_, i) => n - i);
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -111,14 +112,13 @@ export default {
   rewardLabel: '1등 최대 +4',
   description: '숫자 타일로 그룹과 런을 만들어 먼저 다 내려놓기!',
   ownChat: true, // 전체 화면 안에 채팅창 · 프로필 말풍선이 있어요
-  options: [{ key: 'turnSec', label: '턴 시간(초)', choices: [60, 90, 120, 180], default: 90 }],
   rules: [
     '타일은 1~13 숫자가 4색으로 2벌씩, 그리고 조커 2개예요. 각자 14개로 시작해요.',
     '그룹: 같은 숫자 · 다른 색 3~4개 (예: 빨강7 파랑7 검정7) / 런: 같은 색 · 이어지는 숫자 3개 이상 (예: 파랑3 4 5 6)',
     '조커는 어떤 타일이든 대신할 수 있어요.',
     '첫 등록: 내 손 타일만으로 합이 30점 이상인 조합을 내려놓아야 해요.',
     '첫 등록을 한 다음부터는 바닥의 조합을 나누고 합치고 옮겨서 새 조합을 만들 수 있어요. 차례가 끝날 때 바닥의 모든 조합이 올바르면 돼요.',
-    '내 차례에 타일을 하나도 못(안) 내면 더미에서 타일 1개를 가져가요. 턴 시간이 다 돼도 그동안 옮긴 건 되돌리고 1개를 가져가요.',
+    '내 차례에 타일을 하나도 못(안) 내면 더미에서 타일 1개를 가져가요. 차례마다 1분! 시간이 다 돼도 그동안 옮긴 건 되돌리고 1개를 가져가요.',
     '손 타일을 먼저 모두 내려놓으면 승리! 이긴 사람은 다른 사람들 남은 타일 합만큼 +점수, 나머지는 남은 타일 합만큼 −점수 (조커는 30점)',
     '가넷: 2명 → 1등 2, 2등 1 / 3명 → 3·2·1 / 4명 → 4·3·2·1',
   ],
@@ -128,7 +128,7 @@ export default {
     const pool = shuffle([...CK.flatMap((c) => Array.from({ length: 13 }, (_, i) => [`${c}${i + 1}a`, `${c}${i + 1}b`]).flat()), 'J1', 'J2']);
     const racks = {};
     order.forEach((u) => { racks[u] = pool.splice(-START); });
-    const turnMs = (Number(room?.options?.turnSec) || 90) * 1000;
+    const turnMs = TURN_MS;
     return { order, pool, racks, table: [], melded: {}, turn: order[0], turnNo: 1, turnMs, deadline: Date.now() + turnMs, passes: 0, last: null, phase: 'play' };
   },
 
