@@ -2643,3 +2643,6 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .tq-arm { right: -3px; width: 11px; height: 26px; box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
 .tq-folks { padding-top: 34px; gap: 40px 4px; }
 .tq-say-b { bottom: calc(100% + 4px); }
+/* 게임 화면 위 방장 도구(다시하기) */
+.stage-tools { display: flex; justify-content: flex-end; margin-bottom: -6px; }
+.stage-tools .btn { padding: 5px 12px; font-size: 12.5px; }

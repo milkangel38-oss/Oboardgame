@@ -1543,7 +1543,7 @@ function drawRoom($main, room, game) {
          }).join('')}
          ${controls}
        </div>`
-    : `${resultBanner}<div class="game-area"></div>`;
+    : `${resultBanner}${isHost && room.status === 'playing' ? '<div class="stage-tools"><button class="btn sm ghost" data-restart title="같은 사람들로 처음부터 다시 시작 (모두 동의 필요)">🔄 다시하기</button></div>' : ''}<div class="game-area"></div>`;
 
   $main.innerHTML = `
     <div class="room-head">
@@ -1552,7 +1552,6 @@ function drawRoom($main, room, game) {
         <h2 class="room-code">방 코드 <span class="code">${esc(room.code)}</span></h2>
       </div>
       <div class="row">
-        ${isHost && room.status === 'playing' ? '<button class="btn" data-restart title="같은 사람들로 처음부터 다시 시작">🔄 다시하기</button>' : ''}
         ${room.status === 'finished' && mine ? '<button class="btn" data-again title="같은 사람들로 한 판 더">🔁 한 번 더 하기</button>' : ''}
         <button class="btn primary" data-invite>친구 초대</button>
         <button class="btn ghost" data-leave>나가기</button>

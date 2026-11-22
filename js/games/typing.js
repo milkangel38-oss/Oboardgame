@@ -1,7 +1,7 @@
 // 예능: 타이핑 퀴즈 (6~10명, 팀전)
 // - 무작위로 잘생긴팀 vs 못생긴팀, 팀장도 무작위
 // - 라운드마다 두 팀에서 한 명씩 설명자(팀장부터 차례로). 둘 다 같은 제시어를 보고 설명을 타이핑
-// - 설명에 제시어(또는 제시어의 절반 이상 이어진 부분)가 들어가면 입력 불가
+// - 설명에 제시어(또는 제시어에서 이어진 두 글자)가 들어가면 입력 불가
 // - 설명 제한 시간 없음 (방장은 문제 넘기기 가능)
 // - 설명자 말고 누구나 정답을 외칠 수 있음. 먼저 맞힌 사람의 팀 +1점. 오답이면 그 팀 10초 잠금
 // - 라운드 시작 후 20초 동안 두 설명자가 상대 설명자용 함정단어(최대 3개)를 설치
@@ -29,12 +29,12 @@ export const TEAM = {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const norm = (s) => String(s ?? '').replace(/\s+/g, '').toLowerCase();
-// 설명에 쓸 수 없는 부분: 제시어(·같이 인정하는 답)의 절반 이상 길이로 이어진 모든 부분
+// 설명에 쓸 수 없는 부분: 제시어(·같이 인정하는 답)에서 이어진 두 글자 모두
 // 예) 번아웃 → 번아, 아웃 / 와신상담 → 와신, 신상, 상담 / 두 글자 제시어는 단어 전체만
 export function forbiddenParts(entry) {
   const parts = new Set();
   for (const w of allAnswers(entry).map(norm)) {
-    const k = Math.max(2, Math.ceil(w.length / 2));
+    const k = 2; // 제시어에서 이어진 두 글자는 모두 금지 (예: 자가면역질환 → 자가·가면·면역·역질·질환)
     if (w.length <= k) { parts.add(w); continue; }
     for (let i = 0; i + k <= w.length; i++) parts.add(w.slice(i, i + k));
   }
@@ -160,7 +160,7 @@ export default {
     '라운드마다 두 팀에서 한 명씩 설명자가 나와요. 팀장부터 시작해서 팀원들이 차례로 맡아요.',
     '두 설명자는 같은 제시어를 보고 설명을 타이핑해요. 설명은 모두에게 보여요.',
     '설명에 제시어가 들어가면 입력되지 않아요. 설명자 말고는 아무도 제시어를 볼 수 없어요.',
-    '설명에 제시어는 물론, 제시어의 절반 이상이 이어진 부분도 쓸 수 없어요. (예: 번아웃 → "아웃" 금지)',
+    '설명에 제시어는 물론, 제시어에서 이어진 두 글자도 쓸 수 없어요. (예: 자가면역질환 → "자가"·"면역"·"질환" 금지)',
     `🪤 라운드 시작 후 ${TRAP_MS / 1000}초 동안 설명자는 상대 설명자용 함정단어를 최대 ${MAX_TRAPS}개 설치해요. 상대가 그 단어를 쓰면 "함정단어입니다"가 뜨고 설명할 수 없어요.`,
     '설명자 말고 누구나 정답을 외칠 수 있어요. 먼저 맞힌 사람의 팀이 1점!',
     '제시어는 사자성어, 의학·경제·과학·법 용어, 어려운 단어 중에서 나와요.',
@@ -309,7 +309,7 @@ export default {
     const crowdCol = (t) => `
       <div class="tq-col tq-${t}">
         <div class="tq-team-name">${TEAM[t].name} <b>${state.scores[t]}</b></div>
-        <div class="tq-folks">${state.teams[t].map((u) => {
+        <div class="tq-folks">${state.teams[t].filter((u) => state.describers[t] !== u).map((u) => {
           const m = shout[u];
           const desc = state.describers[t] === u;
           const hand = m && m.kind !== 'chat';
@@ -330,7 +330,7 @@ export default {
     } else {
       banner = state.phase === 'trap'
         ? (amDescriber ? '<span>🪤 <b>함정 설치 시간!</b> 상대 설명자가 쓸 만한 단어를 함정으로 숨기세요</span>' : '<span>🪤 설명자들이 함정단어를 설치하는 중…</span>')
-        : amDescriber ? '<span>제시어를 설명해 주세요! 제시어의 <b>절반 이상</b>이 들어간 말과 <b>함정단어</b>는 못 써요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
+        : amDescriber ? '<span>제시어를 설명해 주세요! 제시어의 <b>두 글자</b>가 들어간 말과 <b>함정단어</b>는 못 써요</span>' : '<span>설명을 보고 정답을 먼저 외치세요!</span>';
     }
 
     el.innerHTML = `
