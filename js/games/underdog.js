@@ -135,66 +135,55 @@ const arrows = (steps) => `<span class="b">${'◀'.repeat(steps)}</span><em>${st
 const miniTrack = (pos, fallTo) => `<span class="udc-mini">${[7, 6, 5, 4, 3, 2, 1].map((r) => `<i class="${r === pos ? 'on' : ''} ${fallTo && r === 7 ? 'to' : ''}"></i>`).join('')}</span>`;
 
 export function cardArt(c) {
+  const wrap = (k, inner) => `<div class="udc k-${k}" style="--bg:url(/img/underdog/card-${k}.webp)">${inner}</div>`;
   if (c.kind === 'num') {
-    return `<div class="udc k-num" style="--c1:${NUM_COLOR[c.animal]}">
+    return wrap('num', `
       <span class="udc-pic">${animalSvg(c.animal)}</span>
       <span class="udc-mv">${arrows(c.steps)}</span>
-      <span class="udc-name">${esc(animalLabel(c.animal))}</span></div>`;
+      <span class="udc-name">${esc(animalLabel(c.animal))}</span>`);
   }
   if (c.kind === 'pair') {
-    return `<div class="udc k-pair" style="--c1:${NUM_COLOR[c.a]};--c2:${NUM_COLOR[c.b]}">
+    return wrap('pair', `
       <span class="udc-pic two">${animalSvg(c.a)}${animalSvg(c.b)}</span>
       <span class="udc-mv">${arrows(1)}</span>
-      <span class="udc-name">${ANIMALS[c.a].name}·${ANIMALS[c.b].name} 함께</span></div>`;
+      <span class="udc-name">${ANIMALS[c.a].name}·${ANIMALS[c.b].name} 함께</span>`);
   }
   if (c.kind === 'pos') {
-    return `<div class="udc k-pos">
+    return wrap('pos', `
       <span class="udc-pic">${medalSvg(c.pos)}</span>
       ${miniTrack(c.pos)}
       <span class="udc-mv">${arrows(c.steps)}</span>
-      <span class="udc-name">${c.pos}등 말 ${c.steps}칸</span></div>`;
+      <span class="udc-name">${c.pos}등 말 ${c.steps}칸</span>`);
   }
   if (c.kind === 'fall') {
-    return `<div class="udc k-fall">
-      <span class="udc-pic">${fallSvg(c.pos)}</span>
+    return wrap('fall', `
+      <span class="udc-pic"><img src="img/underdog/ic-fall.webp" alt="" draggable="false"></span>
       ${miniTrack(c.pos, true)}
       <span class="udc-mv"><span class="b">${c.pos}등 ➜ 꼴찌</span></span>
-      <span class="udc-name">${c.pos}등 말 낙마!</span></div>`;
+      <span class="udc-name">${c.pos}등 말 낙마!</span>`);
   }
-  return `<div class="udc k-ticket">
-    <span class="udc-pic">${swapSvg()}</span>
+  return wrap('ticket', `
+    <span class="udc-pic"><img src="img/underdog/ic-swap.webp" alt="" draggable="false"></span>
     <span class="udc-mv"><em>나 또는 상대</em></span>
-    <span class="udc-name">티켓 교환</span></div>`;
+    <span class="udc-name">티켓 교환</span>`);
 }
 
 // 카드 그림: 등수 메달 / 낙마 / 티켓 교환
 const MEDAL = { 1: ['#ffd84d', '#c99412'], 2: ['#e3e7ee', '#9aa3ad'], 3: ['#e5a066', '#a8642c'] };
+// 메달 그림(금) 위에 메달 부분만 색을 바꿔 덧씌워요: 1등 금 · 2등 은 · 3등 동 · 4등 이하 파랑
+const MEDAL_TINT = {
+  2: '0.36 0.6 0.12 0 0.06  0.36 0.6 0.12 0 0.06  0.38 0.62 0.14 0 0.1  0 0 0 1 0',
+  3: '1.05 0.1 0 0 0  0.18 0.55 0 0 0  0.05 0.1 0.3 0 0  0 0 0 1 0',
+  4: '0.1 0.2 0.05 0 0  0.2 0.45 0.1 0 0  0.35 0.6 0.55 0 0.08  0 0 0 1 0',
+};
 function medalSvg(pos) {
-  const [f, d] = MEDAL[pos] || ['#8fb8ff', '#3b5fb0'];
-  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
-    <path d="M44 4 l14 34 l-12 4 l-16 -34 z" fill="#d64545"/><path d="M76 4 l-14 34 l12 4 l16 -34 z" fill="#2f6fd6"/>
-    <circle cx="60" cy="56" r="28" fill="${d}"/><circle cx="60" cy="56" r="22" fill="${f}" stroke="#fff" stroke-width="2"/>
-    <text x="60" y="66" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="28" fill="#2b1d12">${pos}<tspan font-size="14">등</tspan></text>
-  </svg>`;
-}
-function fallSvg(pos) {
-  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
-    <g stroke="#2b1d12" stroke-width="2" stroke-linejoin="round">
-      <rect x="18" y="52" width="6" height="30" fill="#fff"/><rect x="96" y="52" width="6" height="30" fill="#fff"/>
-      <rect x="14" y="48" width="92" height="9" rx="2" fill="#fff"/>
-      <path d="M14 48 h14 v9 h-14 z M42 48 h14 v9 h-14 z M70 48 h14 v9 h-14 z M98 48 h8 v9 h-8 z" fill="#d64545"/>
-      <path d="M60 4 l6 14 l15 -6 l-7 14 l15 4 l-14 6 l8 12 l-15 -4 l-4 14 l-6 -13 l-11 9 l1 -14 l-15 0 l11 -10 l-10 -11 l15 2 z" fill="#ffd84d"/>
-    </g>
-    <text x="60" y="35" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="13" fill="#c81d38">낙마</text>
-    <g fill="#cbb08a" opacity=".9"><circle cx="30" cy="84" r="6"/><circle cx="44" cy="86" r="5"/><circle cx="78" cy="86" r="5"/><circle cx="90" cy="84" r="6"/></g>
-  </svg>`;
-}
-function swapSvg() {
-  const tk = (x, y, r, c) => `<g transform="translate(${x} ${y}) rotate(${r})"><rect x="-22" y="-14" width="44" height="28" rx="4" fill="${c}" stroke="#2b1d12" stroke-width="2"/><path d="M-10 -14 v28" stroke="#2b1d12" stroke-width="1.5" stroke-dasharray="3 3"/><circle cx="6" cy="0" r="7" fill="#fff" stroke="#2b1d12" stroke-width="1.5"/><text x="6" y="4" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="10" fill="#2b1d12">?</text></g>`;
-  return `<svg viewBox="0 0 120 90" xmlns="http://www.w3.org/2000/svg">
-    ${tk(38, 36, -12, '#ffd84d')}${tk(82, 54, 10, '#ff8fb8')}
-    <path d="M60 14 q30 -4 34 22" fill="none" stroke="#2f6fd6" stroke-width="4" stroke-linecap="round"/><path d="M88 32 l6 8 l5 -10 z" fill="#2f6fd6"/>
-    <path d="M60 78 q-30 4 -34 -22" fill="none" stroke="#d64545" stroke-width="4" stroke-linecap="round"/><path d="M32 60 l-6 -8 l-5 10 z" fill="#d64545"/>
+  const tint = MEDAL_TINT[Math.min(pos, 4)];
+  const id = `udm${pos}`;
+  const img = '<image href="img/underdog/ic-medal.webp" width="230" height="420"/>';
+  return `<svg viewBox="0 0 230 420" xmlns="http://www.w3.org/2000/svg">
+    ${tint ? `<defs><filter id="${id}f" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="${tint}"/></filter><clipPath id="${id}c"><circle cx="115" cy="300" r="118"/></clipPath></defs>` : ''}
+    ${img}${tint ? `<g clip-path="url(#${id}c)" filter="url(#${id}f)">${img}</g>` : ''}
+    <text x="115" y="345" text-anchor="middle" font-family="'Black Han Sans', sans-serif" font-size="130" fill="#fff" stroke="rgba(30,15,5,.85)" stroke-width="10" paint-order="stroke">${pos}<tspan font-size="56">등</tspan></text>
   </svg>`;
 }
 
