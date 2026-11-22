@@ -8,7 +8,7 @@ export const SPEED = 230;                  // 초당 이동 거리
 export const SLOW = 0.35;                  // 만났을 때 1초 동안 속도 배율
 export const SLOW_MS = 500;
 export const INTRO_MS = 6500;              // 마피아 선정 연출
-export const HUNT_MS = 180000;             // 암전 상태 최대 3분 (아무도 시체를 못 찾으면 불이 켜짐)
+export const HUNT_MS = 60000;              // 암전 상태 최대 1분 (아무도 시체를 못 찾으면 불이 켜짐)
 export const VOTE_MS = 180000;             // 회의·투표 3분
 export const RUNOFF_MS = 60000;            // 동점 결선 투표 1분
 export const KILL_CD = 3000;
@@ -26,7 +26,7 @@ export const ROLES = {
   police: { name: '경찰', icon: '🚨', desc: '닿아 있는 사람을 조사해 마피아인지 알아내요 (1번)' },
   doctor: { name: '의사', icon: '🩺', desc: '쓰러진 사람과 닿으면 스킬이 켜져요 · 5초 동안 살려요' },
   detective: { name: '탐정', icon: '🔍', desc: '투표 때 쓰러진 순서를 시체 위 번호로 봐요' },
-  lawyer: { name: '변호사', icon: '⚖️', desc: '다른 사람과 붙어 있는 동안은 마피아에게 공격당하지 않아요 (자동)' },
+  lawyer: { name: '변호사', icon: '⚖️', desc: '다른 사람과 붙어 있는 동안은 공격당하지 않아요 · 투표로 시민이 3번 이상 쫓겨나고 마피아가 이기면 +5점 (자동)' },
   coward: { name: '겁쟁이', icon: '😱', desc: '마피아와 마주치면 ‼ 표시가 모두에게 뜨고 반대쪽으로 튕겨 나가요 (자동)' },
   ma: { name: '마동석', icon: '💪', desc: '마피아에게 공격받으면 한 번 반격! 뒤로 밀려나고 마피아는 5초 경직 (자동)' },
   prophet: { name: '예언자', icon: '🔮', desc: '투표 때 한 사람의 직업을 맞히면 +5점' },
@@ -116,6 +116,7 @@ export function endRound(state, players, outcome) {
     } else {
       items.push(mafiaCaught ? ['마피아 검거', 5] : ['마피아 승리 허용', -5]);
       items.push(state.outs[u] ? ['투표로 쫓겨남', -1] : state.dead[u] ? ['공격받음', -1] : ['생존', 1]);
+      if (state.roles[u] === 'lawyer' && !mafiaCaught && state.outCount >= 3) items.push(['변호사 보너스', 5]);
       if (state.roles[u] === 'prophet' && state.guess?.ok) items.push(['예언 적중', 5]);
     }
     breakdown[u] = items;
@@ -407,7 +408,7 @@ export function split(full) {
       guess: guess && guess.by === u ? guess : null,
       revived: revived && revived.uid === u ? revived : null,
       probe: (probes || {})[u] || null,
-      spec: (full.dead || {})[u] || (full.outs || {})[u] ? { roles: roles || {}, dead: full.dead || {}, mafia: full.mafia } : null, // 관전: 직업·쓰러진 사람 모두 보여요
+      spec: (full.dead || {})[u]?.reaper || (full.outs || {})[u] ? { roles: roles || {}, dead: full.dead || {}, mafia: full.mafia } : null, // 관전: 투표로 쫓겨났거나 사신에게 당한(살릴 수 없는) 사람만
       round: full.round, // 라운드가 바뀌면 지난 비밀은 무시해요
     }];
   }));
