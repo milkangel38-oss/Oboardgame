@@ -20,8 +20,8 @@ function view(pub, sec, me) {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ── 직업 몸통 그림 (머리 자리에 프로필 얼굴) ──
-const BODY = {"cover": {"w": 162, "h": 420, "hx": 87, "hy": 28, "hr": 28}, "mafia": {"w": 209, "h": 420, "hx": 124, "hy": 28, "hr": 27}, "police": {"w": 173, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "doctor": {"w": 169, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "detective": {"w": 204, "h": 420, "hx": 88, "hy": 31, "hr": 31}, "lawyer": {"w": 178, "h": 420, "hx": 98, "hy": 30, "hr": 30}, "quick": {"w": 178, "h": 420, "hx": 104, "hy": 29, "hr": 28}, "ma": {"w": 195, "h": 420, "hx": 114, "hy": 28, "hr": 28}, "prophet": {"w": 208, "h": 420, "hx": 105, "hy": 30, "hr": 29}};
-const MAPS = ['mansion', 'alley', 'casino'];
+const BODY = {"cover": {"w": 162, "h": 420, "hx": 87, "hy": 28, "hr": 28}, "mafia": {"w": 196, "h": 420, "hx": 116, "hy": 24, "hr": 24}, "police": {"w": 173, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "doctor": {"w": 169, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "detective": {"w": 204, "h": 420, "hx": 88, "hy": 31, "hr": 31}, "lawyer": {"w": 240, "h": 420, "hx": 154, "hy": 30, "hr": 30}, "ma": {"w": 195, "h": 420, "hx": 114, "hy": 28, "hr": 28}, "prophet": {"w": 208, "h": 420, "hx": 105, "hy": 30, "hr": 29}, "coward": {"w": 163, "h": 420, "hx": 118, "hy": 32, "hr": 32}};
+const MAPS = ['mansion', 'gallery', 'alley', 'garden', 'casino', 'train'];
 export function bodyHtml(key, player) {
   const b = BODY[key] || BODY.cover;
   const hx = (b.hx / b.w) * 100;
