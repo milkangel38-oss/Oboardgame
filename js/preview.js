@@ -1,3 +1,4 @@
+import { APP_VERSION } from './config.js';
 // 게임 카드 미리보기: PC는 마우스를 올리면, 휴대폰은 카드를 꾹 누르고 있으면 게임 화면 미리보기가 떠요.
 // 미리보기 그림은 img/preview/<게임id>.jpg (테스트 모드에서 실제 게임 화면을 찍은 것)
 const HOVER_DELAY = 350;
@@ -17,7 +18,7 @@ function box() {
 function show(card, game, mode) {
   const el = box();
   el.querySelector('.gpv-title').textContent = `${game.emoji || '🎮'} ${game.name} 미리보기`;
-  el.querySelector('img').src = `img/preview/${game.id}.jpg`;
+  el.querySelector('img').src = `img/preview/${game.id}.jpg?v=${APP_VERSION}`; // 버전이 바뀌면 새 그림으로
   el.querySelector('.gpv-foot').textContent = mode === 'touch' ? '손을 떼면 닫혀요' : '클릭하면 방을 만들어요';
   el.classList.toggle('touch', mode === 'touch');
   el.hidden = false;

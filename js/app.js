@@ -1354,7 +1354,7 @@ function drawIntro(room, game) {
     $o.innerHTML = `<div class="intro-box">
       <div class="intro-title">🎬 <b>${esc(game.name)}</b> 게임 방법</div>
       <div class="intro-media">
-        <video class="intro-video" src="video/rules/${esc(game.id)}.mp4" playsinline autoplay controls preload="metadata"></video>
+        <video class="intro-video" src="video/rules/${esc(game.id)}.mp4?v=${APP_VERSION}" playsinline autoplay controls preload="metadata"></video>
         <div class="intro-slides" hidden>
           <div class="intro-emoji">${esc(game.emoji || '🎲')}</div>
           <p class="intro-text"></p>
