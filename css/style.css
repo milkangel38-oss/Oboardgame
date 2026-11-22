@@ -2734,3 +2734,28 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .am-kpow { position: absolute; left: 33%; top: 18%; font-size: 26px; font-weight: 900; color: #ffd84d; text-shadow: 0 2px 0 #c81d38, 0 0 8px #000; opacity: 0; animation: amPow 3.6s ease forwards; }
 @keyframes amPow { 0%, 34% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; transform: scale(1.3) rotate(-8deg); } 60% { opacity: 1; transform: scale(1); } 70%, 100% { opacity: 0; } }
 @media (orientation: landscape) and (max-height: 520px) { .am-btns .am-row2 { flex-direction: column; } .am-skill { width: 76px; height: 76px; } }
+
+/* 자객 마피아 v10.21: 직업 몸통 그림 + 프로필 얼굴, 맵 배경 */
+.am-floor { background-size: cover !important; background-position: center !important; background-color: #111; }
+.am-ch { width: auto; }
+.ab { position: relative; display: block; height: 15cqw; aspect-ratio: calc(var(--bw) / 420); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
+.ab img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.ab-face { position: absolute; left: var(--hx); top: var(--hy); width: calc(var(--hr) * 1%); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden; height: auto; }
+.ab-face { width: auto; height: calc(var(--hr) * 1%); }
+.ab-face .pf { display: grid; place-items: center; width: 100%; height: 100%; object-fit: cover; color: #fff; font-weight: 800; font-size: 3cqw; line-height: 1; border-radius: 50%; }
+.ab-face .pf.char svg { width: 100%; height: 100%; display: block; }
+.am-ch .ab { box-shadow: none; }
+.am-ch .ab::after { content: ''; position: absolute; left: 15%; right: 15%; bottom: -2%; height: 5%; border-radius: 50%; background: var(--pc); opacity: .7; filter: blur(2px); }
+.am-ch.left .ab img { transform: scaleX(-1); }
+.am-ch.left .ab-face { left: var(--hxf); }
+.am-ch.walking .ab { animation: abWalk .32s ease-in-out infinite alternate; }
+@keyframes abWalk { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-5%) rotate(3deg); } }
+.am-ch.dead .am-svg { transform: rotate(-90deg) translateX(-30%); filter: grayscale(.7) brightness(.7); }
+.am-kfig { width: 60px; }
+.am-kfig .ab { height: 110px; }
+.am-kfig .ab-face .pf { font-size: 14px; }
+.ab { height: 17cqw; }
+.ab-face { height: calc(var(--hr) * 1.35%); box-shadow: 0 0 0 1.5px var(--pc, #fff); }
+.am-kfig { width: auto; bottom: 22%; }
+.am-kfig .ab { height: 96px; }
+.am-kstage { height: 140px; }

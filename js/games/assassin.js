@@ -2,7 +2,7 @@
 // 차례·투표·점수 같은 "게임 상태"는 방 문서(sendMove)로, 캐릭터 위치는 실시간 채널(backend.live)로 주고받아요.
 import { GARNET } from '../profile.js';
 import { soundEvent } from '../sound.js';
-import { personHtml, walkerHtml } from './face.js';
+import { personHtml, faceHtml } from './face.js';
 
 import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult, ROLES, MAFIA_SKILLS, MAFIA_BOOST, KICK_MS, REVIVE_MS, SIREN_MS, DASH, needLeft } from './assassin-core.js';
 export { REWARDS, missionText } from './assassin-core.js';
@@ -15,9 +15,24 @@ function view(pub, sec, me) {
   const dead = { ...(pub.dead || {}), ...(sec.dead || {}) };
   if (sec.deadMe) dead[me] = sec.deadMe;
   return { ...pub, mafia: sec.mafia ? me : pub.mafia ?? null, mission: sec.mission || pub.mission || null, dead, lastKill: sec.lastKill || pub.lastKill || 0,
-    myRole: sec.role || null, myUsed: !!sec.used, mskill: sec.mskill || null, eyeAt: sec.eyeAt || 0, counter: sec.counter || null, revive: sec.revive || null, policeHit: sec.policeHit || null, guess: sec.guess || null, revived: sec.revived || null };
+    myRole: sec.role || null, myUsed: !!sec.used, mskill: sec.mskill || null, eyeAt: sec.eyeAt || 0, counter: sec.counter || null, revive: sec.revive || null, policeHit: sec.policeHit || null, guess: sec.guess || null, revived: sec.revived || null, probe: sec.probe || null };
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ── 직업 몸통 그림 (머리 자리에 프로필 얼굴) ──
+const BODY = {"cover": {"w": 162, "h": 420, "hx": 87, "hy": 28, "hr": 28}, "mafia": {"w": 209, "h": 420, "hx": 124, "hy": 28, "hr": 27}, "police": {"w": 173, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "doctor": {"w": 169, "h": 420, "hx": 91, "hy": 30, "hr": 30}, "detective": {"w": 204, "h": 420, "hx": 88, "hy": 31, "hr": 31}, "lawyer": {"w": 178, "h": 420, "hx": 98, "hy": 30, "hr": 30}, "quick": {"w": 178, "h": 420, "hx": 104, "hy": 29, "hr": 28}, "ma": {"w": 195, "h": 420, "hx": 114, "hy": 28, "hr": 28}, "prophet": {"w": 208, "h": 420, "hx": 105, "hy": 30, "hr": 29}};
+const MAPS = ['mansion', 'alley', 'casino'];
+export function bodyHtml(key, player) {
+  const b = BODY[key] || BODY.cover;
+  const hx = (b.hx / b.w) * 100;
+  return `<span class="ab" style="--bw:${b.w};--hx:${hx}%;--hxf:${100 - hx}%;--hy:${(b.hy / b.h) * 100}%;--hr:${(b.hr * 2 / b.h) * 100}"><img src="/img/assassin/body-${key in BODY ? key : 'cover'}.webp" alt="" draggable="false"><span class="ab-face">${faceHtml(player)}</span></span>`;
+}
+// 누구의 몸통을 보여 줄지: 나는 내 직업, 결과 화면에선 모두 공개, 그 외에는 공통 코트
+function bodyKey(state, u, me) {
+  if (['result', 'done'].includes(state.phase) && state.last?.roles?.[u]) return state.last.roles[u];
+  if (u === me && state.myRole) return state.myRole;
+  return 'cover';
+}
 
 // ── 캐릭터 그림 (오리지널: 두건 쓴 꼬마 자객) ──
 export const charSvg = (color, dead = false) => `<svg viewBox="0 0 60 72" aria-hidden="true">
@@ -243,15 +258,21 @@ function skillInfo(state, me, now) {
   const r = ROLES[role];
   const name = `${r.icon} ${r.name}`;
   if (role === 'lawyer' || role === 'ma') return { name, label: role === 'ma' && used ? '반격 사용함' : '자동 능력', on: false };
-  if (used) return { name, label: '사용함', on: false };
+  if (used && role !== 'police') return { name, label: '사용함', on: false };
   if (role === 'detective') return { name, label: state.phase === 'vote' ? '눌러서 쓰러진 순서 보기' : '투표 때 사용', on: state.phase === 'vote' && !state.dead[me] && !state.outs?.[me] };
   if (role === 'prophet') return { name, label: state.phase === 'vote' ? '아래 예언 칸에서 사용' : '투표 때 사용', on: false };
   if (role === 'quick') return { name, label: '앞으로 대쉬!', on: going };
   const sur = surroundings(performance.now());
-  if (role === 'police') return { name, label: sur.body ? '닿은 사람이 마피아인지 조사' : '누군가와 닿으면 사용', on: going && !!sur.body };
+  const pr = state.probe && sur.body && state.probe.target === sur.body ? state.probe : null;
+  if (role === 'police') {
+    if (!pr) return { name, label: '마피아와 닿으면 자동 사이렌', on: false };
+    if (pr.mafia) return { name, label: '🚨 사이렌!', on: false };
+    return { name, label: '🔍 조사하기', on: going };
+  }
   if (role === 'doctor') {
     if (state.revive?.by === me) return { name, label: '소생 중…', on: false };
-    return { name, label: sur.body ? '닿은 사람 살리기 (쓰러졌다면)' : '쓰러진 사람과 닿으면 사용', on: going && !!sur.body };
+    if (pr && pr.down) return { name, label: '🩺 살리기!', on: going };
+    return { name, label: '쓰러진 사람과 닿으면 켜져요', on: false };
   }
   return { name, label: '', on: false };
 }
@@ -274,8 +295,8 @@ function useSkill() {
   }
   const sur = surroundings(performance.now());
   if (!sur.body) return fail();
-  if (role === 'police') return sendMove({ type: 'skill', target: sur.body, x: Math.round(ctl.pos.x), y: Math.round(ctl.pos.y) }, { silent: true, onError: fail });
-  if (role === 'doctor') { ctl.reviveSent = 0; return sendMove({ type: 'skill', target: sur.body }, { silent: true, onError: () => { fail(); showMsg('쓰러진 사람이 아니에요'); } }); }
+  if (role === 'police') { showMsg(`🔍 ${ctl.ctx.players[sur.body]?.name || ''}님 · 마피아가 아니에요`); return; }
+  if (role === 'doctor') { ctl.reviveSent = 0; return sendMove({ type: 'skill', target: sur.body, near: true }, { silent: true, onError: () => { fail(); showMsg('쓰러진 사람이 아니에요'); } }); }
 }
 
 function frame() {
@@ -313,6 +334,14 @@ function frame() {
 
   // 이동
   const sur = surroundings(t);
+  // 경찰·의사: 누군가와 닿으면 자동으로 살펴봐요
+  if (['police', 'doctor'].includes(state.myRole) && sur.body && state.phase === 'hunt' && now >= (state.goAt || 0) && !state.dead[me] && !state.outs?.[me]) {
+    const pk = sur.body;
+    if (c.probeKey !== pk || now - c.probeAt > 2500) {
+      c.probeKey = pk; c.probeAt = now;
+      sendMove({ type: 'probe', target: pk, x: Math.round(c.pos.x), y: Math.round(c.pos.y) }, { silent: true });
+    }
+  } else if (!sur.body) c.probeKey = '';
   if (iAmIn && c.pos && canMove(state, me, now)) {
     let vx = c.joy.x + (c.keys.has('r') ? 1 : 0) - (c.keys.has('l') ? 1 : 0);
     let vy = c.joy.y + (c.keys.has('d') ? 1 : 0) - (c.keys.has('u') ? 1 : 0);
@@ -342,6 +371,9 @@ function frame() {
   });
 
   // 그리기
+  const map = MAPS[((state.round || 1) - 1) % MAPS.length];
+  const $fl = c.$('.am-floor');
+  if ($fl.dataset.map !== map) { $fl.dataset.map = map; $fl.style.backgroundImage = `url(/img/assassin/bg-${map}.webp)`; }
   const dark = state.phase === 'dark' || state.phase === 'hunt';
   const eye = isMafia && state.mskill === 'eye' && now - (state.eyeAt || 0) < 1000; // 사륜안: 1초 동안 어둠이 걷혀요
   c.$('.am-dark').classList.toggle('eye', eye);
@@ -378,8 +410,10 @@ function frame() {
     el.style.top = `${(p.y / H) * 100}%`;
     el.style.zIndex = String(Math.round(p.y));
     el.classList.toggle('flip', p.y < 150); // 맨 위쪽이면 표시·말풍선을 아래로
-    const look = `${COLORS[i % COLORS.length]}|${dead}|${players[u]?.photo || ''}`;
-    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = walkerHtml(dead ? '#6b6f7a' : COLORS[i % COLORS.length], players[u]); }
+    const bk = bodyKey(state, u, me);
+    const look = `${bk}|${players[u]?.photo || ''}`;
+    if (el.dataset.look !== look) { el.dataset.look = look; el.querySelector('.am-svg').innerHTML = bodyHtml(bk, players[u]); }
+    el.style.setProperty('--pc', COLORS[i % COLORS.length]);
     // 걷기: 움직이고 있으면 팔다리가 흔들려요 (방향에 따라 좌우 뒤집기)
     const pv = c.prevDisp[u];
     if (pv) { const mx = p.x - pv.x, my = p.y - pv.y; if (Math.hypot(mx, my) > 0.4) { c.walkT[u] = now; if (Math.abs(mx) > 0.3) el.classList.toggle('left', mx < 0); } }
@@ -417,6 +451,7 @@ function frame() {
   let center = '';
   if (state.phase === 'vote' && state.runoff && now - state.runoffAt < 2500) center = `<b>⚖️ 동점!</b><small>${state.runoff.map((u) => esc(players[u]?.name || '')).join(' vs ')} · 결선 투표를 해요</small>`;
   else if (state.phase === 'vote' && state.found && now - state.found.at < 2500) center = `<b class="red">시체발견!</b><small>${esc(players[state.found.by]?.name || '')}님이 외쳤어요 · 모두 멈추고 불이 켜졌어요</small>`;
+  if (state.phase === 'vote' && state.reaped && now - state.reaped.at < 3500) center = `<b class="red">☠️ 사신 발동!</b><small>${esc(players[state.reaped.uid]?.name || '')}님이 쓰러졌어요${state.reaped.uid === me ? ' · 투표할 수 없어요' : ''}</small>`;
   if (c.noLive) center = '<b>실시간 서버 준비 중</b><small>관리자가 Realtime Database를 연결하면 플레이할 수 있어요</small>';
   else if (state.phase === 'dark') center = `<b>불이 꺼졌어요</b><small>${room?.hostId === me ? '마피아 선택 버튼을 눌러 주세요' : '방장이 마피아를 고르길 기다리는 중…'}</small>`;
   if (state.phase === 'hunt' && !c.noLive) {
@@ -431,6 +466,7 @@ function frame() {
     if (!center && state.revive && state.revive.target === me) center = `<b>🩺 소생중…</b><small>${Math.max(0, Math.ceil((state.revive.at + REVIVE_MS - now) / 1000))}초 뒤 다시 일어나요</small>`;
     if (!center && state.revive && state.revive.by === me) center = `<b>🩺 살리는 중…</b><small>${Math.max(0, Math.ceil((state.revive.at + REVIVE_MS - now) / 1000))}초 · 그 자리에서 기다려요</small>`;
     if (!center && state.revived && now - state.revived.at < 2500) center = '<b>💚 다시 살아났어요!</b><small>어둠 속에서 계속 피하세요</small>';
+    if (!center && state.reaped && state.reaped.uid === me && state.dead[me]) center = '<b class="red">☠️ 사신에게 당했어요</b><small>이번 라운드는 움직일 수 없어요</small>';
     if (!center && state.counter && now - state.counter.at < 1500) center = state.counter.mafia === me ? '<b class="red">💪 반격당했어요!</b><small>1초 동안 움직일 수 없어요</small>' : state.counter.target === me ? '<b>💪 반격!</b><small>마피아를 밀쳐 내고 뒤로 물러났어요</small>' : '';
     if (!center && state.policeHit && now - state.policeHit.at < 2500) center = state.policeHit.hit ? '<b class="red">🚨 마피아였어요!</b><small>사이렌이 울려 내 위치가 모두에게 보여요</small>' : '<b>🚨 마피아가 아니었어요</b>';
     if (!center && sir && !isMafia && now - sir.at < 2000) center = '<b class="red">🚨 사이렌!</b><small>경찰이 마피아를 마주쳤어요</small>';
@@ -500,7 +536,7 @@ function kickShow(state, players) {
   const i = state.order.indexOf(k.uid);
   const nm = esc(players[k.uid]?.name || '');
   o.innerHTML = k.uid ? `<div class="am-kbox">
-      <div class="am-kstage"><div class="am-door"><i></i></div><div class="am-kfig">${walkerHtml(COLORS[i % COLORS.length], players[k.uid])}</div><div class="am-boot">🦶</div><span class="am-kpow">뻥!</span></div>
+      <div class="am-kstage"><div class="am-door"><i></i></div><div class="am-kfig">${bodyHtml('cover', players[k.uid])}</div><div class="am-boot">🦶</div><span class="am-kpow">뻥!</span></div>
       <b>${nm}님이 쫓겨났어요</b><small>${nm}님은 <em>시민</em>이었어요 · 마피아는 아직 숨어 있어요<br>곧 다시 불이 꺼져요!</small></div>`
     : `<div class="am-kbox"><div class="am-kstage none">🤷</div><b>아무도 쫓겨나지 않았어요</b><small>${k.runoff ? '결선 투표도 동점이에요' : '최다 득표가 동점이거나 투표가 없었어요'}<br>곧 다시 불이 꺼져요!</small></div>`;
   document.body.appendChild(o);
@@ -625,8 +661,8 @@ export default {
   rules: [
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용(스페이스)·스킬(Ctrl) 버튼을 써요.',
     '모두 준비를 누르면 불이 꺼지고, 방장이 마피아 선택을 누르면 모두에게 직업이 몰래 정해져요. 마피아 1명은 비밀 미션을 받고 스킬 3개 중 하나를 골라요. 스킬은 라운드마다 1번만 쓸 수 있어요.',
-    '마피아 스킬 — 👁 사륜안: 1초 동안 어둠이 걷혀 모두가 보여요 / ✨ 점멸자: 켜 두면 다음 공격 뒤 맵 정반대편으로 순간이동 / ☠️ 사신: 투표 때 이름을 제출해 한 사람을 쓰러뜨려요. 마피아는 다른 사람보다 조금 더 빨라요.',
-    '시민 직업 — 🚨 경찰: 닿은 사람이 마피아면 사이렌과 함께 내 위치가 모두에게 보여요 / 🩺 의사: 쓰러진 사람과 닿아 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 / ⚡ 퀵실버: 앞으로 3칸 대쉬 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 1초 멈춤) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
+    '마피아 스킬 — 👁 사륜안: 1초 동안 어둠이 걷혀 모두가 보여요 / ✨ 점멸자: 켜 두면 다음 공격 뒤 맵 정반대편으로 순간이동 / ☠️ 사신: 투표 때 이름을 제출해 한 사람을 쓰러뜨려요 (모두에게 알림, 당한 사람은 투표할 수 없고 그 라운드가 끝날 때까지 쓰러져 있어요). 마피아는 다른 사람보다 조금 더 빨라요.',
+    '시민 직업 — 🚨 경찰: 마피아와 닿으면 자동으로 사이렌이 울려 내 위치가 모두에게 보여요 (시민과 닿으면 조사 버튼으로 이름 확인) / 🩺 의사: 쓰러진 사람과 닿았을 때만 스킬이 켜지고, 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 / ⚡ 퀵실버: 앞으로 3칸 대쉬 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 1초 멈춤) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
     '어둠 속에선 내 캐릭터만 보여요. 누군가와 닿아 있는 동안에만 서로의 이름이 보여요. 마피아는 마주친 순간 상호작용으로 공격! 쓰러진 사람은 움직이거나 채팅할 수 없어요.',
     '누군가와 닿았을 때 상호작용을 눌러 살펴보세요. 쓰러진 사람이면 "시체발견!" — 모두 멈추고 불이 켜져 회의·투표를 해요 (3분). 3분 동안 아무도 못 찾으면 자동으로 회의가 열려요.',
     '투표에서 마피아를 뽑으면 라운드 끝(시민 승리). 시민을 뽑으면 그 사람만 문밖으로 쫓겨나고, 결과를 알려 준 뒤 바로 다시 불이 꺼져요. 동점이면 두 명으로 결선 투표, 또 동점이면 아무도 쫓겨나지 않아요.',

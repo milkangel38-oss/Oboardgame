@@ -23,8 +23,8 @@ export const DASH = 300;                   // 퀵실버 대쉬 거리 (캐릭터
 // ── 직업 · 스킬 (스킬은 라운드마다 1번) ──
 export const ROLES = {
   mafia: { name: '마피아', icon: '🗡', desc: '시작할 때 스킬 3개 중 하나를 골라요' },
-  police: { name: '경찰', icon: '🚨', desc: '닿아 있는 사람이 마피아면 사이렌! 내 위치가 모두에게 보여요' },
-  doctor: { name: '의사', icon: '🩺', desc: '쓰러진 사람과 닿아서 5초 동안 살려요' },
+  police: { name: '경찰', icon: '🚨', desc: '마피아와 닿으면 자동 사이렌! 내 위치가 모두에게 보여요 · 시민과 닿으면 조사 버튼' },
+  doctor: { name: '의사', icon: '🩺', desc: '쓰러진 사람과 닿으면 스킬이 켜져요 · 5초 동안 살려요' },
   detective: { name: '탐정', icon: '🔍', desc: '투표 때 쓰러진 순서를 시체 위 번호로 봐요' },
   lawyer: { name: '변호사', icon: '⚖️', desc: '투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 (자동)' },
   quick: { name: '퀵실버', icon: '⚡', desc: '앞으로 빠르게 대쉬 (캐릭터 3칸)' },
@@ -84,7 +84,7 @@ export function newRound(state, roundNo) {
   return {
     ...state, round: roundNo, phase: 'lobby', ready: {}, spawn: spawns(state.order),
     mafia: null, mafiaAt: 0, goAt: 0, mission: null, dead: {}, found: null, votes: {}, advice: {}, runoff: null, runoffAt: 0, firstTally: null, deadline: 0, lastKill: 0, meeting: null,
-    roles: {}, outs: {}, reported: {}, kills: [], used: {}, mskill: null, eyeAt: 0, siren: null, counter: null, revive: null, policeHit: null, guess: null, kick: null, outCount: 0,
+    roles: {}, outs: {}, reported: {}, kills: [], used: {}, mskill: null, eyeAt: 0, siren: null, counter: null, revive: null, policeHit: null, guess: null, kick: null, outCount: 0, probes: {}, reaped: null,
   };
 }
 export const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u] && !(s.outs || {})[u]);
@@ -277,11 +277,29 @@ export function applyMove(state, move, uid, players, env = {}) {
     if (role === 'doctor') {
       if (!going || !canAct(state, uid)) throw new Error('__noop');
       const tg = move.target;
-      if (!state.dead[tg]) throw new Error('__miss'); // 쓰러진 사람이 아니면 아무 일도 없어요 (스킬은 그대로)
+      if (!state.dead[tg] || state.dead[tg].reaper) throw new Error('__miss'); // 쓰러진 사람만 (사신에게 당한 사람은 못 살려요)
       touching(pos, strict, state, uid, tg, state.dead[tg]);
       return { state: { ...state, revive: { by: uid, target: tg, at: now } } }; // 5초 뒤 reviveDone으로 완료
     }
     throw new Error('__noop');
+  }
+  // 경찰·의사: 누군가와 닿으면 자동으로 살펴봐요 (경찰: 마피아면 사이렌 / 의사: 쓰러진 사람인지)
+  if (t === 'probe') {
+    const role = state.roles?.[uid];
+    if (!going || !canAct(state, uid) || !['police', 'doctor'].includes(role)) throw new Error('__noop');
+    const tg = move.target;
+    if (!state.order.includes(tg) || tg === uid || state.outs?.[tg]) throw new Error('__noop');
+    const prev = state.probes?.[uid];
+    if (prev && prev.target === tg && now - prev.at < 1500) throw new Error('__noop');
+    touching(pos, strict, state, uid, tg, state.dead[tg] || null);
+    const down = !!state.dead[tg];
+    const mafia = tg === state.mafia;
+    const probes = { ...(state.probes || {}), [uid]: { target: tg, at: now, down, mafia: role === 'police' && mafia } };
+    if (role === 'police' && mafia && !down && !state.used[uid]) {
+      const pp = livePos(pos, uid, state) || { x: Number(move.x) || 0, y: Number(move.y) || 0 };
+      return { state: { ...state, probes, used: { ...state.used, [uid]: true }, policeHit: { at: now, hit: true }, siren: { x: Math.round(pp.x), y: Math.round(pp.y), at: now, by: uid } } };
+    }
+    return { state: { ...state, probes } };
   }
   if (t === 'reviveDone') {
     const r = state.revive;
@@ -341,8 +359,8 @@ export function applyMove(state, move, uid, players, env = {}) {
 }
 
 // ── 서버 진행용 ──
-export const SECRET_MOVES = ['deal', 'pickMafia', 'kill', 'next', 'skill', 'mskill', 'reviveDone'];
-export const needsPositions = (move) => ['kill', 'shout', 'reviveDone'].includes(move?.type) || (move?.type === 'skill' && !!move.target);
+export const SECRET_MOVES = ['deal', 'pickMafia', 'kill', 'next', 'skill', 'mskill', 'reviveDone', 'probe'];
+export const needsPositions = (move) => ['kill', 'shout', 'reviveDone', 'probe'].includes(move?.type) || (move?.type === 'skill' && !!move.near);
 export function deal(room) {
   const order = Object.keys(room.players || {}).sort((x, y) => (room.players[x].joinedAt || 0) - (room.players[y].joinedAt || 0));
   if (order.length < 6 || order.length > 8) throw new Error('자객 마피아는 6~8명이에요');
@@ -351,7 +369,7 @@ export function deal(room) {
   return newRound(base, 1);
 }
 export function split(full) {
-  const { pastMafia, shoutAt, roles, used, mskill, eyeAt, counter, revive, policeHit, guess, lastTally, revived, ...pub } = full;
+  const { pastMafia, shoutAt, roles, used, mskill, eyeAt, counter, revive, policeHit, guess, lastTally, revived, probes, ...pub } = full;
   const open = ['result', 'done'].includes(full.phase);
   if (!open) { pub.mafia = null; pub.mission = null; pub.lastKill = 0; pub.kills = []; }
   if (full.phase === 'hunt') { // 불이 꺼진 동안 새로 쓰러진 사람은 비밀 (이미 회의에서 드러난 사람만 공개)
@@ -376,6 +394,7 @@ export function split(full) {
       policeHit: role === 'police' ? policeHit || null : null,
       guess: guess && guess.by === u ? guess : null,
       revived: revived && revived.uid === u ? revived : null,
+      probe: (probes || {})[u] || null,
       round: full.round, // 라운드가 바뀌면 지난 비밀은 무시해요
     }];
   }));
