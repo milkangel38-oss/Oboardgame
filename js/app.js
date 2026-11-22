@@ -24,7 +24,7 @@ const recordRetries = new Map();
 // 화면에 쓰는 "나" = 로그인 정보 + 프로필에서 바꾼 닉네임/사진
 function me() {
   if (!user) return null;
-  return { uid: user.uid, name: profile?.name || user.name, photo: profile?.photo || user.photo };
+  return { uid: user.uid, name: profile?.name || user.name, photo: profile?.photo || user.photo, garnets: profile?.garnets || 0 };
 }
 
 // ───────── 유틸 ─────────

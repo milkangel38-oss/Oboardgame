@@ -12,7 +12,7 @@
 // }
 
 function playerEntry(user, order) {
-  return { uid: user.uid, name: user.name, photo: user.photo || '', ready: false, order, joinedAt: Date.now() };
+  return { uid: user.uid, name: user.name, photo: user.photo || '', garnets: Math.max(0, Math.floor(Number(user.garnets) || 0)), ready: false, order, joinedAt: Date.now() };
 }
 
 export function sortedPlayers(room) {
