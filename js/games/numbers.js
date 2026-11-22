@@ -6,11 +6,12 @@
 import { GARNET } from '../profile.js';
 
 const ROUNDS = 10;
-const PICK_MS = 15000;    // 라운드 제한 시간
+const PICK_MS = 30000;    // 라운드 제한 시간
 const REVEAL_MS = 4500;   // 공개 결과를 보여주는 시간
 const POINTS = 10;
 const REWARDS = [3, 2, 1]; // 1등, 2등, 3등 가넷
 
+const colorOf = (n) => (n % 2 ? 'black' : 'white'); // 홀수 검정 · 짝수(0 포함) 흰색
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // 중복되지 않은 숫자 중 가장 큰 숫자를 낸 사람 찾기
@@ -62,6 +63,8 @@ function reveal(state, now) {
   };
 }
 
+const pickUi = { key: '', n: null };
+
 export default {
   id: 'numbers',
   name: '숫자눈치게임',
@@ -74,7 +77,8 @@ export default {
   description: '안 겹친 가장 큰 숫자가 이긴다!',
   rules: [
     '모두 0~9 숫자카드 10장을 가지고 시작해요.',
-    `매 라운드 ${PICK_MS / 1000}초 안에 카드 한 장을 몰래 내요. 시간이 끝나면 동시에 공개!`,
+    `매 라운드 ${PICK_MS / 1000}초 안에 카드 한 장을 골라 '제출하기'를 눌러요. 시간이 끝나면(또는 모두 내면) 동시에 공개!`,
+    '홀수 카드는 검정, 짝수 카드(0 포함)는 흰색이에요. 누가 카드를 내면 그 색이 모두에게 보여요!',
     '가장 큰 숫자를 낸 사람이 10점을 얻어요.',
     '가장 큰 숫자가 겹치면 무효! 겹치지 않은 그다음 큰 숫자가 점수를 얻어요.',
     '시간 안에 못 내면 남은 카드 중 가장 작은 숫자가 자동으로 나가요.',
@@ -107,6 +111,7 @@ export default {
       if (state.phase !== 'pick') throw new Error('지금은 카드를 낼 수 없어요');
       if (!state.order.includes(uid)) throw new Error('참가자가 아니에요');
       const n = move.n;
+      if (state.picks[uid] !== undefined) throw new Error('이미 이번 라운드 카드를 제출했어요');
       if (!state.hands[uid].includes(n)) throw new Error('이미 쓴 카드예요');
       const next = { ...state, picks: { ...state.picks, [uid]: n } };
       const allIn = next.order.every((u) => next.picks[u] !== undefined);
@@ -139,6 +144,8 @@ export default {
 
   render(el, { state, me, players, finished, sendMove, room }) {
     const name = (u) => esc(players[u]?.name || '나간 사람');
+    const roundKey = `${room?.code}:${state.round}`;
+    if (pickUi.key !== roundKey) { pickUi.key = roundKey; pickUi.n = null; }
     const myHand = state.hands[me] || [];
     const myPick = state.picks?.[me];
     const last = state.last;
@@ -157,8 +164,8 @@ export default {
     const rows = state.order.map((u) => {
       const card = showCards ? last.cards[u] : null;
       const status = finished || state.phase === 'done' ? ''
-        : state.phase === 'pick' ? (state.picks?.[u] !== undefined ? '<span class="nb-ok">✓ 제출</span>' : '<span class="nb-wait">고민 중…</span>')
-        : `<span class="nb-card ${last.winner === u ? 'win' : ''} ${last.dupes.includes(card) ? 'dupe' : ''}">${card}</span>${last.auto[u] ? '<small class="nb-auto">자동</small>' : ''}`;
+        : state.phase === 'pick' ? (state.picks?.[u] !== undefined ? `<span class="nb-ok">✓ 제출</span><span class="nb-back ${colorOf(state.picks[u])}" title="${colorOf(state.picks[u]) === 'black' ? '검정(홀수)' : '흰색(짝수)'}"></span>` : '<span class="nb-wait">고민 중…</span>')
+        : `<span class="nb-card ${colorOf(card)} ${last.winner === u ? 'win' : ''} ${last.dupes.includes(card) ? 'dupe' : ''}">${card}</span>${last.auto[u] ? '<small class="nb-auto">자동</small>' : ''}`;
       return `<li class="${u === me ? 'me' : ''} ${showCards && last.winner === u ? 'win' : ''}">
         <span class="nb-name">${name(u)}${u === me ? ' <small>(나)</small>' : ''}</span>
         <span class="nb-status">${status}</span>
@@ -189,18 +196,21 @@ export default {
         <div class="nb-banner">${banner || (state.phase === 'pick' ? '숫자 카드 한 장을 골라 내세요!' : '')}</div>
         <ul class="nb-board">${rows}</ul>
         ${isPlayer ? `
-        <div class="nb-hand-title">내 카드 ${myPick !== undefined && state.phase === 'pick' ? `· <b>${myPick}</b> 제출함 (공개 전까지 바꿀 수 있어요)` : ''}</div>
+        <div class="nb-hand-title">내 카드 ${myPick !== undefined && state.phase === 'pick' ? `· <b>${myPick}</b> 제출 완료! 공개를 기다려요` : state.phase === 'pick' ? '· 카드를 고르고 제출하기를 눌러요' : ''}</div>
         <div class="nb-hand">
           ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => {
             const used = !myHand.includes(n);
-            return `<button class="nb-num ${used ? 'used' : ''} ${myPick === n ? 'picked' : ''}" data-n="${n}" ${used || state.phase !== 'pick' ? 'disabled' : ''}>${n}</button>`;
+            const sel = myPick !== undefined && state.phase === 'pick' ? myPick === n : pickUi.n === n && state.phase === 'pick';
+            return `<button class="nb-num ${colorOf(n)} ${used ? 'used' : ''} ${sel ? 'picked' : ''}" data-n="${n}" ${used || state.phase !== 'pick' || myPick !== undefined ? 'disabled' : ''}>${n}</button>`;
           }).join('')}
-        </div>` : ''}`}
+        </div>
+        ${state.phase === 'pick' && myPick === undefined ? `<button class="btn primary block big nb-submit" data-submit ${pickUi.n !== null && myHand.includes(pickUi.n) ? '' : 'disabled'}>${pickUi.n !== null && myHand.includes(pickUi.n) ? `${pickUi.n} 제출하기` : '카드를 먼저 고르세요'}</button>` : ''}` : ''}`}
       </div>`;
 
     el.querySelectorAll('.nb-num').forEach((b) => {
-      b.onclick = () => sendMove({ type: 'pick', n: Number(b.dataset.n) });
+      b.onclick = () => { const n = Number(b.dataset.n); pickUi.n = pickUi.n === n ? null : n; this.render(el, { state, me, players, finished, sendMove, room }); };
     });
+    el.querySelector('[data-submit]')?.addEventListener('click', () => { if (pickUi.n !== null) sendMove({ type: 'pick', n: pickUi.n }); });
 
     // 타이머: 화면 갱신 + 시간이 지나면 진행 신호(tick) 보내기
     if (finished) return;
@@ -224,7 +234,8 @@ export default {
         if (now >= state.revealUntil && now - lastTick > 2000 && now - state.revealUntil > 300 + myIndex * 350) { lastTick = now; sendMove({ type: 'tick' }, { silent: true }); }
       }
     };
-    const timer = setInterval(update, 250);
+    clearInterval(pickUi.timer);
+    const timer = pickUi.timer = setInterval(update, 250);
     update();
   },
 };

@@ -2581,3 +2581,17 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
   .am-say, .sx-say { left: 128px; right: 200px; bottom: 10px; max-width: none; padding: 4px; }
   .am-say input { padding: 6px 10px; font-size: 14px; }
 }
+
+/* 숫자눈치게임: 홀수 검정 · 짝수 흰색 카드, 제출한 카드 색 공개 */
+.nb-num.white { background: linear-gradient(180deg, #ffffff, #e9e6f2); color: #1a1033; box-shadow: 0 4px 0 #9b97ad; }
+.nb-num.black { background: linear-gradient(180deg, #3a3a44, #141418); color: #fff; box-shadow: 0 4px 0 #000; border: 1px solid rgba(255, 255, 255, .18); }
+.nb-num.picked { transform: translateY(-6px); box-shadow: 0 0 0 3px #ffd84d, 0 8px 16px rgba(255, 216, 77, .5); }
+.nb-num.white.picked { background: linear-gradient(180deg, #fff, #fff6c2); }
+.nb-num.black.picked { background: linear-gradient(180deg, #4a4a55, #1c1c22); }
+.nb-submit { margin-top: 10px; }
+.nb-back { display: inline-block; width: 16px; height: 21px; margin-left: 6px; vertical-align: middle; border-radius: 3px; animation: flip .35s ease; }
+.nb-back.white { background: #fff; box-shadow: 0 0 0 1px #9b97ad, 0 2px 3px rgba(0, 0, 0, .4); }
+.nb-back.black { background: #141418; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45), 0 2px 3px rgba(0, 0, 0, .4); }
+.nb-card.black { background: #141418; color: #fff; box-shadow: 0 0 0 1px rgba(255, 255, 255, .35); }
+.nb-card.black.win { background: #141418; color: var(--gold); box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(255, 216, 77, .8); }
+.nb-card.black.dupe { background: #3a1420; color: #ff8fa3; }

@@ -166,10 +166,12 @@ export function start(room, game, uid) {
 // 방장 '다시하기' 투표: 방장이 요청하면 모두 동의해야 다시 시작해요 (한 명이라도 거절하거나 30초가 지나면 취소)
 export const RESTART_VOTE_MS = 30 * 1000;
 export function requestRestart(room, uid) {
-  if (room.hostId !== uid) throw new Error('방장만 다시하기를 요청할 수 있어요');
+  if (!room.players[uid]) throw new Error('참가자가 아니에요');
   if (room.status === 'waiting') throw new Error('아직 시작하지 않은 게임이에요');
+  // 게임 중 '다시하기'는 방장만, 끝난 뒤 '한 번 더 하기'는 누구나 요청할 수 있어요
+  if (room.status === 'playing' && room.hostId !== uid) throw new Error('게임 중 다시하기는 방장만 요청할 수 있어요');
   if (room.restartVote && Date.now() - room.restartVote.at < RESTART_VOTE_MS) throw new Error('이미 다시하기 동의를 기다리는 중이에요');
-  room.restartVote = { at: Date.now(), yes: { [uid]: true } };
+  room.restartVote = { at: Date.now(), by: uid, again: room.status === 'finished', yes: { [uid]: true } };
   room.restartDenied = null;
   return room;
 }

@@ -1203,6 +1203,12 @@ function doRestart(code) {
     .then(() => backend.mutateRoom(code, (r) => R.restart(r, getGame(r.gameId), user.uid)))
     .catch((e) => showAlert(e.message));
 }
+// 게임이 끝난 뒤 '한 번 더 하기' (누구나 요청, 모두 동의하면 같은 사람들로 바로 새 판)
+function requestAgain(room) {
+  closeEndModal();
+  if (Object.keys(room.players).length <= 1) { if (room.hostId === user.uid) doRestart(room.code); return; }
+  backend.mutateRoom(room.code, (r) => R.requestRestart(r, user.uid)).catch((e) => showAlert(e.message));
+}
 function closeRestartVote() { rv.$?.remove(); rv.$ = null; rv.at = 0; clearInterval(rv.tick); rv.tick = 0; }
 function drawRestartVote(room) {
   const isHost = room.hostId === user.uid;
@@ -1210,7 +1216,7 @@ function drawRestartVote(room) {
   if (d && d.at !== rv.denied) {
     const first = rv.denied === 0 && Date.now() - d.at > 5000; // 방에 막 들어왔을 때 옛 알림은 건너뛰기
     rv.denied = d.at;
-    if (!first) toast(d.why === 'timeout' ? '다시하기: 30초 안에 모두 동의하지 않아 취소됐어요' : d.why === 'host' ? '방장이 다시하기 요청을 취소했어요' : `${d.name || '누군가'}님이 다시하기를 거절했어요`);
+    if (!first) toast(d.why === 'timeout' ? '다시하기: 30초 안에 모두 동의하지 않아 취소됐어요' : d.why === 'host' ? '요청한 사람이 다시하기를 취소했어요' : `${d.name || '누군가'}님이 거절했어요`);
   }
   const v = room.restartVote;
   if (!v || !room.players?.[user.uid]) { closeRestartVote(); return; }
@@ -1228,18 +1234,20 @@ function drawRestartVote(room) {
       if (!rv.$) return;
       const left = Math.max(0, Math.ceil((v.at + R.RESTART_VOTE_MS - Date.now()) / 1000));
       const $s = rv.$.querySelector('[data-rvleft]'); if ($s) $s.textContent = left;
-      if (left <= 0 && isHost) { clearInterval(rv.tick); backend.mutateRoom(room.code, (r) => (r.restartVote?.at === v.at ? R.cancelRestart(r, 'timeout') : r)).catch(() => {}); }
+      if (left <= 0 && (isHost || byMe)) { clearInterval(rv.tick); backend.mutateRoom(room.code, (r) => (r.restartVote?.at === v.at ? R.cancelRestart(r, 'timeout') : r)).catch(() => {}); }
     }, 500);
   }
   const mine = !!v.yes?.[user.uid];
-  const host = room.players[room.hostId]?.name || '방장';
+  const byMe = (v.by || room.hostId) === user.uid;
+  const host = room.players[v.by || room.hostId]?.name || '방장';
+  const word = v.again ? '한 번 더 하기' : '다시하기';
   rv.$.innerHTML = `<div class="rv-box" role="dialog" aria-modal="true">
-    <div class="rv-ico">🔄</div>
-    <h3>${isHost ? '다시하기 동의를 기다리는 중' : `${esc(host)}님이 다시하기를 요청했어요`}</h3>
-    <p>${isHost ? '모두 동의하면 바로 새 판이 시작돼요' : '동의하면 지금 판은 기록 없이 끝나고 같은 사람들로 처음부터 다시 시작해요'}</p>
+    <div class="rv-ico">${v.again ? '🔁' : '🔄'}</div>
+    <h3>${byMe ? `${word} 동의를 기다리는 중` : `${esc(host)}님이 ${word}를 요청했어요`}</h3>
+    <p>${byMe ? '모두 동의하면 바로 새 판이 시작돼요' : v.again ? '동의하면 같은 사람들로 한 판 더 시작해요' : '동의하면 지금 판은 기록 없이 끝나고 같은 사람들로 처음부터 다시 시작해요'}</p>
     <ul class="rv-list">${ids.map((u) => `<li class="${v.yes?.[u] ? 'ok' : ''}">${avatar(room.players[u])}<b>${esc(room.players[u].name)}</b><span>${v.yes?.[u] ? '✔ 동의' : '…'}</span></li>`).join('')}</ul>
     <div class="rv-cnt">${yes}/${ids.length}명 동의 · 남은 시간 <b data-rvleft>${Math.max(0, Math.ceil((v.at + R.RESTART_VOTE_MS - Date.now()) / 1000))}</b>초</div>
-    <div class="rv-btns">${isHost
+    <div class="rv-btns">${byMe
       ? '<button class="btn ghost" data-rvcancel>요청 취소</button>'
       : mine ? '<span class="muted">동의했어요. 다른 사람을 기다리는 중…</span>'
       : '<button class="btn ghost" data-rvno>거절</button><button class="btn primary" data-rvyes>동의</button>'}</div>
@@ -1304,15 +1312,14 @@ function drawEndModal(room, game) {
         </li>`).join('')}</ol>
       <div class="end-btns">
         <button class="btn ghost" data-eclose>결과 화면 보기</button>
-        ${room.hostId === user.uid ? '<button class="btn primary" data-ereset>새 게임 열기</button>' : ''}
+        <button class="btn primary" data-eagain>🔁 한 번 더 하기</button>
       </div>
     </div>`;
     document.body.appendChild($o);
     endModal.$el = $o;
     $o.querySelector('[data-eclose]').onclick = closeEndModal;
     $o.onclick = (e) => { if (e.target === $o) closeEndModal(); };
-    const $rs = $o.querySelector('[data-ereset]');
-    if ($rs) $rs.onclick = () => { closeEndModal(); document.querySelector('[data-reset]')?.click(); };
+    $o.querySelector('[data-eagain]').onclick = () => requestAgain(room);
   }, 1400);
 }
 
@@ -1518,7 +1525,7 @@ function drawRoom($main, room, game) {
     resultBanner = `
       <div class="result">
         <div class="result-msg">${tag}${esc(r.message || '게임 종료')}</div>
-        ${isHost ? '<button class="btn primary" data-reset>새 게임 열기</button>' : '<span class="muted sm">방장이 새 게임을 열면 다시 준비할 수 있어요</span>'}
+        <span class="row">${mine ? '<button class="btn primary" data-again>🔁 한 번 더 하기</button>' : ''}${isHost ? '<button class="btn" data-reset>대기실로</button>' : ''}</span>
       </div>`;
   }
 
@@ -1545,7 +1552,8 @@ function drawRoom($main, room, game) {
         <h2 class="room-code">방 코드 <span class="code">${esc(room.code)}</span></h2>
       </div>
       <div class="row">
-        ${isHost && room.status !== 'waiting' ? '<button class="btn" data-restart title="같은 사람들로 처음부터 다시 시작">🔄 다시하기</button>' : ''}
+        ${isHost && room.status === 'playing' ? '<button class="btn" data-restart title="같은 사람들로 처음부터 다시 시작">🔄 다시하기</button>' : ''}
+        ${room.status === 'finished' && mine ? '<button class="btn" data-again title="같은 사람들로 한 판 더">🔁 한 번 더 하기</button>' : ''}
         <button class="btn primary" data-invite>친구 초대</button>
         <button class="btn ghost" data-leave>나가기</button>
       </div>
@@ -1604,6 +1612,7 @@ function drawRoom($main, room, game) {
     if (!confirm('다른 사람들에게 다시하기 동의를 요청할까요?\n모두 동의하면 같은 사람들로 처음부터 다시 시작해요.')) return;
     act((r) => R.requestRestart(r, user.uid));
   });
+  $main.querySelectorAll('[data-again]').forEach((b) => b.addEventListener('click', () => requestAgain(room)));
   $main.querySelectorAll('[data-opt]').forEach((sel) => {
     sel.onchange = () => act((r) => R.setOption(r, user.uid, game, sel.dataset.opt, Number.isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
   });
