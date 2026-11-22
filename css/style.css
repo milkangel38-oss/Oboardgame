@@ -2308,3 +2308,11 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 @media (orientation: landscape) and (max-height: 520px) {
   .spl-side, .spl-table > .bank-zone { position: sticky; top: 64px; }
 }
+
+/* 언더독: 제목 크게 · 카드 그림이 카드 밖으로 안 나가게 · 토큰 버튼 */
+.ud-mine-title { font-size: 18px; }
+.ud-mine-title small { font-size: 12px; }
+.udc-pic { padding-top: 4px; overflow: hidden; }
+.udc-pic svg { width: 100%; height: 100%; max-height: 100%; }
+.udc-pic.two svg { width: 100%; margin: 0; }
+.ud-tokenbtn small { font-weight: 500; opacity: .85; }

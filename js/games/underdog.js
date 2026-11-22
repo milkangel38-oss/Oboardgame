@@ -137,21 +137,18 @@ const miniTrack = (pos, fallTo) => `<span class="udc-mini">${[7, 6, 5, 4, 3, 2, 
 export function cardArt(c) {
   if (c.kind === 'num') {
     return `<div class="udc k-num" style="--c1:${NUM_COLOR[c.animal]}">
-      <span class="udc-cn l">${c.animal}</span><span class="udc-cn r">${c.animal}</span>
       <span class="udc-pic">${animalSvg(c.animal)}</span>
       <span class="udc-mv">${arrows(c.steps)}</span>
       <span class="udc-name">${esc(animalLabel(c.animal))}</span></div>`;
   }
   if (c.kind === 'pair') {
     return `<div class="udc k-pair" style="--c1:${NUM_COLOR[c.a]};--c2:${NUM_COLOR[c.b]}">
-      <span class="udc-cn l">${c.a}</span><span class="udc-cn r" style="background:var(--c2)">${c.b}</span>
       <span class="udc-pic two">${animalSvg(c.a)}${animalSvg(c.b)}</span>
       <span class="udc-mv">${arrows(1)}</span>
       <span class="udc-name">${ANIMALS[c.a].name}·${ANIMALS[c.b].name} 함께</span></div>`;
   }
   if (c.kind === 'pos') {
     return `<div class="udc k-pos">
-      <span class="udc-cn l">${c.pos}</span><span class="udc-cn r">${c.pos}</span>
       <span class="udc-pic">${medalSvg(c.pos)}</span>
       ${miniTrack(c.pos)}
       <span class="udc-mv">${arrows(c.steps)}</span>
@@ -159,14 +156,12 @@ export function cardArt(c) {
   }
   if (c.kind === 'fall') {
     return `<div class="udc k-fall">
-      <span class="udc-cn l">${c.pos}</span><span class="udc-cn r">${c.pos}</span>
       <span class="udc-pic">${fallSvg(c.pos)}</span>
       ${miniTrack(c.pos, true)}
       <span class="udc-mv"><span class="b">${c.pos}등 ➜ 꼴찌</span></span>
       <span class="udc-name">${c.pos}등 말 낙마!</span></div>`;
   }
   return `<div class="udc k-ticket">
-    <span class="udc-cn l">⇄</span><span class="udc-cn r">⇄</span>
     <span class="udc-pic">${swapSvg()}</span>
     <span class="udc-mv"><em>나 또는 상대</em></span>
     <span class="udc-name">티켓 교환</span></div>`;
@@ -435,9 +430,11 @@ export default {
         ${raceTrack(state, me)}
 
         <div class="nb-banner">${banner}</div>
+        ${canToken ? `<button class="btn ud-tokenbtn block" data-token>🌑 다크호스 토큰 가져오기 <small>(남은 토큰 ${state.tokensLeft}개)</small></button>` : ''}
+        ${myTurn && state.tokenThisTurn ? '<div class="ud-took">🌑 토큰을 가져왔어요. 이제 카드를 내세요</div>' : ''}
         <div class="ud-info">
-          <div class="ud-token">🌑 다크호스 <b>${animalLabel(state.darkHorse)}</b> · 토큰 남음 <b>${state.tokensLeft}</b>개
-            <small>다크호스로 정해진 <b>${animalLabel(state.darkHorse)}</b>${hasJong(ANIMALS[state.darkHorse].name) ? '은' : '는'} 끝날 때까지 바뀌지 않아요.</small><small>토큰을 가진 사람은 경주가 끝났을 때</small><small>다크호스가 3등 안이면 <b class="up">+${DH_GOOD}점</b>, 아니면 <b class="dn">${DH_BAD}점</b>이에요.</small>
+          <div class="ud-token">🌑 다크호스 <b>${animalLabel(state.darkHorse)}</b>
+            <small>다크호스로 정해진 <b>${animalLabel(state.darkHorse)}</b>${hasJong(ANIMALS[state.darkHorse].name) ? '은' : '는'} 끝날 때까지 바뀌지 않아요.</small><small>토큰을 가진 사람은 경주가 끝났을 때 다크호스가 3등 안이면 <b class="up">+${DH_GOOD}점</b>, 아니면 <b class="dn">${DH_BAD}점</b>이에요.</small>
             ${Object.keys(state.tokensHeld).length ? `<small>보유: ${Object.keys(state.tokensHeld).map(name).join(', ')}</small>` : ''}
           </div>
           ${lastPlay ? `<div class="ud-last"><span class="ud-lastcard">${cardArt(CARDS[lastPlay.card])}</span><span><small>방금 낸 카드</small><b>${name(lastPlay.by)}</b><br>${esc(cardTitle(CARDS[lastPlay.card]))}<br><span class="ud-note">${esc(lastPlay.note)}</span></span></div>` : ''}
@@ -453,8 +450,6 @@ export default {
             <div class="ud-tickets">${(state.tickets[me] || []).map((a) => ticketArt(state, a)).join('')}
               ${state.tokensHeld[me] ? '<span class="udt dhk"><span class="udt-pic">🌑</span><span class="udt-info"><b>다크호스 토큰</b><small>3등 안 +5 / 아니면 −3</small></span></span>' : ''}</div>
           </div>
-          ${canToken ? `<button class="btn ud-tokenbtn block" data-token>🌑 다크호스 토큰 가져오기 (선택)</button>` : ''}
-          ${myTurn && state.tokenThisTurn ? '<div class="ud-took">🌑 토큰을 가져왔어요. 이제 카드를 내세요</div>' : ''}
           <div class="ud-mine-title">🃏 내 액션카드 ${myHand.length}장 <small>${myTurn ? '카드를 골라 내세요' : '눌러서 설명 보기'}</small></div>
           <div class="ud-hand">
             ${myHand.map((c) => `<button class="ud-cardbtn ${ui.card === c.id ? 'sel' : ''}" data-card="${c.id}">${cardArt(c)}</button>`).join('')}
