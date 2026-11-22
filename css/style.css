@@ -2663,3 +2663,74 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .sp-chat { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 .sp-chat input { padding: 9px 12px; font-size: 14px; border-radius: 12px; }
 .sp-chat .btn { border-radius: 12px; }
+
+/* ───────── 자객 마피아 v10.20: 직업·스킬 · 걷는 캐릭터 · 쫓겨나는 연출 ───────── */
+.am-row2 { display: flex; gap: 10px; align-items: center; }
+.am-skill { appearance: none; width: 88px; height: 88px; border-radius: 50%; border: 0; display: grid; place-content: center; gap: 2px; padding: 6px; background: radial-gradient(circle at 35% 30%, #5d6b9a, #2c3558); color: #fff; font: inherit; box-shadow: 0 5px 0 #1a2040; cursor: pointer; text-align: center; }
+.am-skill b { font-size: 13px; line-height: 1.15; word-break: keep-all; }
+.am-skill small { font-size: 9.5px; line-height: 1.2; opacity: .85; word-break: keep-all; }
+.am-skill.hot { background: radial-gradient(circle at 35% 30%, #7cc3ff, #2f6fd6); box-shadow: 0 5px 0 #173a7a, 0 0 16px rgba(61, 123, 255, .6); }
+.am-skill.armed { background: radial-gradient(circle at 35% 30%, #ffd84d, #c99412); color: #2a1d08; box-shadow: 0 5px 0 #7a5a0a, 0 0 18px rgba(255, 216, 77, .7); }
+.am-skill:active { transform: translateY(3px); box-shadow: 0 2px 0 #1a2040; }
+.am-skill.shake { animation: amShake .3s; }
+.am-skill[hidden] { display: none; }
+/* 걷는 캐릭터 (팔·다리) */
+.am-ch .wk-head { width: 66%; }
+.am-ch.walking .wk .wk-torso { transform: rotate(7deg); }
+.am-ch.walking .wk g.wk-leg.f { animation: wkA .38s ease-in-out infinite alternate; }
+.am-ch.walking .wk g.wk-leg.b { animation: wkA .38s ease-in-out infinite alternate-reverse; }
+.am-ch.walking .wk g.wk-arm.f { animation: wkA .38s ease-in-out infinite alternate-reverse; }
+.am-ch.walking .wk g.wk-arm.b { animation: wkA .38s ease-in-out infinite alternate; }
+.am-ch.walking .wk { animation: wkBob .19s ease-in-out infinite alternate; }
+.am-ch.left .wk > svg { transform: scaleX(-1); }
+.am-ch.dead .am-svg { transform: rotate(-90deg) translateX(-20%); filter: grayscale(.6) brightness(.8); }
+.am-ch.dash .am-svg { filter: drop-shadow(-10px 0 0 rgba(255, 216, 77, .5)) drop-shadow(-20px 0 0 rgba(255, 216, 77, .25)); }
+.am-dno { display: inline-grid; place-items: center; width: 1.4em; height: 1.4em; margin-right: 2px; border-radius: 50%; background: #ffd84d; color: #2a1d08; font-weight: 900; }
+.am-dark.eye { opacity: 0 !important; transition: opacity .15s; }
+/* 경찰 사이렌 */
+.am-siren { position: absolute; z-index: 9000; transform: translate(-50%, -50%); display: grid; justify-items: center; pointer-events: none; }
+.am-siren i { position: absolute; top: 50%; left: 50%; width: 120px; height: 120px; margin: -60px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 40, 70, .55), rgba(40, 90, 255, .25) 50%, transparent 70%); animation: amSiren .5s ease-in-out infinite alternate; }
+.am-siren b { position: relative; font-size: 34px; animation: amSirenB .25s steps(2) infinite; }
+.am-siren small { position: relative; padding: 1px 8px; border-radius: 99px; background: #e8213f; color: #fff; font-size: 11px; font-weight: 900; }
+@keyframes amSiren { from { transform: scale(.8); filter: hue-rotate(0deg); } to { transform: scale(1.2); filter: hue-rotate(160deg); } }
+@keyframes amSirenB { 50% { transform: scale(1.15); } }
+/* 직업 · 마피아 스킬 고르기 */
+.am-mission .am-goal { display: block; font-size: 12px; margin-top: 3px; opacity: .9; }
+.am-mission .am-myskill { display: block; font-size: 12.5px; margin-top: 4px; }
+.am-mpick { display: grid; gap: 6px; margin-top: 6px; }
+.am-mpick > small { font-size: 12px; }
+.am-mpick button { appearance: none; display: grid; gap: 1px; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255, 216, 77, .5); background: rgba(0, 0, 0, .35); color: #fff; font: inherit; cursor: pointer; }
+.am-mpick button b { font-size: 14px; } .am-mpick button small { font-size: 11.5px; opacity: .85; }
+.am-mpick button:active { transform: scale(.97); }
+/* 투표: 직업 칸 · 투표완료 버튼 */
+.am-sbox { display: grid; gap: 6px; padding: 9px 11px; border-radius: 12px; background: rgba(178, 107, 255, .12); box-shadow: inset 0 0 0 1px rgba(178, 107, 255, .5); font-size: 13px; }
+.am-sbox.red { background: rgba(232, 33, 63, .12); box-shadow: inset 0 0 0 1px rgba(232, 33, 63, .55); }
+.am-srow { display: flex; gap: 6px; flex-wrap: wrap; }
+.am-srow select { flex: 1; min-width: 110px; padding: 7px 8px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, .2); background: #1a1233; color: #fff; font: inherit; font-size: 13px; }
+.am-tip.red { color: #ff8fa3; }
+.am-confirm { transition: transform .08s, box-shadow .08s; }
+.am-confirm:not(:disabled):active, .am-confirm.pressed { transform: translateY(4px) scale(.98); box-shadow: 0 1px 0 rgba(0, 0, 0, .4) !important; }
+.am-confirm.pressed { background: #3ddc84 !important; color: #0d2a1a !important; animation: amPress .35s ease; }
+.am-confirm.done { background: linear-gradient(180deg, #3ddc84, #22a862) !important; color: #0d2a1a !important; opacity: 1 !important; box-shadow: inset 0 3px 6px rgba(0, 0, 0, .25) !important; cursor: default; }
+@keyframes amPress { 40% { transform: translateY(4px) scale(.94); } 100% { transform: translateY(4px) scale(.98); } }
+.am-roles { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.am-roles span { font-size: 12px; padding: 3px 9px; border-radius: 99px; background: rgba(255, 255, 255, .07); box-shadow: inset 3px 0 0 var(--pc); }
+.am-roles span b { color: var(--gold); }
+/* 쫓겨나는 연출 (새 창) */
+.am-kick { position: fixed; inset: 0; z-index: 8700; display: grid; place-items: center; padding: 16px; background: rgba(5, 3, 12, .72); backdrop-filter: blur(3px); animation: amIn .2s ease; }
+.am-kbox { width: min(380px, 100%); display: grid; justify-items: center; gap: 8px; padding: 16px; border-radius: 18px; text-align: center; background: linear-gradient(180deg, #2a1d3e, #150f22); box-shadow: 0 0 0 2px #c9a85a, 0 18px 40px rgba(0, 0, 0, .6); }
+.am-kbox b { font-size: 19px; color: #ffe27a; }
+.am-kbox small { font-size: 13px; color: #d9d2f5; line-height: 1.5; } .am-kbox em { font-style: normal; color: #3ddc84; font-weight: 800; }
+.am-kstage { position: relative; width: 100%; height: 150px; overflow: hidden; border-radius: 12px; background: linear-gradient(180deg, #3a2f52 0 72%, #5a4a38 72%); }
+.am-kstage.none { display: grid; place-items: center; font-size: 52px; }
+.am-door { position: absolute; right: 14px; bottom: 28%; width: 56px; height: 96px; border-radius: 6px 6px 0 0; background: #1a1020; box-shadow: 0 0 0 4px #8a5a2e; overflow: hidden; }
+.am-door i { position: absolute; inset: 0; background: linear-gradient(90deg, #a46a36, #7a4a22); transform-origin: right center; animation: amDoor 3.6s ease forwards; }
+.am-door::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 60%, rgba(255, 240, 200, .5), transparent 70%); }
+@keyframes amDoor { 0%, 20% { transform: perspective(200px) rotateY(0); } 35%, 85% { transform: perspective(200px) rotateY(75deg); } 100% { transform: perspective(200px) rotateY(0); } }
+.am-kfig { position: absolute; left: 30%; bottom: 26%; width: 46px; animation: amFly 3.6s cubic-bezier(.4, .1, .4, 1) forwards; }
+@keyframes amFly { 0%, 35% { transform: translate(0, 0) rotate(0); } 42% { transform: translate(20px, -40px) rotate(60deg); } 62% { transform: translate(150px, -10px) rotate(340deg) scale(.7); opacity: 1; } 70%, 100% { transform: translate(190px, 0) rotate(360deg) scale(.4); opacity: 0; } }
+.am-boot { position: absolute; left: 4%; bottom: 24%; font-size: 46px; transform-origin: 20% 20%; animation: amBoot 3.6s ease forwards; }
+@keyframes amBoot { 0% { transform: translateX(-60px) rotate(-30deg); } 25% { transform: translateX(10px) rotate(-30deg); } 36% { transform: translateX(40px) rotate(25deg); } 55%, 100% { transform: translateX(-80px) rotate(-30deg); opacity: 0; } }
+.am-kpow { position: absolute; left: 33%; top: 18%; font-size: 26px; font-weight: 900; color: #ffd84d; text-shadow: 0 2px 0 #c81d38, 0 0 8px #000; opacity: 0; animation: amPow 3.6s ease forwards; }
+@keyframes amPow { 0%, 34% { opacity: 0; transform: scale(.4); } 40% { opacity: 1; transform: scale(1.3) rotate(-8deg); } 60% { opacity: 1; transform: scale(1); } 70%, 100% { opacity: 0; } }
+@media (orientation: landscape) and (max-height: 520px) { .am-btns .am-row2 { flex-direction: column; } .am-skill { width: 76px; height: 76px; } }
