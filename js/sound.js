@@ -288,3 +288,13 @@ export function sfxCard(delay = 0) {
   burst(t, 0.18, 'bandpass', 1800, 1.2, 0.18, 5200);
   burst(t + 0.17, 0.05, 'lowpass', 900, 0.8, 0.22);
 }
+// 깜짝 놀람 '뾰잉!' (겁쟁이 ‼)
+export function sfxAlert() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(1400, t + 0.12); o.frequency.exponentialRampToValueAtTime(900, t + 0.28);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+  o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.34);
+  tone(t + 0.05, 1760, 0.12, 'triangle', 0.08, sfxBus, 0.003);
+}

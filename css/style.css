@@ -2759,3 +2759,13 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .am-kfig { width: auto; bottom: 22%; }
 .am-kfig .ab { height: 96px; }
 .am-kstage { height: 140px; }
+/* 자객 마피아 v10.22: 겁쟁이 ‼ · 투표 결과 정사각형 */
+.am-scare { position: absolute; z-index: 9000; transform: translate(-50%, -120%); pointer-events: none; }
+.am-scare b { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #ffd84d; color: #c81d38; font-size: 28px; font-weight: 900; box-shadow: 0 0 0 3px #fff, 0 0 18px rgba(255, 216, 77, .9); animation: amScare .3s ease-in-out 5 alternate; }
+@keyframes amScare { from { transform: scale(.8) rotate(-8deg); } to { transform: scale(1.2) rotate(8deg); } }
+.am-vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; width: 100%; }
+.am-vsq { aspect-ratio: 1; display: grid; place-content: center; justify-items: center; gap: 0; padding: 4px; border-radius: 12px; background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 2px var(--pc); text-align: center; }
+.am-vsq b { max-width: 100%; font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.am-vsq strong { font-family: var(--logo); font-size: 26px; line-height: 1.1; color: #fff; }
+.am-vsq small { font-size: 10px; color: var(--muted); }
+.am-vsq.top { background: rgba(255, 216, 77, .16); box-shadow: inset 0 0 0 2.5px #ffd84d; } .am-vsq.top strong { color: #ffd84d; }

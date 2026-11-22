@@ -1,10 +1,10 @@
 // 예능: 자객 마피아 (6~8명) — 실시간 이동 + 암전 + 마피아 미션 + 시체발견 회의 투표
 // 차례·투표·점수 같은 "게임 상태"는 방 문서(sendMove)로, 캐릭터 위치는 실시간 채널(backend.live)로 주고받아요.
 import { GARNET } from '../profile.js';
-import { soundEvent } from '../sound.js';
+import { soundEvent, sfxAlert } from '../sound.js';
 import { personHtml, faceHtml } from './face.js';
 
-import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult, ROLES, MAFIA_SKILLS, MAFIA_BOOST, KICK_MS, REVIVE_MS, SIREN_MS, DASH, needLeft } from './assassin-core.js';
+import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult, ROLES, MAFIA_SKILLS, MAFIA_BOOST, KICK_MS, REVIVE_MS, SIREN_MS, SCARE_MS, needLeft } from './assassin-core.js';
 export { REWARDS, missionText } from './assassin-core.js';
 import { dealing } from './server-deal.js';
 
@@ -199,7 +199,7 @@ function surroundings(now) {
       const d = dist(mine, ctl.disp[u]);
       if (d >= MEET) return;
       if (touch('t:' + u)) out.slow = true;
-      out.icon = `✋ ${esc(players[u]?.name || '')}`; // 닿아 있는 동안만 서로 이름이 보여요
+      out.icon = '👋'; // 시민끼리는 이름 없이 인사만 (마피아에겐 이름이 보여요)
       if (!best || d < best.d) best = { u, d };
     });
     if (best) out.body = best.u; // 상호작용 → 서버가 쓰러진 사람인지 확인 (맞으면 시체발견!)
@@ -257,18 +257,14 @@ function skillInfo(state, me, now) {
   }
   const r = ROLES[role];
   const name = `${r.icon} ${r.name}`;
-  if (role === 'lawyer' || role === 'ma') return { name, label: role === 'ma' && used ? '반격 사용함' : '자동 능력', on: false };
-  if (used && role !== 'police') return { name, label: '사용함', on: false };
+  if (role === 'lawyer' || role === 'ma' || role === 'coward') return { name, label: role === 'ma' && used ? '반격 사용함' : '자동 능력', on: false };
+  if (used) return { name, label: '사용함', on: false };
   if (role === 'detective') return { name, label: state.phase === 'vote' ? '눌러서 쓰러진 순서 보기' : '투표 때 사용', on: state.phase === 'vote' && !state.dead[me] && !state.outs?.[me] };
   if (role === 'prophet') return { name, label: state.phase === 'vote' ? '아래 예언 칸에서 사용' : '투표 때 사용', on: false };
-  if (role === 'quick') return { name, label: '앞으로 대쉬!', on: going };
   const sur = surroundings(performance.now());
   const pr = state.probe && sur.body && state.probe.target === sur.body ? state.probe : null;
-  if (role === 'police') {
-    if (!pr) return { name, label: '마피아와 닿으면 자동 사이렌', on: false };
-    if (pr.mafia) return { name, label: '🚨 사이렌!', on: false };
-    return { name, label: '🔍 조사하기', on: going };
-  }
+  if (role === 'police') return { name, label: sur.body ? '🔍 닿은 사람 조사하기' : '누군가와 닿으면 조사 (1번)', on: going && !!sur.body };
+  if (role === 'coward') return { name, label: '마피아를 만나면 자동으로 도망', on: false };
   if (role === 'doctor') {
     if (state.revive?.by === me) return { name, label: '소생 중…', on: false };
     if (pr && pr.down) return { name, label: '🩺 살리기!', on: going };
@@ -287,15 +283,9 @@ function useSkill() {
   const fail = () => { if (ctl) ctl.shake2 = Date.now(); };
   if (role === 'mafia' && state.mskill === 'eye') return sendMove({ type: 'skill' }, { silent: true, onError: fail });
   if (role === 'detective') return sendMove({ type: 'skill' }, { onError: fail });
-  if (role === 'quick') {
-    const p = ctl.pos;
-    ctl.pos = { x: Math.max(R, Math.min(W - R, p.x + ctl.dir.x * DASH)), y: Math.max(R + 10, Math.min(H - R, p.y + ctl.dir.y * DASH)) };
-    ctl.dashAt = now;
-    return sendMove({ type: 'skill' }, { silent: true, onError: fail });
-  }
   const sur = surroundings(performance.now());
   if (!sur.body) return fail();
-  if (role === 'police') { showMsg(`🔍 ${ctl.ctx.players[sur.body]?.name || ''}님 · 마피아가 아니에요`); return; }
+  if (role === 'police') return sendMove({ type: 'skill', target: sur.body, near: true }, { silent: true, onError: fail });
   if (role === 'doctor') { ctl.reviveSent = 0; return sendMove({ type: 'skill', target: sur.body, near: true }, { silent: true, onError: () => { fail(); showMsg('쓰러진 사람이 아니에요'); } }); }
 }
 
@@ -335,11 +325,11 @@ function frame() {
   // 이동
   const sur = surroundings(t);
   // 경찰·의사: 누군가와 닿으면 자동으로 살펴봐요
-  if (['police', 'doctor'].includes(state.myRole) && sur.body && state.phase === 'hunt' && now >= (state.goAt || 0) && !state.dead[me] && !state.outs?.[me]) {
+  if (['doctor', 'coward'].includes(state.myRole) && sur.body && state.phase === 'hunt' && now >= (state.goAt || 0) && !state.dead[me] && !state.outs?.[me]) {
     const pk = sur.body;
     if (c.probeKey !== pk || now - c.probeAt > 2500) {
       c.probeKey = pk; c.probeAt = now;
-      sendMove({ type: 'probe', target: pk, x: Math.round(c.pos.x), y: Math.round(c.pos.y) }, { silent: true });
+      sendMove({ type: 'probe', target: pk, x: Math.round(c.pos.x), y: Math.round(c.pos.y), mx: Math.round(c.disp[pk]?.x || 0), my: Math.round(c.disp[pk]?.y || 0) }, { silent: true });
     }
   } else if (!sur.body) c.probeKey = '';
   if (iAmIn && c.pos && canMove(state, me, now)) {
@@ -444,6 +434,22 @@ function frame() {
     if (!c.sirenEl || !c.sirenEl.isConnected) { c.sirenEl = document.createElement('div'); c.sirenEl.className = 'am-siren'; c.sirenEl.innerHTML = '<i></i><b>🚨</b><small>경찰 위치!</small>'; $over.appendChild(c.sirenEl); }
     c.sirenEl.style.left = `${(sir.x / W) * 100}%`; c.sirenEl.style.top = `${(sir.y / H) * 100}%`; c.sirenEl.style.display = '';
   } else if (c.sirenEl) c.sirenEl.style.display = 'none';
+  // 겁쟁이 ‼ : 모두에게 보이고, 겁쟁이는 반대쪽으로 튕겨 나가요
+  const sc = state.scare && now - state.scare.at < SCARE_MS && state.phase === 'hunt' ? state.scare : null;
+  if (sc) {
+    if (c.scareSeen !== sc.at) {
+      c.scareSeen = sc.at;
+      if (now - sc.at < 1200) sfxAlert();
+      if (sc.uid === me && c.pos) {
+        const dx = c.pos.x - sc.fx, dy = c.pos.y - sc.fy, l = Math.hypot(dx, dy) || 1;
+        c.pos = { x: Math.max(R, Math.min(W - R, c.pos.x + (dx / l) * 260)), y: Math.max(R + 10, Math.min(H - R, c.pos.y + (dy / l) * 260)) };
+        c.dashAt = now;
+      }
+    }
+    if (!c.scareEl || !c.scareEl.isConnected) { c.scareEl = document.createElement('div'); c.scareEl.className = 'am-scare'; c.scareEl.innerHTML = '<b>‼</b>'; $over.appendChild(c.scareEl); }
+    c.scareEl.style.left = `${(sc.x / W) * 100}%`; c.scareEl.style.top = `${(sc.y / H) * 100}%`; c.scareEl.style.display = '';
+  } else if (c.scareEl) c.scareEl.style.display = 'none';
+
   // 투표로 쫓겨나는 연출 (새 창)
   if (state.kick && now - state.kick.at < KICK_MS && c.kickSeen !== state.kick.at) { c.kickSeen = state.kick.at; kickShow(state, players); }
 
@@ -468,7 +474,7 @@ function frame() {
     if (!center && state.revived && now - state.revived.at < 2500) center = '<b>💚 다시 살아났어요!</b><small>어둠 속에서 계속 피하세요</small>';
     if (!center && state.reaped && state.reaped.uid === me && state.dead[me]) center = '<b class="red">☠️ 사신에게 당했어요</b><small>이번 라운드는 움직일 수 없어요</small>';
     if (!center && state.counter && now - state.counter.at < 1500) center = state.counter.mafia === me ? '<b class="red">💪 반격당했어요!</b><small>1초 동안 움직일 수 없어요</small>' : state.counter.target === me ? '<b>💪 반격!</b><small>마피아를 밀쳐 내고 뒤로 물러났어요</small>' : '';
-    if (!center && state.policeHit && now - state.policeHit.at < 2500) center = state.policeHit.hit ? '<b class="red">🚨 마피아였어요!</b><small>사이렌이 울려 내 위치가 모두에게 보여요</small>' : '<b>🚨 마피아가 아니었어요</b>';
+    if (!center && state.policeHit && now - state.policeHit.at < 3000) center = state.policeHit.hit ? `<b class="red">🔍 ${esc(players[state.policeHit.target]?.name || '')}님은 마피아예요!</b><small>회의 때 모두에게 알려 주세요</small>` : `<b>🔍 ${esc(players[state.policeHit.target]?.name || '')}님은 마피아가 아니에요</b>`;
     if (!center && sir && !isMafia && now - sir.at < 2000) center = '<b class="red">🚨 사이렌!</b><small>경찰이 마피아를 마주쳤어요</small>';
     if (!center && state.dead[me]) center = '<b class="red">공격당했어요</b><small>움직일 수 없고 채팅도 할 수 없어요</small>';
   }
@@ -535,10 +541,12 @@ function kickShow(state, players) {
   o.className = 'am-kick';
   const i = state.order.indexOf(k.uid);
   const nm = esc(players[k.uid]?.name || '');
+  const t = k.tally || {};
+  const tallyHtml = `<div class="am-vgrid">${Object.keys(t).sort((a, b) => t[b] - t[a]).map((u) => `<div class="am-vsq ${u === k.uid ? 'top' : ''}" style="--pc:${COLORS[state.order.indexOf(u) % COLORS.length]}"><b>${esc(players[u]?.name || '')}</b><strong>${t[u]}</strong><small>표</small></div>`).join('')}</div>`;
   o.innerHTML = k.uid ? `<div class="am-kbox">
       <div class="am-kstage"><div class="am-door"><i></i></div><div class="am-kfig">${bodyHtml('cover', players[k.uid])}</div><div class="am-boot">🦶</div><span class="am-kpow">뻥!</span></div>
-      <b>${nm}님이 쫓겨났어요</b><small>${nm}님은 <em>시민</em>이었어요 · 마피아는 아직 숨어 있어요<br>곧 다시 불이 꺼져요!</small></div>`
-    : `<div class="am-kbox"><div class="am-kstage none">🤷</div><b>아무도 쫓겨나지 않았어요</b><small>${k.runoff ? '결선 투표도 동점이에요' : '최다 득표가 동점이거나 투표가 없었어요'}<br>곧 다시 불이 꺼져요!</small></div>`;
+      <b>${nm}님이 쫓겨났어요</b>${tallyHtml}<small>${nm}님은 <em>시민</em>이었어요 · 마피아는 아직 숨어 있어요<br>곧 다시 불이 꺼져요!</small></div>`
+    : `<div class="am-kbox"><div class="am-kstage none">🤷</div><b>아무도 쫓겨나지 않았어요</b>${tallyHtml}<small>${k.runoff ? '결선 투표도 동점이에요' : '최다 득표가 동점이거나 투표가 없었어요'}<br>곧 다시 불이 꺼져요!</small></div>`;
   document.body.appendChild(o);
   setTimeout(() => o.remove(), Math.max(800, KICK_MS - (Date.now() - k.at)));
 }
@@ -557,7 +565,7 @@ function paintPanel() {
   const role = ROLES[state.myRole];
   const midRound = ['hunt', 'vote'].includes(state.phase) && Date.now() >= state.mafiaAt + 1500;
   ctl.$('.am-mission').innerHTML = !midRound || !role ? '' : isMafia
-    ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}<span class="am-goal">남은 시민이 <b>${needLeft(state.order.length)}명</b> 이하가 되면 마피아 승리!</span>
+    ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}<span class="am-goal">공격으로 시민이 <b>2명</b> 이하가 되거나, 투표 뒤 <b>마피아 1 : 시민 1</b>이 되면 승리!</span>
        ${state.mskill ? `<span class="am-myskill">${MAFIA_SKILLS[state.mskill].icon} <b>${MAFIA_SKILLS[state.mskill].name}</b> · ${esc(MAFIA_SKILLS[state.mskill].desc)}${state.myUsed ? ' (사용함)' : ''}</span>`
          : `<div class="am-mpick"><small>스킬을 하나 고르세요 (라운드마다 1번)</small>${Object.entries(MAFIA_SKILLS).map(([k, v]) => `<button data-mskill="${k}"><b>${v.icon} ${v.name}</b><small>${esc(v.desc)}</small></button>`).join('')}</div>`}`
     : `${role.icon} <b>내 직업: ${role.name}</b> ${esc(role.desc)}${state.myUsed ? ' <em>(사용함)</em>' : ''}`;
@@ -572,12 +580,12 @@ function paintPanel() {
       <div class="am-res-t">ROUND ${L.round} 결과${L.runoff ? ' · ⚖️ 결선 투표' : ''}</div>
       <div class="am-reveal ${L.mafiaCaught ? 'caught' : 'escaped'}">
         <span class="am-mini">${personHtml(color(L.mafia), players[L.mafia])}</span>
-        <div><small>마피아는</small><b>${nm(L.mafia)}</b><em>${L.mafiaCaught ? '🚨 검거 성공!' : `🗡 마피아 승리 (남은 시민 ${needLeft(state.order.length)}명 이하)`}</em>${L.mskill ? `<small>스킬: ${MAFIA_SKILLS[L.mskill].icon} ${MAFIA_SKILLS[L.mskill].name}</small>` : ''}</div>
+        <div><small>마피아는</small><b>${nm(L.mafia)}</b><em>${L.mafiaCaught ? '🚨 검거 성공!' : '🗡 마피아 승리'}</em>${L.mskill ? `<small>스킬: ${MAFIA_SKILLS[L.mskill].icon} ${MAFIA_SKILLS[L.mskill].name}</small>` : ''}</div>
       </div>
       <div class="am-mis ${L.missionOk ? 'ok' : 'fail'}">🎯 미션: ${esc(mission)} → <b>${L.missionOk ? '성공' : '실패'}</b></div>
       ${L.roles ? `<div class="am-roles">${state.order.map((u) => `<span style="--pc:${color(u)}">${ROLES[L.roles[u]]?.icon || ''} ${nm(u)} <b>${ROLES[L.roles[u]]?.name || ''}</b>${(L.outs || []).includes(u) ? ' 🚪' : L.dead.includes(u) ? ' 💀' : ''}</span>`).join('')}</div>` : ''}
       ${L.guess ? `<div class="am-mis ${L.guess.ok ? 'ok' : 'fail'}">🔮 예언: ${nm(L.guess.target)}님 = ${ROLES[L.guess.role]?.name} → <b>${L.guess.ok ? '적중!' : '빗나감'}</b></div>` : ''}
-      <div class="am-tally">${order.map((u) => `<div style="--pc:${color(u)}"><span>${nm(u)}${L.dead.includes(u) ? ' 💀' : ''}</span><i style="width:${Math.min(100, (L.tally[u] || 0) * 25)}%"></i><b>${L.tally[u] || 0}표</b><small>${Object.entries(L.votes).filter(([, t]) => t === u).map(([v]) => nm(v)).join(', ')}</small></div>`).join('')}</div>
+      <div class="am-vgrid">${order.filter((u) => L.tally[u]).map((u) => `<div class="am-vsq ${u === L.caught ? 'top' : ''}" style="--pc:${color(u)}"><b>${nm(u)}</b><strong>${L.tally[u]}</strong><small>표</small></div>`).join('') || '<div class="am-tip sm">투표가 없었어요</div>'}</div>
       <div class="am-pts">${state.order.map((u) => {
         const items = L.breakdown[u] || [];
         const sum = items.reduce((a, [, p]) => a + p, 0);
@@ -662,11 +670,11 @@ export default {
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용(스페이스)·스킬(Ctrl) 버튼을 써요.',
     '모두 준비를 누르면 불이 꺼지고, 방장이 마피아 선택을 누르면 모두에게 직업이 몰래 정해져요. 마피아 1명은 비밀 미션을 받고 스킬 3개 중 하나를 골라요. 스킬은 라운드마다 1번만 쓸 수 있어요.',
     '마피아 스킬 — 👁 사륜안: 1초 동안 어둠이 걷혀 모두가 보여요 / ✨ 점멸자: 켜 두면 다음 공격 뒤 맵 정반대편으로 순간이동 / ☠️ 사신: 투표 때 이름을 제출해 한 사람을 쓰러뜨려요 (모두에게 알림, 당한 사람은 투표할 수 없고 그 라운드가 끝날 때까지 쓰러져 있어요). 마피아는 다른 사람보다 조금 더 빨라요.',
-    '시민 직업 — 🚨 경찰: 마피아와 닿으면 자동으로 사이렌이 울려 내 위치가 모두에게 보여요 (시민과 닿으면 조사 버튼으로 이름 확인) / 🩺 의사: 쓰러진 사람과 닿았을 때만 스킬이 켜지고, 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 / ⚡ 퀵실버: 앞으로 3칸 대쉬 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 1초 멈춤) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
-    '어둠 속에선 내 캐릭터만 보여요. 누군가와 닿아 있는 동안에만 서로의 이름이 보여요. 마피아는 마주친 순간 상호작용으로 공격! 쓰러진 사람은 움직이거나 채팅할 수 없어요.',
+    '시민 직업 — 🚨 경찰: 닿아 있는 사람을 조사해 마피아인지 알아내요 (1번) / 🩺 의사: 쓰러진 사람과 닿았을 때만 스킬이 켜지고, 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 / 😱 겁쟁이: 마피아와 마주치면 ‼ 표시가 모두에게 뜨고 반대쪽으로 튕겨 나가요 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 1초 멈춤) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
+    '어둠 속에선 내 캐릭터만 보여요. 누군가와 닿으면 👋 인사 표시만 떠요 (이름은 안 보여요, 마피아에겐 보여요). 마피아는 마주친 순간 상호작용으로 공격! 쓰러진 사람은 움직이거나 채팅할 수 없어요.',
     '누군가와 닿았을 때 상호작용을 눌러 살펴보세요. 쓰러진 사람이면 "시체발견!" — 모두 멈추고 불이 켜져 회의·투표를 해요 (3분). 3분 동안 아무도 못 찾으면 자동으로 회의가 열려요.',
     '투표에서 마피아를 뽑으면 라운드 끝(시민 승리). 시민을 뽑으면 그 사람만 문밖으로 쫓겨나고, 결과를 알려 준 뒤 바로 다시 불이 꺼져요. 동점이면 두 명으로 결선 투표, 또 동점이면 아무도 쫓겨나지 않아요.',
-    '마피아 승리: 쓰러지거나 쫓겨나지 않은 시민이 2명 이하가 되면 (7~8명일 때는 3명 이하).',
+    '마피아 승리: 공격으로 남은 시민이 2명 이하가 되거나, 투표 뒤 마피아 1 : 시민 1이 되면.',
     '마피아 미션: 정해진 2명만 공격 / 정해진 횟수 이상 공격 / 정해진 사람이 투표로 쫓겨나게 하기 중 하나.',
     '점수 — 마피아 검거: 마피아 −5, 시민 모두 +5 / 마피아 승리: 마피아 +5, 시민 모두 −5. 마피아 미션 성공 +3, 시민은 쓰러지거나 쫓겨나면 −1, 끝까지 살아남으면 +1. 직업 보너스(변호사·예언자) +5',
     '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
