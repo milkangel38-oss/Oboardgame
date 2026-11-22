@@ -102,7 +102,7 @@ export default {
   id: 'rummikub',
   name: '루미큐브',
   emoji: '🀄',
-  category: 'mini',
+  category: 'board',
   minPlayers: 2,
   maxPlayers: 4,
   duration: '15~30분',

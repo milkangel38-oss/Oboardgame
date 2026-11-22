@@ -1074,14 +1074,15 @@ function renderRoom(code) {
     // 접속 신호(seen)만 바뀐 경우에는 화면을 다시 그리지 않아요 (입력 중 깜빡임 방지)
     // (방 채팅 room.chat만 빼요 — 게임 안 채팅 room.game.chat은 바뀌면 다시 그려야 해요)
     const sig = JSON.stringify(room, function (k, v) { return k === 'seen' || (k === 'chat' && this === room) ? undefined : v; });
-    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); drawVoice(room, game); return; }
+    if (sig === lastSig && $main.querySelector('.room-head')) { drawRoomChat(room); drawIntro(room, game); drawVoice(room, game); drawEndModal(room, game); return; }
     lastSig = sig;
     drawRoom($main, room, game);
     drawIntro(room, game);
     drawVoice(room, game);
+    drawEndModal(room, game);
   });
 
-  return () => { closed = true; closeIntro(); closeVoice(); unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
+  return () => { closed = true; closeIntro(); closeVoice(); closeEndModal(); endModal.key = ''; unsub(); secretUnsub?.(); roomSecret = null; if (presence) clearInterval(presence); if (rtdbCheck) clearInterval(rtdbCheck); rp?.close(); stopGameBgm(); vol(); };
 }
 
 // ───────── 방 채팅 (이 방에 들어온 사람끼리만) ─────────
@@ -1192,6 +1193,73 @@ function paintVoice() {
 // ───────── 게임 방법 영상 (시작 전에 모두에게 한 번) ─────────
 // video/rules/{게임id}.mp4 가 있으면 영상, 없으면 규칙 설명을 한 장씩 넘겨 보여줘요
 const intro = { at: 0, $el: null, timer: 0, starting: 0, tick: 0, room: null, game: null };
+// ── 게임 종료 결과창: 끝나면 한 번 띄워 순위·승자·가넷을 정리해 보여 줘요 (모든 게임 공통) ──
+const endModal = { key: '', $el: null, timer: 0 };
+function closeEndModal() {
+  clearTimeout(endModal.timer); endModal.timer = 0;
+  endModal.$el?.remove(); endModal.$el = null;
+}
+function endRows(room) {
+  const r = room.result || {};
+  const nameOf = (uid) => room.players?.[uid]?.name || r.names?.[uid] || '나간 플레이어';
+  let rows = (r.ranking || []).map((x) => ({ ...x }));
+  if (!rows.length) {
+    const win = new Set(r.winners || []);
+    rows = Object.keys(room.players || {}).map((uid) => ({ uid, place: win.has(uid) ? 1 : 2 }));
+  }
+  rows.sort((a, b) => (Number(a.place) || 99) - (Number(b.place) || 99));
+  return rows.map((x) => ({ ...x, name: nameOf(x.uid), p: room.players?.[x.uid] || { uid: x.uid, name: nameOf(x.uid) }, garnets: r.rewards?.[x.uid] ?? x.garnets ?? 0 }));
+}
+function drawEndModal(room, game) {
+  const r = room.result;
+  const key = `${room.code}:${room.matchId || ''}:${room.gameId}`;
+  if (room.status !== 'finished' || !r || r.aborted || !room.players?.[user.uid]) { if (room.status !== 'finished') { closeEndModal(); endModal.key = ''; } return; }
+  if (endModal.key === key) return; // 이번 판은 이미 띄웠거나 닫았어요
+  endModal.key = key;
+  closeEndModal();
+  endModal.timer = setTimeout(() => { // 마지막 움직임을 잠깐 본 뒤에 떠요
+    endModal.timer = 0;
+    const rows = endRows(room);
+    const winners = r.winners?.length ? r.winners : rows.filter((x) => Number(x.place) === 1).map((x) => x.uid);
+    const team = game.teamGame || game.deathmatch;
+    const coop = game.coopGame;
+    const myReward = r.rewards?.[user.uid] || 0;
+    const head = r.draw ? '무승부!'
+      : coop ? (myReward >= 0 && winners.length ? '🎉 미션 성공!' : '😢 미션 실패')
+      : game.solo ? '게임 종료'
+      : winners.length ? `🏆 ${winners.map((u) => esc(rows.find((x) => x.uid === u)?.name || '?')).join(', ')} 승리!` : '게임 종료';
+    const iWon = winners.includes(user.uid);
+    const medal = (pl) => (pl === 1 ? '🥇' : pl === 2 ? '🥈' : pl === 3 ? '🥉' : `${pl}등`);
+    const showPlace = !team && !coop && (r.ranking || []).length;
+    const $o = document.createElement('div');
+    $o.className = 'end-ov';
+    $o.innerHTML = `<div class="end-box ${iWon ? 'won' : ''}" role="dialog" aria-modal="true" aria-label="경기 결과">
+      <div class="end-eyebrow">${game.emoji} ${esc(game.name)} · 경기 결과</div>
+      <h2 class="end-title">${head}</h2>
+      ${winners.length && !r.draw && !coop && !game.solo ? `<div class="end-champs">${winners.map((u) => { const x = rows.find((y) => y.uid === u); return `<div class="end-champ"><span class="end-crown">👑</span>${avatar(x?.p || { uid: u }, 'lg')}<b>${esc(x?.name || '?')}</b></div>`; }).join('')}</div>` : ''}
+      ${r.message ? `<p class="end-msg">${esc(r.message)}</p>` : ''}
+      <ol class="end-list">${rows.map((x) => `
+        <li class="${x.uid === user.uid ? 'me' : ''} ${winners.includes(x.uid) ? 'win' : ''}">
+          <span class="end-pl">${showPlace ? medal(Number(x.place) || 0) : team || coop ? (winners.includes(x.uid) ? 'WIN' : 'LOSE') : ''}</span>
+          ${avatar(x.p)}
+          <span class="end-nm">${esc(x.name)}${x.uid === user.uid ? ' <small>(나)</small>' : ''}</span>
+          <span class="end-sc">${x.score != null && x.score !== '' ? `${esc(x.score)}점` : ''}</span>
+          <span class="end-gn ${x.garnets < 0 ? 'minus' : ''}">${x.garnets && !game.solo ? `${GARNET}${x.garnets > 0 ? '+' : '−'}${Math.abs(x.garnets)}` : ''}</span>
+        </li>`).join('')}</ol>
+      <div class="end-btns">
+        <button class="btn ghost" data-eclose>결과 화면 보기</button>
+        ${room.hostId === user.uid ? '<button class="btn primary" data-ereset>새 게임 열기</button>' : ''}
+      </div>
+    </div>`;
+    document.body.appendChild($o);
+    endModal.$el = $o;
+    $o.querySelector('[data-eclose]').onclick = closeEndModal;
+    $o.onclick = (e) => { if (e.target === $o) closeEndModal(); };
+    const $rs = $o.querySelector('[data-ereset]');
+    if ($rs) $rs.onclick = () => { closeEndModal(); document.querySelector('[data-reset]')?.click(); };
+  }, 1400);
+}
+
 function closeIntro() {
   clearInterval(intro.timer); clearInterval(intro.tick);
   intro.$el?.remove();

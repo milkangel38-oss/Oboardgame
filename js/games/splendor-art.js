@@ -13,6 +13,8 @@ export const gemSvg = (c, cls = 'gem') => `<svg viewBox="0 0 40 40" class="${cls
 export const tokenSvg = (c) => `<svg viewBox="0 0 40 40" class="tok">${gemImg(c, 1, 1, 38)}</svg>`;
 
 // 카드 배경: 단계(1 생산 · 2 도시 · 3 궁정) × 보너스 보석 색마다 다른 그림 15장
-export const sceneSvg = (color, lv = 2) => `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice"><image href="img/splendor/bg-${lv}${color}.webp" width="50" height="70" preserveAspectRatio="xMidYMid slice"/></svg>`;
+// 같은 단계·보석은 그림이 2장 — 카드 id로 늘 같은 쪽을 골라요
+const bgVar = (id) => ([...String(id ?? '')].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0) % 2 ? '2' : '';
+export const sceneSvg = (color, lv = 2, id) => `<svg viewBox="0 0 50 70" class="spl-scene" preserveAspectRatio="xMidYMid slice"><image href="img/splendor/bg-${lv}${color}${bgVar(id)}.webp" width="50" height="70" preserveAspectRatio="xMidYMid slice"/></svg>`;
 
 export const portraitSvg = (i) => `<svg viewBox="0 0 60 60" class="spl-portrait" preserveAspectRatio="xMidYMin slice"><image href="img/splendor/noble-${i % 10}.webp" width="60" height="60"/></svg>`;

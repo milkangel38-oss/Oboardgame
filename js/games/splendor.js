@@ -5,6 +5,8 @@
 import { GARNET } from '../profile.js';
 import { showAlert } from '../alert.js';
 import { bigFlash } from './turn-alert.js';
+import { sfxToken, sfxCard } from '../sound.js';
+import { faceHtml } from './face.js';
 import { SPL_DEFS, gemSvg, tokenSvg, sceneSvg, portraitSvg } from './splendor-art.js';
 
 export const COLORS = ['w', 'u', 'g', 'r', 'k'];
@@ -313,7 +315,7 @@ export default {
       if (back) return `<span class="spl-card back lv${c.lv} sm" data-cid="${id}"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
       const can = !sm && mp && payFor(mp, c);
       return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} data-cid="${id}" style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
-        ${sceneSvg(c.bonus, c.lv)}
+        ${sceneSvg(c.bonus, c.lv, id)}
         <span class="spl-ch"><b>${c.pts || ''}</b>${gemSvg(c.bonus)}</span>
         <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i class="spl-cg ${!sm && myBonus && myBonus[x] ? 'has' : ''}">${gemSvg(x)}<b>${c.cost[x]}</b></i>`).join('')}</span>
       </${sm ? 'span' : 'button'}>`;
@@ -368,28 +370,44 @@ export default {
         <div class="spl-op-row"><span class="spl-op-t">예약 ${p.reserved.length}</span><div class="spl-res sm">${p.reserved.map((id) => cardHtml(id, { sm: true, back: !showHidden && (p.hidden || []).includes(id) })).join('')}</div></div>
       </div>`;
     };
+    // 가로 화면: 왼쪽 프로필 칸 (나 맨 위) — 프로필 · 점수 · 보석 보유 (+카드 보너스)
+    const sideOrder = isPlayer ? [me, ...state.order.slice(state.order.indexOf(me) + 1), ...state.order.slice(0, state.order.indexOf(me))] : state.order;
+    const side = `<aside class="spl-side">${sideOrder.map((u) => {
+      const p = state.ps[u], bn = bonusOf(p);
+      return `<div class="spl-sp ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}" data-su="${esc(u)}">
+        <div class="spl-sp-h">${faceHtml({ ...(players[u] || {}), uid: u })}<b>${name(u)}${u === me ? '<small>(나)</small>' : ''}</b><span class="spl-pts">${pointsOf(p)}<small>점</small></span></div>
+        <div class="spl-sp-g">${[...COLORS, 'gold'].map((c) => `<span class="spl-sg" ${u === me ? `data-sg="${c}"` : ''}>${tokenSvg(c)}<b>${p.tokens[c]}</b>${c !== 'gold' && bn[c] ? `<i>+${bn[c]}</i>` : ''}</span>`).join('')}</div>
+        ${p.nobles.length || p.reserved.length ? `<div class="spl-sp-x">${p.nobles.length ? `👑${p.nobles.length}` : ''} ${p.reserved.length ? `📌${p.reserved.length}` : ''}</div>` : ''}
+      </div>`;
+    }).join('')}</aside>`;
     const scoreboard = `<div class="spl-board">${state.order.map((u) => `<span class="${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}"><b>${name(u)}</b><i>${pointsOf(state.ps[u])}점</i></span>`).join('')}</div>`;
 
     el.innerHTML = `
       <div class="spl">
         ${SPL_DEFS}
+        ${guide()}
         ${state.finalRound ? '<div class="spl-final">🏁 누군가 15점에 닿았어요! 이번 바퀴가 마지막이에요</div>' : ''}
         ${scoreboard}
-        <div class="spl-nobles-wrap"><div class="spl-ntitle">👑 귀족 카드<small>보너스 조건을 채우면 +3점</small></div><div class="spl-nobles">${state.nobles.map(nobleHtml).join('')}</div></div>
-        <div class="spl-market">${[3, 2, 1].map((lv) => `
-          <div class="spl-lv">
-            <button class="spl-deck lv${lv}" data-deck="${lv}" title="덱 맨 위 카드 예약"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[lv - 1]}</b><small>${state.decks[lv].length}</small></button>
-            ${state.market[lv].map((id) => (id ? cardHtml(id) : '<span class="spl-card empty"></span>')).join('')}
-          </div>`).join('')}</div>
-        <div class="nb-banner">${banner}</div>
-        <section class="spl-zone bank-zone"><div class="spl-zone-t">💎 보석 가져오기 <small>모두가 함께 쓰는 보석</small></div>${bank}${action}</section>
+        <div class="spl-table">
+          ${side}
+          <div class="spl-center">
+            <div class="spl-nobles-wrap"><div class="spl-ntitle">👑 귀족 카드<small>보너스 조건을 채우면 +3점</small></div><div class="spl-nobles">${state.nobles.map(nobleHtml).join('')}</div></div>
+            <div class="spl-market">${[3, 2, 1].map((lv) => `
+              <div class="spl-lv">
+                <button class="spl-deck lv${lv}" data-deck="${lv}" title="덱 맨 위 카드 예약"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[lv - 1]}</b><small>${state.decks[lv].length}</small></button>
+                ${state.market[lv].map((id) => (id ? cardHtml(id) : '<span class="spl-card empty"></span>')).join('')}
+              </div>`).join('')}</div>
+            <div class="nb-banner">${banner}</div>
+          </div>
+          <section class="spl-zone bank-zone"><div class="spl-zone-t">💎 보석 가져오기 <small>모두가 함께 쓰는 보석</small></div>${bank}</section>
+        </div>
+        ${action ? `<div class="spl-actwrap">${action}</div>` : ''}
         ${isPlayer ? `<section class="spl-zone me-zone"><div class="spl-zone-t">🧑 내 자리 <span class="spl-pts big">${pointsOf(mp)}<small>점</small></span></div><div class="spl-me">
-          <div class="spl-me-h">💰 내 보석</div>
+          <div class="spl-me-h spl-mygems-h">💰 내 보석</div>
           ${myGems}
           ${mp.reserved.length ? `<div class="spl-me-h">📌 예약한 카드 <small class="muted">눌러서 사기</small></div><div class="spl-res">${mp.reserved.map((id) => cardHtml(id)).join('')}</div>` : ''}
         </div></section>` : ''}
         <section class="spl-zone all-zone"><div class="spl-zone-t">👥 다른 플레이어 <small>점수 · 보석 · 구매/예약 카드</small></div><div class="spl-ops">${state.order.filter((u) => u !== me).map(playerBox).join('')}</div></section>
-        ${guide()}
       </div>`;
 
     flyChanges(el, state, me, room?.code, cardHtml);
@@ -468,6 +486,9 @@ function captureRects(el) {
   el.querySelectorAll('[data-bk]').forEach((e) => put('b:' + e.dataset.bk, e.querySelector('svg') || e));
   el.querySelectorAll('[data-mg]').forEach((e) => put('g:' + e.dataset.mg, e.querySelector('svg') || e));
   el.querySelectorAll('[data-u]').forEach((e) => put('u:' + e.dataset.u, e.querySelector('.spl-op-h') || e));
+  // 가로 화면의 왼쪽 프로필 칸이 보이면 그쪽으로 날아가요 (안 보이면 width 0 이라 건너뜀)
+  el.querySelectorAll('.spl-side [data-su]').forEach((e) => put('u:' + e.dataset.su, e.querySelector('.spl-sp-h') || e));
+  el.querySelectorAll('.spl-side [data-sg]').forEach((e) => put('g:' + e.dataset.sg, e.querySelector('svg') || e));
   el.querySelectorAll('[data-nb]').forEach((e) => put('n:' + e.dataset.nb, e));
   el.querySelectorAll('[data-deck]').forEach((e) => put('d:' + e.dataset.deck, e));
   return r;
@@ -483,7 +504,7 @@ function flyChanges(el, state, me, code, cardHtml) {
   if (!old || old.code !== code) return;
   const rect = (k) => now[k] || prev[k];
   const center = (b) => b && { x: b.left + b.width / 2 - scrollX, y: b.top + b.height / 2 - scrollY };
-  const meZone = () => { const b = el.querySelector('.me-zone .spl-zone-t')?.getBoundingClientRect(); return b && { left: b.left + scrollX, top: b.top + scrollY, width: b.width, height: b.height }; };
+  const meZone = () => { const b = [el.querySelector('.spl-side .me .spl-sp-h'), el.querySelector('.me-zone .spl-zone-t')].map((e) => e?.getBoundingClientRect()).find((x) => x?.width); return b && { left: b.left + scrollX, top: b.top + scrollY, width: b.width, height: b.height }; };
   const destOf = (u, gem) => (u === me ? center(gem ? rect('g:' + gem) : meZone()) : center(rect('u:' + u)));
   let delay = 0;
   const go = (html, from, to, big = false) => {
@@ -501,6 +522,7 @@ function flyChanges(el, state, me, code, cardHtml) {
     ], { duration: 950, delay, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'both' });
     a.onfinish = () => f.remove();
     setTimeout(() => f.remove(), 2500 + delay);
+    if (big) sfxCard(delay / 1000); else sfxToken((delay + 820) / 1000); // 카드는 출발할 때 스윽, 보석은 도착할 때 딸깍
     delay += 110;
   };
   for (const u of Object.keys(state.ps)) {

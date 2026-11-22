@@ -255,3 +255,36 @@ export function soundEvent(roomCode, key, kind) {
   if (!primed.has(roomCode)) return;
   if (kind === 'ok') ding(); else buzz();
 }
+
+// ── 보드게임 효과음: 토큰 '딸깍' · 카드 '스윽' ──
+let sfxNoise = null;
+function noise() {
+  if (sfxNoise) return sfxNoise;
+  sfxNoise = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+  const d = sfxNoise.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return sfxNoise;
+}
+function burst(t, len, type, freq, q, vol, endFreq) {
+  const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  s.buffer = noise(); fl.type = type; fl.frequency.setValueAtTime(freq, t); fl.Q.value = q;
+  if (endFreq) fl.frequency.exponentialRampToValueAtTime(endFreq, t + len);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, len / 4)); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  s.connect(fl); fl.connect(g); g.connect(sfxBus); s.start(t); s.stop(t + len + 0.02);
+}
+// 보석 토큰(포커칩)이 맞부딪히는 소리. delay(초) 뒤에 나요
+export function sfxToken(delay = 0) {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01 + delay;
+  const p = 0.9 + Math.random() * 0.25;
+  burst(t, 0.035, 'bandpass', 3800 * p, 6, 0.35);
+  tone(t, 2300 * p, 0.05, 'triangle', 0.07, sfxBus, 0.002);
+  burst(t + 0.045, 0.03, 'bandpass', 3200 * p, 6, 0.2);
+}
+// 카드를 미끄러뜨려 내려놓는 소리
+export function sfxCard(delay = 0) {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01 + delay;
+  burst(t, 0.18, 'bandpass', 1800, 1.2, 0.18, 5200);
+  burst(t + 0.17, 0.05, 'lowpass', 900, 0.8, 0.22);
+}
