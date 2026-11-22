@@ -1,9 +1,10 @@
-// 미니게임: 루미큐브 (2~4명)
+// 보드게임: 루미큐브 (2~4명)
 // 타일 106개 (1~13 × 4색 × 2벌 + 조커 2), 각자 14개로 시작.
 // 같은 숫자·다른 색 3~4개(그룹) 또는 같은 색·연속 숫자 3개 이상(런)을 내려놓아요. 첫 등록은 내 타일로만 30점 이상.
 // 등록한 뒤에는 바닥의 타일도 자유롭게 옮겨 새 조합을 만들 수 있어요. 손 타일을 먼저 다 내려놓으면 승리!
 import { GARNET } from '../profile.js';
-import { soundEvent } from '../sound.js';
+import { soundEvent, sfxToken } from '../sound.js';
+import { faceHtml } from './face.js';
 import { turnAlert } from './turn-alert.js';
 
 export const COLORS = { r: { name: '빨강', hex: '#e0303e' }, b: { name: '파랑', hex: '#1f6fd6' }, y: { name: '주황', hex: '#e8961a' }, k: { name: '검정', hex: '#1e1e28' } };
@@ -109,6 +110,7 @@ export default {
   rewards: [4, 3, 2, 1],
   rewardLabel: '1등 최대 +4',
   description: '숫자 타일로 그룹과 런을 만들어 먼저 다 내려놓기!',
+  ownChat: true, // 전체 화면 안에 채팅창 · 프로필 말풍선이 있어요
   options: [{ key: 'turnSec', label: '턴 시간(초)', choices: [60, 90, 120, 180], default: 90 }],
   rules: [
     '타일은 1~13 숫자가 4색으로 2벌씩, 그리고 조커 2개예요. 각자 14개로 시작해요.',
@@ -138,6 +140,12 @@ export default {
       if (!s.deadline || now < s.deadline) throw new Error('__noop');
       const r = drawTile(s, s.turn, players, now, '시간이 다 되어 타일 1개를 가져갔어요');
       return r ? { state: s, result: r } : { state: s };
+    }
+    if (move?.type === 'chat') {
+      const text = String(move.text || '').trim().slice(0, 60);
+      if (!text || !s.order.includes(uid)) throw new Error('__noop');
+      s.chat = [...(s.chat || []).slice(-19), { u: uid, text, at: now }];
+      return { state: s };
     }
     if (uid !== s.turn) throw new Error('내 차례가 아니에요');
     if (move?.type === 'draw') {
@@ -224,14 +232,8 @@ export default {
     }
 
     const canTouch = (t) => myTurn && (fromRack(t) || melded);
-    el.innerHTML = `<div class="rk">
-      ${final}
-      <div class="rk-head"><span class="rk-turn ${myTurn ? 'me' : ''}">${finished || state.phase === 'done' ? '게임 끝' : myTurn ? '내 차례!' : `${name(state.turn)}님 차례`}</span>
-        ${state.deadline && !finished && state.phase === 'play' ? `<span class="rk-timer"><b data-left>${Math.ceil(left / 1000)}</b>초</span>` : ''}
-        <span class="rk-pool">더미 ${state.pool.length}개</span></div>
-      <div class="rk-players">${others}</div>
-      ${state.last ? `<div class="rk-last"><b>${name(state.last.u)}</b> ${esc(state.last.text)}</div>` : ''}
-      <div class="rk-table ${myTurn && ui.sel ? 'dropping' : ''}">
+    const done = finished || state.phase === 'done';
+    const tableHtml = `<div class="rk-table ${myTurn && ui.sel ? 'dropping' : ''}">
         ${T.map((g, gi) => {
           if (!g.length) return '';
           const a = analyze(g);
@@ -242,23 +244,87 @@ export default {
         }).join('')}
         ${myTurn ? `<button class="rk-newset ${ui.sel ? 'on' : ''}" data-newset>${ui.sel ? '＋ 새 조합으로' : '＋ 새 조합'}</button>` : ''}
         ${!T.some((g) => g.length) && !myTurn ? '<p class="hint">아직 바닥에 놓인 조합이 없어요</p>' : ''}
-      </div>
-      ${myTurn ? `<div class="rk-help">${ui.sel ? '👉 옮길 곳(조합이나 ＋ 새 조합, 또는 내 손)을 누르세요' : melded ? '타일을 눌러 고르고, 옮길 곳을 눌러요 · 바닥 타일도 옮길 수 있어요' : `첫 등록: 내 타일로 30점 이상! 지금 <b class="${meldPts >= FIRST ? 'ok' : ''}">${meldPts}점</b>`}</div>` : ''}
-      ${isPlayer ? `<div class="rk-rack ${myTurn && ui.sel && fromRack(ui.sel) && !R.includes(ui.sel) ? 'target' : ''}" data-rack>
-        <div class="rk-rack-h"><b>내 타일 ${R.length}개</b><span>${rackSum(R)}점</span>
-          <button class="rk-sort ${ui.sort !== 'num' ? 'on' : ''}" data-sort="color">색깔순</button><button class="rk-sort ${ui.sort === 'num' ? 'on' : ''}" data-sort="num">숫자순</button></div>
-        <div class="rk-tiles">${sorted.map((t) => tile(t, `${ui.sel === t ? 'sel' : ''} ${myTurn ? 'touch' : ''}`, myTurn ? `data-t="${t}"` : '')).join('')}</div>
-      </div>` : ''}
-      ${myTurn ? `<div class="rk-btns">
-        <button class="rk-b ghost" data-reset ${playedNow || JSON.stringify(ui.table) !== JSON.stringify(state.table) ? '' : 'disabled'}>↩ 되돌리기</button>
-        <button class="rk-b draw" data-draw>🀫 가져오고 넘기기</button>
-        <button class="rk-b go" data-commit ${playedNow && allOk && (melded || meldPts >= FIRST) ? '' : 'disabled'}>✔ 내려놓기 완료</button>
-      </div>` : ''}
+      </div>`;
+    const helpHtml = myTurn ? `<div class="rk-help">${ui.sel ? '👉 옮길 곳(조합이나 ＋ 새 조합, 또는 내 받침대)을 누르세요' : melded ? '타일을 눌러 고르고, 옮길 곳을 눌러요 · 바닥 타일도 옮길 수 있어요' : `첫 등록: 내 타일로 30점 이상! 지금 <b class="${meldPts >= FIRST ? 'ok' : ''}">${meldPts}점</b>`}</div>` : '';
+
+    let root = el;
+    if (done) {
+      closeFull();
+      el.innerHTML = `<div class="rk">
+      ${final}
+      ${tableHtml}
     </div>`;
+    } else {
+      // ── 전체 화면: 왼쪽 프로필(나 맨 아래) · 가운데 바닥 · 아래 받침대 · 오른쪽 아래 더미 · 맨 아래 채팅 ──
+      const dealing = dealState(room, state, me);
+      const now = Date.now();
+      const bubbles = {};
+      (state.chat || []).forEach((m) => { if (now - m.at < 6000) bubbles[m.u] = m; });
+      const seatOrder = isPlayer ? [...state.order.filter((u) => u !== me), me] : state.order;
+      const profile = (u) => {
+        const m = bubbles[u];
+        const cnt = dealing ? dealing.countOf(u, now) : state.racks[u].length;
+        return `<div class="rk-pf ${state.turn === u ? 'turn' : ''} ${u === me ? 'me' : ''}" data-pu="${esc(u)}">
+          <span class="rk-pf-av">${faceHtml({ ...(players[u] || {}), uid: u })}${state.melded[u] ? '<i class="rk-pf-star" title="첫 등록 완료">★</i>' : ''}</span>
+          <b class="rk-pf-nm">${name(u)}</b>
+          <span class="rk-pf-n">🀫 <span data-pc="${esc(u)}">${cnt}</span></span>
+          ${m ? `<span class="rk-bub" style="animation-delay:-${now - m.at}ms">${esc(m.text)}</span>` : ''}
+        </div>`;
+      };
+      const poolShown = dealing ? dealing.poolAt(now) : state.pool.length;
+      root = openFull(el);
+      el.innerHTML = '<div class="rk-ph"></div>';
+      root.innerHTML = `<div class="rk rk-full ${myTurn ? 'myturn' : ''}">
+        <div class="rk-top">
+          <button class="rk-x" data-rkleave aria-label="나가기">✕</button>
+          <span class="rk-turn ${myTurn ? 'me' : ''}">${myTurn ? '내 차례!' : `${name(state.turn)}님 차례`}</span>
+          ${state.deadline ? `<span class="rk-timer"><b data-left>${Math.ceil(left / 1000)}</b>초</span>` : ''}
+        </div>
+        <aside class="rk-side">${seatOrder.map(profile).join('')}</aside>
+        <div class="rk-mid">
+          ${state.last ? `<div class="rk-last"><b>${name(state.last.u)}</b> ${esc(state.last.text)}</div>` : ''}
+          ${tableHtml}
+        </div>
+        <div class="rk-ctl">
+          ${helpHtml}
+          ${myTurn ? `<div class="rk-btns">
+            <button class="rk-b ghost" data-reset ${playedNow || JSON.stringify(ui.table) !== JSON.stringify(state.table) ? '' : 'disabled'}>↩ 되돌리기</button>
+            <button class="rk-b go" data-commit ${playedNow && allOk && (melded || meldPts >= FIRST) ? '' : 'disabled'}>✔ 내려놓기 완료</button>
+          </div>` : ''}
+        </div>
+        ${isPlayer ? `<div class="rk-stand ${myTurn && ui.sel && fromRack(ui.sel) && !R.includes(ui.sel) ? 'target' : ''}" data-rack>
+          <div class="rk-shelf">${sorted.map((t) => tile(t, `${ui.sel === t ? 'sel' : ''} ${myTurn ? 'touch' : ''} ${dealing && !dealing.landed(t, now) ? 'deal-hide' : ''}`, `data-rt="${t}" ${myTurn ? `data-t="${t}"` : ''}`)).join('')}</div>
+        </div>` : '<div class="rk-stand empty"></div>'}
+        <div class="rk-right">
+          <button class="rk-sortb ${ui.sort !== 'num' ? 'on' : ''}" data-sort="color" title="색깔별 · 숫자순 정렬">789</button>
+          <button class="rk-sortb ${ui.sort === 'num' ? 'on' : ''}" data-sort="num" title="같은 숫자끼리 정렬">777</button>
+          <button class="rk-pool2" data-draw ${myTurn ? '' : 'disabled'} title="더미에서 1개 가져오고 차례 넘기기">
+            <span class="rk-pool-stack"><i></i><i></i><i></i></span><b data-pool>${poolShown}</b><small>${myTurn ? '가져오기' : '남은 타일'}</small>
+          </button>
+        </div>
+        ${isPlayer ? `<form class="rk-chat"><input maxlength="60" placeholder="채팅 입력 (내 프로필에 말풍선으로 떠요)" autocomplete="off"><button class="btn sm primary">💬</button></form>` : ''}
+      </div>`;
+      if (dealing) dealing.run(root, tile);
+      const $f = root.querySelector('.rk-chat');
+      if ($f) {
+        const $in = $f.querySelector('input');
+        $in.value = chatUi.draft;
+        $in.oninput = () => (chatUi.draft = $in.value);
+        $in.onfocus = () => (chatUi.focus = true);
+        $in.onblur = () => setTimeout(() => { if ($in.isConnected) chatUi.focus = false; }, 0);
+        if (chatUi.focus) $in.focus();
+        $f.onsubmit = (e) => { e.preventDefault(); const text = $in.value.trim(); if (!text) return; chatUi.draft = ''; $in.value = ''; sendMove({ type: 'chat', text }, { silent: true }); };
+      }
+      root.querySelector('[data-rkleave]')?.addEventListener('click', () => document.querySelector('[data-leave]')?.click());
+      // 말풍선은 6초 뒤 사라지게 다시 그리기
+      const nextBub = Object.values(bubbles).map((m) => m.at + 6000 - now).filter((x) => x > 0);
+      clearTimeout(bubTimer);
+      if (nextBub.length) bubTimer = setTimeout(() => { if (el.isConnected) this.render(el, { state, me, players, finished, sendMove, room }); }, Math.min(...nextBub) + 50);
+    }
 
     const rerender = () => this.render(el, { state, me, players, finished, sendMove, room });
     const removeTile = (t) => { ui.rack = ui.rack.filter((x) => x !== t); ui.table = ui.table.map((g) => g.filter((x) => x !== t)); };
-    el.querySelectorAll('[data-t]').forEach((b) => (b.onclick = (e) => {
+    root.querySelectorAll('[data-t]').forEach((b) => (b.onclick = (e) => {
       e.stopPropagation();
       const t = b.dataset.t;
       // 고른 게 있고 다른 조합의 타일을 누르면 → 그 조합으로 옮기기
@@ -269,29 +335,29 @@ export default {
       ui.sel = ui.sel === t ? null : t;
       rerender();
     }));
-    el.querySelectorAll('[data-set]').forEach((d) => (d.onclick = () => {
+    root.querySelectorAll('[data-set]').forEach((d) => (d.onclick = () => {
       if (!ui.sel) return;
       const s0 = ui.sel; const gi = Number(d.dataset.set);
       removeTile(s0); ui.table[gi].push(s0); ui.sel = null; ui.table = ui.table.filter((g) => g.length); rerender();
     }));
-    el.querySelector('[data-newset]')?.addEventListener('click', () => { if (!ui.sel) return; const s0 = ui.sel; removeTile(s0); ui.table = ui.table.filter((g) => g.length); ui.table.push([s0]); ui.sel = null; rerender(); });
-    el.querySelector('[data-rack]')?.addEventListener('click', () => {
+    root.querySelector('[data-newset]')?.addEventListener('click', () => { if (!ui.sel) return; const s0 = ui.sel; removeTile(s0); ui.table = ui.table.filter((g) => g.length); ui.table.push([s0]); ui.sel = null; rerender(); });
+    root.querySelector('[data-rack]')?.addEventListener('click', () => {
       if (!ui.sel || !myTurn) return;
       if (!fromRack(ui.sel)) { ui.sel = null; return rerender(); } // 바닥 타일은 손으로 못 가져와요
       const s0 = ui.sel; removeTile(s0); ui.rack.push(s0); ui.table = ui.table.filter((g) => g.length); ui.sel = null; rerender();
     });
-    el.querySelectorAll('[data-sort]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.sort = b.dataset.sort; rerender(); }));
-    el.querySelector('[data-reset]')?.addEventListener('click', () => { ui.table = state.table.map((g) => [...g]); ui.rack = [...mineAtStart]; ui.sel = null; rerender(); });
-    el.querySelector('[data-draw]')?.addEventListener('click', () => { ui.key = ''; sendMove({ type: 'draw' }); });
-    el.querySelector('[data-commit]')?.addEventListener('click', () => sendMove({ type: 'commit', table: ui.table.filter((g) => g.length), rack: ui.rack }));
+    root.querySelectorAll('[data-sort]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); ui.sort = b.dataset.sort; rerender(); }));
+    root.querySelector('[data-reset]')?.addEventListener('click', () => { ui.table = state.table.map((g) => [...g]); ui.rack = [...mineAtStart]; ui.sel = null; rerender(); });
+    root.querySelector('[data-draw]')?.addEventListener('click', () => { if (!myTurn) return; ui.key = ''; sendMove({ type: 'draw' }); });
+    root.querySelector('[data-commit]')?.addEventListener('click', () => sendMove({ type: 'commit', table: ui.table.filter((g) => g.length), rack: ui.rack }));
 
     // 턴 시간
     if (state.deadline && state.phase === 'play' && !finished) {
-      const $l = el.querySelector('[data-left]');
+      const $l = root.querySelector('[data-left]');
       const myIndex = Math.max(0, state.order.indexOf(me));
       let lastTick = 0;
       const iv = setInterval(() => {
-        if (!el.isConnected) return clearInterval(iv);
+        if (!el.isConnected || !root.isConnected) return clearInterval(iv);
         const l = Math.max(0, state.deadline - Date.now());
         if ($l) { $l.textContent = Math.ceil(l / 1000); $l.parentElement.classList.toggle('hurry', l <= 10000); }
         const n = Date.now();
@@ -301,3 +367,78 @@ export default {
   },
 };
 const ui = { key: '', table: [], rack: [], sel: null, sort: 'color' };
+const chatUi = { draft: '', focus: false };
+let bubTimer = 0;
+
+// 전체 화면은 body 바로 아래에 붙여요 (부모 상자의 transform 등에 갇히지 않게).
+// 게임 칸(el)이 화면에서 사라지면 같이 치우고, 음량·음성 버튼도 원래 자리로.
+const full = { $: null, owner: null, timer: 0 };
+function openFull(owner) {
+  if (!full.$ || !full.$.isConnected) { full.$ = document.createElement('div'); full.$.className = 'rk-portal'; document.body.appendChild(full.$); }
+  full.owner = owner;
+  document.documentElement.classList.add('rk-on');
+  if (!full.timer) full.timer = setInterval(() => { if (!full.owner?.isConnected) closeFull(); }, 500);
+  return full.$;
+}
+function closeFull() {
+  full.$?.remove(); full.$ = null; full.owner = null;
+  clearInterval(full.timer); full.timer = 0;
+  document.documentElement.classList.remove('rk-on');
+}
+
+// ── 시작할 때 더미에서 타일을 한 개씩 나눠 주는 모션 ──
+const DEAL_STEP = 70, DEAL_FLY = 430, DEAL_WAIT = 400;
+const deal = { key: '', t0: 0, plan: [], launched: new Set() };
+function dealState(room, state, me) {
+  const key = `${room?.code}:${room?.startedAt}`;
+  const fresh = room?.startedAt && Date.now() - room.startedAt < 15000 && state.turnNo === 1 && !state.table.length;
+  if (deal.key !== key) {
+    if (!fresh) return null;
+    const plan = [];
+    for (let k = 0; k < START; k++) state.order.forEach((u) => plan.push({ u, t: u === me ? state.racks[me]?.[k] : null }));
+    Object.assign(deal, { key, t0: Date.now() + DEAL_WAIT, plan, launched: new Set() });
+  }
+  const landAt = (i) => deal.t0 + i * DEAL_STEP + DEAL_FLY;
+  if (Date.now() > landAt(deal.plan.length - 1) + 100) return null; // 다 끝났어요
+  const total = state.pool.length + deal.plan.length;
+  return {
+    landed: (t, now) => { const i = deal.plan.findIndex((p) => p.t === t); return i < 0 || now >= landAt(i); },
+    countOf: (u, now) => deal.plan.filter((p, i) => p.u === u && now >= landAt(i)).length,
+    poolAt: (now) => total - deal.plan.filter((_, i) => now >= deal.t0 + i * DEAL_STEP).length,
+    run: (el, tileHtml) => {
+      deal.plan.forEach((p, i) => {
+        if (deal.launched.has(i)) return;
+        deal.launched.add(i);
+        setTimeout(() => {
+          const root = document.querySelector('.rk-full');
+          if (!root) return;
+          const $pool = root.querySelector('[data-pool]');
+          if ($pool) $pool.textContent = total - i - 1;
+          const src = root.querySelector('.rk-pool-stack')?.getBoundingClientRect();
+          const dstEl = p.t ? root.querySelector(`[data-rt="${p.t}"]`) : root.querySelector(`[data-pu="${CSS.escape(p.u)}"] .rk-pf-av`);
+          const dst = dstEl?.getBoundingClientRect();
+          const land = () => {
+            const r2 = document.querySelector('.rk-full');
+            if (p.t) r2?.querySelector(`[data-rt="${p.t}"]`)?.classList.remove('deal-hide');
+            const $c = r2?.querySelector(`[data-pc="${CSS.escape(p.u)}"]`);
+            if ($c) $c.textContent = deal.plan.filter((q, j) => q.u === p.u && j <= i).length;
+          };
+          if (!src || !dst) return land();
+          const f = document.createElement('div');
+          f.className = 'rk-fly';
+          f.innerHTML = p.t ? tileHtml(p.t) : '<span class="rk-tile back"></span>';
+          f.style.left = src.left + src.width / 2 + 'px'; f.style.top = src.top + src.height / 2 + 'px';
+          document.body.appendChild(f);
+          const dx = dst.left + dst.width / 2 - (src.left + src.width / 2), dy = dst.top + dst.height / 2 - (src.top + src.height / 2);
+          const a = f.animate([
+            { transform: 'translate(-50%,-50%) scale(.8) rotate(-12deg)' },
+            { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(${p.t ? 1 : 0.6}) rotate(0deg)` },
+          ], { duration: DEAL_FLY, easing: 'cubic-bezier(.3,.7,.4,1)', fill: 'forwards' });
+          const end = () => { f.remove(); land(); if (p.t) sfxToken(); };
+          a.onfinish = end;
+          setTimeout(() => f.isConnected && end(), DEAL_FLY + 300);
+        }, Math.max(0, deal.t0 + i * DEAL_STEP - Date.now()));
+      });
+    },
+  };
+}
