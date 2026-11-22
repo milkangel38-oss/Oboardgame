@@ -6,7 +6,9 @@
 // - 베팅: 모두 기본 1개, 선부터 차례로 포기 또는 1~3개 베팅 → 끝나면 모두 가장 큰 베팅에 맞춰 칩 추가
 // - 승부: 베팅한 사람 카드 공개 → 가장 낮은 카드부터 가장 높은 시드를 차례로 더함 → 합이 가장 큰 사람이 판돈 획득
 // - 10라운드 후 칩 순위로 가넷 1등 3, 2등 2, 3등 1
-import { turnAlert } from './turn-alert.js';
+import { turnAlert, bigFlash } from './turn-alert.js';
+let firstShown = '';
+const spChat = { draft: '', focus: false };
 import { GARNET } from '../profile.js';
 import { personHtml } from './face.js';
 
@@ -194,7 +196,10 @@ function carryNotice(key, { why, n }) {
 export const minBet = (state) => Math.max(1, ...Object.values(state.bets || {}).filter((b) => typeof b === 'number'));
 
 // 카드: 숫자만큼 가넷 (11~15는 큰 가넷 + 작은 가넷 n-11개)
-const GEM = GARNET.replace('class="garnet"', '');
+// 카드 위 가넷은 검정색
+const GEM = GARNET.replace('class="garnet"', '')
+  .replace('#ff7d8e', '#6b6b76').replace('#d01c3b', '#2b2b33').replace('#86091f', '#0b0b0f').replace('#ffb3bd', '#a4a4b0')
+  .replace('#e8394f', '#3c3c46').replace('#5e0515', '#000').replace('#ffd0d6', '#cfcfd8').replace('#ff9aa8', '#8a8a94');
 const SP_PIPS = {
   1: [[25, 35]], 2: [[25, 20], [25, 50]], 3: [[25, 18], [25, 35], [25, 52]],
   4: [[17, 20], [33, 20], [17, 50], [33, 50]], 5: [[17, 20], [33, 20], [25, 35], [17, 50], [33, 50]],
@@ -210,9 +215,10 @@ function faceSvg(n) {
   let mid;
   if (n <= 10) mid = SP_PIPS[n].map(([x, y]) => gem(x, y, n >= 7 ? 9 : 10)).join('');
   else mid = gem(25, 35, 19) + SMALL_AROUND.slice(0, n - 11).map(([x, y]) => gem(x, y, 8)).join('');
-  const corner = `<text x="5.5" y="10" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${n > 9 ? 7.2 : 8.5}" letter-spacing="${n > 9 ? -0.5 : 0}" fill="#8a1028">${n}</text>`;
+  const corner = `<text x="5.5" y="10" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="${n > 9 ? 7.2 : 8.5}" letter-spacing="${n > 9 ? -0.5 : 0}" fill="#15151a">${n}</text>`;
   return `<svg viewBox="0 0 50 70" class="sp-face">${mid}${corner}<g transform="rotate(180 25 35)">${corner}</g></svg>`;
 }
+const TRASH_ICON = `<svg class="sp-trash" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h4v2H4V5h4z" fill="#cfd3dc"/><path d="M5.5 8h13l-1.2 12.2A2 2 0 0 1 15.3 22H8.7a2 2 0 0 1-2-1.8z" fill="#9aa1ae"/><path d="M9.5 11v8M12 11v8M14.5 11v8" stroke="#5c6370" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 export const cardHtml = (n, cls = '') => `<span class="sp-card ${cls} ${n == null ? 'back' : ''}">${n == null ? '' : faceSvg(n)}</span>`;
 
 export default {
@@ -344,6 +350,11 @@ export default {
     const turnUid = state.turnIdx >= 0 ? state.turnOrder[state.turnIdx] : null;
     const myTurn = turnUid === me;
     turnAlert(room?.code, `sp:${state.round}:${state.phase}:${state.turnIdx}:${JSON.stringify(state.actions || {})}:${JSON.stringify(state.bets || {})}`, myTurn && !finished && ['action', 'bet'].includes(state.phase));
+    // 게임을 처음 시작하면 기다리는 사람들에게 'OOO님 차례'를 1초 보여 줘요
+    if (!finished && room && state.round === 1 && state.phase === 'action' && state.turnIdx === 0 && turnUid && !myTurn) {
+      const k = `${room.code}:${room.startedAt}`;
+      if (firstShown !== k) { firstShown = k; bigFlash(`<div class="spl-myturn" style="font-size:26px">${esc(players[turnUid]?.name || '')}님 차례</div>`, 1000, 'sp-first'); }
+    }
     const myCard = state.hands?.[me];
     const pendingMine = state.pending && state.pending.uid === me;
     const last = state.last;
@@ -419,17 +430,18 @@ export default {
         ${seatsHtml}
         <div class="sp-felt">
           <div class="sp-seeds">
-            <span class="sp-label">시드</span>
+            <span class="sp-label">시드카드</span>
             ${state.seeds.map((n) => cardHtml(n, 'seed')).join('')}
           </div>
           <div class="sp-pot">${state.phase === 'bet' ? `판돈 <i class="sp-coin"></i><b>${state.pot}</b>` : state.carry ? `이월 <i class="sp-coin"></i>${state.carry}` : ''} <small>더미 ${state.deck.length}장${trash ? ` · 🗑️ 휴지통 ${trash}장` : ''}</small></div>
-          ${discards.length ? `<div class="sp-seen"><span class="sp-label">버린 카드</span>${discards.map((t) => `
-            <span class="sp-dis"><small>${name(t.by)}</small>${cardHtml(t.card, 'open')}</span>`).join('')}</div>` : ''}
+          ${discards.length ? `<div class="sp-seen"><span class="sp-label">${TRASH_ICON}버린 카드</span>${discards.map((t) => `
+            <span class="sp-dis"><small>${name(t.by)}</small>${cardHtml(t.card, 'open')}<i class="sp-dx">✕</i></span>`).join('')}</div>` : ''}
         </div>
         </div>
 
         <div class="nb-banner">${banner}</div>
 
+        ${isPlayer ? `<form class="sp-chat"><input maxlength="60" placeholder="💬 채팅 (내 캐릭터 말풍선으로 떠요)" autocomplete="off" enterkeyhint="send"><button class="btn sm primary">전송</button></form>` : ''}
         ${isPlayer && state.phase !== 'reveal' ? `
           <div class="sp-mine">
             <div class="sp-mcol">
@@ -476,6 +488,26 @@ export default {
       : { why: `${last.winners.length}명이 동점이라 판돈 ${last.pot}개를 똑같이 나누고 남은 칩이에요`, n: last.carry });
 
     flyEffects(el, state, room?.code);
+
+    // 채팅: 방 채팅으로 보내면 자리 캐릭터 위에 말풍선으로 떠요
+    const $cf = el.querySelector('.sp-chat');
+    if ($cf) {
+      const $in = $cf.querySelector('input');
+      $in.value = spChat.draft;
+      $in.oninput = () => (spChat.draft = $in.value);
+      $in.onfocus = () => (spChat.focus = true);
+      $in.onblur = () => setTimeout(() => { if ($in.isConnected) spChat.focus = false; }, 0);
+      if (spChat.focus) $in.focus({ preventScroll: true });
+      $cf.onsubmit = (e) => {
+        e.preventDefault();
+        const text = $in.value.trim();
+        const $g = document.querySelector('.gchat');
+        if (!text || !$g) return;
+        $g.querySelector('input').value = text;
+        $g.requestSubmit();
+        spChat.draft = ''; $in.value = '';
+      };
+    }
 
     el.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => sendMove({ type: b.dataset.act })));
     el.querySelectorAll('[data-keep]').forEach((b) => (b.onclick = () => sendMove({ type: 'keep', keep: b.dataset.keep })));

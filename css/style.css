@@ -2646,3 +2646,20 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 /* 게임 화면 위 방장 도구(다시하기) */
 .stage-tools { display: flex; justify-content: flex-end; margin-bottom: -6px; }
 .stage-tools .btn { padding: 5px 12px; font-size: 12.5px; }
+
+/* 시드포커 v10.19: 시드카드·버린 카드 크게, 휴지통 아이콘, 버린 카드에 빨간 ✕, 채팅 */
+.sp-table .sp-label { font-size: 13px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.sp-trash { width: 18px; height: 18px; flex: none; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.sp-table .sp-card.seed { width: 58px; height: 81px; }
+.sp-table .sp-card.open:not(.seat) { width: 46px; height: 64px; opacity: 1; }
+.sp-table .sp-dis { position: relative; }
+.sp-table .sp-dis small { font-size: 11px; max-width: 60px; }
+.sp-dx { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: #e8213f; color: #fff; font-style: normal; font-size: 10px; font-weight: 900; line-height: 1; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .5); }
+@media (min-width: 560px) {
+  .sp-table .sp-card.seed { width: 70px; height: 98px; }
+  .sp-table .sp-card.open:not(.seat) { width: 56px; height: 78px; }
+  .sp-table .sp-label { font-size: 14px; }
+}
+.sp-chat { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.sp-chat input { padding: 9px 12px; font-size: 14px; border-radius: 12px; }
+.sp-chat .btn { border-radius: 12px; }
