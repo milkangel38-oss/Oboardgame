@@ -2509,3 +2509,75 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .rv-cnt { font-size: 12.5px; color: var(--muted); } .rv-cnt b { color: #ffe27a; }
 .rv-btns { display: flex; gap: 8px; justify-content: center; }
 .rv-btns .btn { min-width: 100px; }
+
+/* 증권시장: 정보교환소 표지가 깜빡일 때 제자리에서 (위치가 튀지 않게) */
+@keyframes sxPulse { 50% { transform: translate(-50%, -50%) scale(.94); } }
+.sx-xc.mine { animation: sxPulse .9s ease-in-out infinite; }
+.sx-xc-in { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+/* 거래소 · 정보교환소 안 글자: 진한 검은색 */
+.sx-exch, .sx-exch .sx-ex-foot, .sx-exch .sx-ex-foot span, .sx-exch .sx-ex-stay { color: #111; }
+.sx-exch .sx-ex-foot { font-size: 13.5px; font-weight: 700; }
+.sx-exch .sx-ex-foot b { color: #000; font-weight: 900; }
+.sx-exch .sx-ex-leave { background: #1a1a1a; color: #fff; box-shadow: 0 2px 0 #000; }
+.sx-exch .sx-ex-clock { color: #222; }
+.sx-exch .sx-xc-guide { background: rgba(47, 107, 79, .14); color: #111; }
+.sx-exch .sx-xc-chat { background: rgba(178, 107, 255, .1); color: #111; }
+.sx-exch .sx-xc-chat-t, .sx-exch .sx-xc-log p { color: #111; }
+.sx-exch .sx-xc-chat-t small, .sx-exch small { color: #333; }
+.sx-exch .sx-xc-log span { background: rgba(0, 0, 0, .08); color: #111; }
+.sx-exch .sx-xc-log div.me span { background: #7b3fd0; color: #fff; }
+.sx-exch .sx-ex-head b { color: #3a2400; }
+
+/* ───────── 모든 게임: 휴대폰 가로 화면 — 프로필은 맨 왼쪽 세로 한 줄, 나머지는 오른쪽 ───────── */
+@media (orientation: landscape) and (max-height: 520px) {
+  .room-head { align-items: center; gap: 8px; }
+  .room-head .eyebrow { font-size: 11.5px; }
+  .room-head .room-code { font-size: 17px; }
+  .room-head .btn { padding: 6px 12px; font-size: 13px; }
+  .room-body { grid-template-columns: 112px minmax(0, 1fr); gap: 10px; }
+  .room-body > .players { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 70px; max-height: calc(100dvh - 84px); overflow-y: auto; overflow-x: visible; padding: 8px 6px; }
+  .room-body > :not(.players) { grid-column: 2; min-width: 0; }
+  .players h3 { font-size: 13px; margin-bottom: 6px; flex-direction: column; align-items: center; gap: 0; }
+  .seats, .players.ingame .seats { grid-template-columns: 1fr; gap: 8px; padding-top: 0; }
+  .seat .avatar { width: 40px; height: 40px; font-size: 16px; }
+  .seat-name { font-size: 11px; }
+  /* 말풍선은 프로필 오른쪽으로 */
+  .room-body > .players { overflow: visible; }
+  .seat-bubble { left: calc(50% + 26px); bottom: auto; top: 0; transform: none; z-index: 30; }
+  .seat-bubble .bub::after { left: -5px; top: 10px; bottom: auto; transform: none; border: 6px solid transparent; border-right-color: #fff; border-left: 0; }
+  .gchat { grid-template-columns: 1fr; margin-top: 8px; }
+  .gchat input { padding: 6px 8px; font-size: 13px; }
+  .gchat .btn { width: 100%; }
+  .stage { min-height: 0; padding: 10px; }
+}
+/* 게임 방법 영상: 휴대폰 가로에서는 영상 왼쪽 · 버튼 오른쪽 (확인 버튼이 화면 밖으로 안 나가게) */
+@media (orientation: landscape) and (max-height: 520px) {
+  .intro-ov { padding: 8px; }
+  .intro-box { width: min(900px, 100%); max-height: calc(100dvh - 16px); grid-template-columns: minmax(0, 1fr) 190px; grid-template-rows: auto 1fr; gap: 8px 12px; padding: 10px 12px; align-items: center; }
+  .intro-title { grid-column: 1 / -1; font-size: 15px; }
+  .intro-media { grid-column: 1; grid-row: 2 / span 3; height: calc(100dvh - 80px); max-height: 100%; aspect-ratio: auto; }
+  .intro-btns, .intro-wait { grid-column: 2; }
+  .intro-btns { grid-template-columns: 1fr 1fr; }
+  .intro-btns > :last-child { grid-column: 1 / -1; }
+  .intro-x { top: 8px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .vdock { left: auto; right: 74px; bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+/* 증권시장 · 자객 마피아: 휴대폰 가로 — 조이스틱 왼쪽 · 광장 가운데 · 버튼 오른쪽, 광장은 화면 높이에 맞춰 크게 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sx, .am { grid-template-columns: 96px minmax(0, 1fr) 104px; align-items: center; gap: 6px; }
+  .sx > *, .am > * { grid-column: 1 / -1; }
+  .sx > .sx-stage, .am > .am-arena { grid-column: 2; grid-row: span 1; }
+  .sx-ctrl, .am-ctrl { display: contents; }
+  .sx-joy, .am-ctrl > .am-joy { grid-column: 1; justify-self: center; }
+  .sx-btns, .am-btns { grid-column: 3; display: grid; gap: 8px; justify-items: center; }
+  .sx-stage { max-width: calc((100dvh - 96px) * 1.43); }
+  .am-arena { max-width: calc((100dvh - 96px) * 1.43); }
+  .sx > .sx-stage, .sx-joy, .sx-btns, .am > .am-arena, .am-ctrl > .am-joy, .am-btns { grid-row: 3; }
+  .sx-joy, .am-ctrl > .am-joy { width: 92px; height: 92px; } .sx-joy i, .am-ctrl > .am-joy i { width: 40px; height: 40px; }
+  .sx-btns .am-act, .am-btns .am-act { width: 88px; height: 88px; }
+  .sx-hint { font-size: 11px; }
+  .am-say, .sx-say { left: 128px; right: 200px; bottom: 10px; max-width: none; padding: 4px; }
+  .am-say input { padding: 6px 10px; font-size: 14px; }
+}

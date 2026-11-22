@@ -206,7 +206,7 @@ function interact() {
   const w = nearWhat();
   const nm0 = (u) => esc(ctl.ctx.players[u]?.name || '');
   if (w === 'xchg') { sendMove({ type: 'xenter' }); return; }
-  if (w === 'xchg-closed') { const x = state.xchg; bigFlash(`📨 지금은 ${seatNo(state, x.pair[0])}번 ${nm0(x.pair[0])}님 · ${seatNo(state, x.pair[1])}번 ${nm0(x.pair[1])}님 차례예요<small>내 차례가 되면 알려 드릴게요</small>`, 1800, 'sx-note'); return; }
+  if (w === 'xchg-closed') { const x = state.xchg; bigFlash(`📨 지금은 ${nm0(x.pair[0])}님 · ${nm0(x.pair[1])}님 차례예요<small>내 차례가 되면 알려 드릴게요</small>`, 1800, 'sx-note'); return; }
   if (state.phase !== 'market' || !state.order.includes(me)) { ctl.shake = Date.now(); return; }
   if (w === 'door') sendMove({ type: 'enter' });
   else if (w === 'kiosk') sendMove({ type: 'ticket' });
@@ -334,7 +334,7 @@ function frame() {
   if ($di.dataset.v !== doorTxt) { $di.dataset.v = doorTxt; $di.innerHTML = doorTxt; }
   c.$('.sx-door').classList.toggle('open', state.windows.some((w) => w && w.st === 'in'));
   c.$('.sx-door').classList.toggle('mine', wi >= 0 && state.windows[wi].st === 'call');
-  const xcTxt = x ? `${x.pair.map((u) => `${seatNo(state, u)}번 ${esc(players[u]?.name || '')}${x.in[u] ? ' ✔' : ''}`).join(' · ')}` : '';
+  const xcTxt = x ? `${x.pair.map((u) => `${esc(players[u]?.name || '')}${x.in[u] ? ' ✔' : ''}`).join('<br>')}` : '';
   const $xi = c.$('.sx-xc-in');
   if ($xi.dataset.v !== xcTxt) { $xi.dataset.v = xcTxt; $xi.innerHTML = xcTxt; }
   c.$('.sx-xc').classList.toggle('mine', !!(x && x.pair.includes(me) && !x.in[me]));
@@ -375,7 +375,7 @@ function frame() {
   // 정보교환소 차례 알림 (띵동!)
   if (x && x.pair.includes(me) && !x.in[me]) {
     const k = `x:${state.round}:${x.k}`;
-    if (c.calledSeen !== k) { c.calledSeen = k; ding(); setTimeout(ding, 550); bigFlash(`<span class="sx-call-no">📨 ${seatNo(state, me)}번 차례!!</span><b>정보교환소로 입장하세요!</b><small>${esc(players[x.pair.find((u) => u !== me)]?.name || '')}님과 함께 봉투 1개를 골라요 · 30초 안에 입장</small>`, 3500, 'sx-call'); }
+    if (c.calledSeen !== k) { c.calledSeen = k; ding(); setTimeout(ding, 550); bigFlash(`<span class="sx-call-no">📨 ${esc(players[me]?.name || '')}님 차례!!</span><b>정보교환소로 입장하세요!</b><small>${esc(players[x.pair.find((u) => u !== me)]?.name || '')}님과 함께 봉투 1개를 골라요</small>`, 3500, 'sx-call'); }
   }
   if (inXc) {
     const $xl = c.$('[data-xleft]');
@@ -392,8 +392,8 @@ function frame() {
   // 가운데 안내
   let center = '', kind = '';
   if (wi >= 0 && state.windows[wi].st === 'call' && state.phase === 'market' && near !== 'door') kind = `call${state.windows[wi].no}`, center = `<b class="call">📢 ${state.windows[wi].no}번! 거래소로!</b><small>${Math.max(0, Math.ceil((state.windows[wi].until - now) / 1000))}초 안에 위쪽 증권거래소 문으로 가서 입장하세요</small>`;
-  else if (state.phase === 'info' && x && x.pair.includes(me) && !x.in[me]) kind = `xme${x.k}`, center = `<b class="call">📨 내 차례! 정보교환소로!</b><small>${Math.max(0, Math.ceil((x.callUntil - now) / 1000))}초 안에 왼쪽 정보교환소 앞에서 상호작용을 눌러 입장하세요</small>`;
-  else if (state.phase === 'info' && x) kind = `x${x.k}`, center = `<b>📨 정보교환 ${x.k + 1} / ${state.order.length}</b><small>${seatNo(state, x.pair[0])}번 ${esc(players[x.pair[0]]?.name || '')}님 · ${seatNo(state, x.pair[1])}번 ${esc(players[x.pair[1]]?.name || '')}님 정보교환소로 입장해 주세요</small>`;
+  else if (state.phase === 'info' && x && x.pair.includes(me) && !x.in[me]) kind = `xme${x.k}`, center = `<b class="call">📨 ${esc(players[me]?.name || '')}님 차례! 정보교환소로!</b><small>왼쪽 정보교환소 앞에서 상호작용을 눌러 입장하세요</small>`;
+  else if (state.phase === 'info' && x) kind = `x${x.k}`, center = `<b>📨 정보교환 ${x.k + 1} / ${state.order.length}</b><small>${esc(players[x.pair[0]]?.name || '')}님 · ${esc(players[x.pair[1]]?.name || '')}님 차례예요. 정보교환소로 입장해 주세요</small>`;
   else if (state.phase === 'market' && state.tick === 0 && now < state.nextAt - TICK_MS + 3000) kind = `open${state.round}`, center = `<b>${state.round}라운드 개장!</b><small>번호표를 뽑고 거래소에서 사고팔아요</small>`;
   else if (state.phase === 'done') center = '<b>장 마감</b><small>모든 주식을 마지막 주가로 현금화했어요</small>';
   // 알림을 본 뒤 내가 움직이거나 버튼을 누르면 바로 사라져요 (같은 알림은 다시 안 떠요)
@@ -406,7 +406,7 @@ function frame() {
   // 시간 진행 신호 (변동·창구 시간 초과·정보 확인 시간)
   const dues = [];
   if (state.phase === 'market') { dues.push(state.nextAt); state.windows.forEach((w) => w && dues.push(w.until)); }
-  if (state.phase === 'info' && state.xchg) dues.push(state.xchg.until || state.xchg.callUntil);
+  if (state.phase === 'info' && state.xchg && state.xchg.hard) dues.push(state.xchg.until || state.xchg.callUntil);
   const due = dues.length ? Math.min(...dues) : 0;
   if (due && now > due + 300 + Math.max(0, state.order.indexOf(me)) * 250 && now - c.lastTick > 1500) {
     c.lastTick = now;
@@ -453,9 +453,9 @@ function paint() {
     const both = !!x.until;
     ctl.root.classList.add('inside');
     ctl.$('.sx-exch').innerHTML = `
-      <div class="sx-ex-head"><b>📨 정보교환소</b><span class="sx-ex-stay">${both ? '남은 시간' : '기다리는 중'} <b data-xleft>20</b>초</span></div>
+      <div class="sx-ex-head"><b>📨 정보교환소</b><span class="sx-ex-stay">${both ? '시간 제한 없음' : '기다리는 중…'}</span></div>
       <div class="sx-xc-guide">${both
-        ? `<b>${nm(partner)}님과 의논해서 봉투 1개를 골라요.</b> 둘이 <u>같은 봉투</u>를 누르면 그 봉투의 정보 3장을 함께 받아요. (20초가 지나면 고른 봉투 중 하나, 없으면 무작위)`
+        ? `<b>${nm(partner)}님과 의논해서 봉투 1개를 골라요.</b> 둘이 <u>같은 봉투</u>를 누르면 그 봉투의 정보 3장을 함께 받아요. 천천히 의논해도 괜찮아요.`
         : `<b>${nm(partner)}님이 들어오길 기다리는 중…</b> 둘 다 들어오면 봉투를 고를 수 있어요.`}</div>
       <div class="sx-envs">${Array.from({ length: state.order.length }, (_, i) => i).map((i) => {
         const taken = state.taken.includes(i);
@@ -546,7 +546,7 @@ export default {
     `모두 현금 ${won(START_CASH)}으로 시작해요. 시장에는 ${COMPANIES.map((c) => c.emoji + c.name).join(', ')} 5개 회사 주식이 있고, 모두 주당 ${won(START_PRICE)}에서 시작해요. (회사마다 8명 기준 15주, 사람 수에 따라 달라져요)`,
     '게임은 2라운드예요. 1라운드는 게임 시각 1:00~2:00, 2라운드는 2:00~3:00이고, 게임 시각 5분(실제 1분)마다 주가가 바뀌어요.',
     '라운드 전 시계가 멈춘 동안 정보교환을 해요. 처음에 무작위로 순서를 정하고, 1·2번 → 2·3번 → 3·4번 … → 마지막 번호·1번 순서로 두 명씩 정보교환소에 들어가요.',
-    '정보교환소에는 주가 변동 정보(시각 · 회사 · 등락) 3장씩 든 봉투가 놓여 있어요. 둘이 의논해서 같은 봉투를 고르면 그 정보 3장을 함께 받아요 (20초 안에). 그래서 각자 정보 6장을 갖게 돼요. 정보는 모두 진짜예요!',
+    '정보교환소에는 주가 변동 정보(시각 · 회사 · 등락) 3장씩 든 봉투가 놓여 있어요. 둘이 의논해서 같은 봉투를 고르면 그 정보 3장을 함께 받아요 (시간 제한 없음). 그래서 각자 정보 6장을 갖게 돼요. 정보는 모두 진짜예요!',
     '로비에서 자유롭게 돌아다니며 채팅해요. 다른 사람 옆에 가서 💬 대화하기를 누르면 둘만의 비밀 대화를 할 수 있어요. 정보를 나눌지, 숨길지, 거짓말할지는 자유예요.',
     '거래는 증권거래소에서만! 번호표 기계에서 번호표를 뽑고, 내 번호가 불리면 10초 안에 거래소 문으로 가서 입장해요 (늦으면 다음 번호로 넘어가요).',
     '거래소 창구는 1개라 한 번에 한 명만 들어가고, 30초 동안 머물 수 있어요. 다시 거래하려면 번호표를 새로 뽑아요. 남은 주식 수는 거래소 안에서만 보여요.',

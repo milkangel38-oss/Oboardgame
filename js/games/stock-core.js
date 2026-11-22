@@ -54,7 +54,7 @@ export function dealInfo(state, round, now) {
 export function newXchg(state, k, now) {
   const n = state.order.length;
   // hard: 나갔다 들어오기를 반복해도 이 시각이 지나면 무조건 봉투가 정해져요 (진행이 멈추지 않게)
-  return { k, pair: [state.seats[k], state.seats[(k + 1) % n]], in: {}, pick: {}, callUntil: now + XCALL_MS, until: 0, hard: now + XCALL_MS + XSTAY_MS + 15000 };
+  return { k, pair: [state.seats[k], state.seats[(k + 1) % n]], in: {}, pick: {}, callUntil: 0, until: 0, hard: 0 }; // 시간 제한 없음 (둘 다 들어와서 같은 봉투를 고를 때까지)
 }
 export function giveEnvelope(s, env, now, note) {
   const x = s.xchg;
@@ -71,7 +71,7 @@ export const freeEnvs = (s) => Array.from({ length: s.order.length }, (_, i) => 
 // 시간이 지나면 처리할 것들: 주가 변동, 창구 시간 초과, 다음 번호 부르기
 export function advance(state, now, players) {
   let s = state;
-  if (s.phase === 'info' && s.xchg) {
+  if (s.phase === 'info' && s.xchg && (s.xchg.hard || s.xchg.callUntil)) { // 예전 방식(시간 제한) 판만
     const x = s.xchg;
     const free = freeEnvs(s);
     const rnd = () => free[Math.floor(Math.random() * free.length)];
@@ -179,7 +179,7 @@ export function applyMove(state, move, uid, players) {
     if (x.in[uid]) throw new Error('__noop');
     const inn = { ...x.in, [uid]: true };
     const both = x.pair.every((u) => inn[u]);
-    return { state: { ...s, xchg: { ...x, in: inn, until: both ? now + XSTAY_MS : 0 } } };
+    return { state: { ...s, xchg: { ...x, in: inn, until: both ? now : 0 } } }; // until = 둘 다 들어온 시각 (시간 제한 아님)
   }
   if (t === 'xchat') {
     const x = s.xchg;
@@ -195,7 +195,7 @@ export function applyMove(state, move, uid, players) {
     const pick = { ...x.pick };
     delete pick[uid];
     // 한 명이라도 나가면 대화는 리셋, 20초도 멈추고 다시 둘 다 들어와야 해요 (최소 15초 기다려 줌)
-    return { state: { ...s, xchg: { ...x, in: inn, pick, chat: [], until: 0, callUntil: Math.min(x.hard || Infinity, Math.max(x.callUntil, now + 15000)) } } };
+    return { state: { ...s, xchg: { ...x, in: inn, pick, chat: [], until: 0 } } };
   }
   if (t === 'xpick') {
     const x = s.xchg;
