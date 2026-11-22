@@ -2769,3 +2769,5 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .am-vsq strong { font-family: var(--logo); font-size: 26px; line-height: 1.1; color: #fff; }
 .am-vsq small { font-size: 10px; color: var(--muted); }
 .am-vsq.top { background: rgba(255, 216, 77, .16); box-shadow: inset 0 0 0 2.5px #ffd84d; } .am-vsq.top strong { color: #ffd84d; }
+/* 관전: 캐릭터 위 직업 표시 */
+.am-ch.spec::before { content: attr(data-role); position: absolute; left: 50%; bottom: 100%; transform: translate(-50%, -2px); white-space: nowrap; padding: 1px 6px; border-radius: 99px; background: rgba(10, 6, 24, .8); color: #ffe27a; font-size: max(9px, 1.3cqw); font-weight: 800; pointer-events: none; }

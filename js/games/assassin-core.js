@@ -26,9 +26,9 @@ export const ROLES = {
   police: { name: '경찰', icon: '🚨', desc: '닿아 있는 사람을 조사해 마피아인지 알아내요 (1번)' },
   doctor: { name: '의사', icon: '🩺', desc: '쓰러진 사람과 닿으면 스킬이 켜져요 · 5초 동안 살려요' },
   detective: { name: '탐정', icon: '🔍', desc: '투표 때 쓰러진 순서를 시체 위 번호로 봐요' },
-  lawyer: { name: '변호사', icon: '⚖️', desc: '투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 (자동)' },
+  lawyer: { name: '변호사', icon: '⚖️', desc: '다른 사람과 붙어 있는 동안은 마피아에게 공격당하지 않아요 (자동)' },
   coward: { name: '겁쟁이', icon: '😱', desc: '마피아와 마주치면 ‼ 표시가 모두에게 뜨고 반대쪽으로 튕겨 나가요 (자동)' },
-  ma: { name: '마동석', icon: '💪', desc: '마피아에게 공격받으면 한 번 반격! 뒤로 밀려나고 마피아는 1초 멈춰요 (자동)' },
+  ma: { name: '마동석', icon: '💪', desc: '마피아에게 공격받으면 한 번 반격! 뒤로 밀려나고 마피아는 5초 경직 (자동)' },
   prophet: { name: '예언자', icon: '🔮', desc: '투표 때 한 사람의 직업을 맞히면 +5점' },
 };
 export const CITIZEN_ROLES = ['police', 'doctor', 'detective', 'lawyer', 'coward', 'ma', 'prophet'];
@@ -64,7 +64,7 @@ export function makeMission(state, mafia) {
   const citizens = shuffle(state.order.filter((u) => u !== mafia));
   const kind = ['targets', 'count', 'frame'][Math.floor(Math.random() * 3)];
   if (kind === 'targets') return { kind, targets: citizens.slice(0, 2) };
-  if (kind === 'count') return { kind, n: Math.max(2, state.order.length - 3) };
+  if (kind === 'count') return { kind, n: Math.max(2, state.order.length - 4) };
   return { kind, target: citizens[0] };
 }
 export function missionText(m, players) {
@@ -90,7 +90,12 @@ export function newRound(state, roundNo) {
 }
 export const aliveCitizens = (s) => s.order.filter((u) => u !== s.mafia && !s.dead[u] && !(s.outs || {})[u]);
 // 마피아 승리: 공격으로 시민이 2명 이하가 되거나, 투표 뒤 마피아 1 : 시민 1이 되면
-export const mafiaWins = (s, byVote = false) => aliveCitizens(s).length <= (byVote ? 1 : 2);
+// 마피아 승리: 남은 시민이 (인원 − 5)명 이하 — 6명 1명 · 7명 2명 · 8명 3명 (공격으로든 투표로든)
+export const winLeft = (n) => Math.max(1, n - 5);
+export const mafiaWins = (s) => aliveCitizens(s).length <= winLeft(s.order.length);
+// 사신 발동 조건: 투표 때 쓰러진 사람이 1명 ~ (인원 − 5)명
+export const reaperOk = (s) => { const d = Object.keys(s.dead || {}).length; return d >= 1 && d <= winLeft(s.order.length); };
+export const STUN_MS = 5000;                // 마동석 반격에 맞으면 마피아 5초 경직
 const canAct = (s, u) => !s.dead[u] && !(s.outs || {})[u];
 export function toVote(state, now, why) {
   const reported = { ...(state.reported || {}) };
@@ -111,7 +116,6 @@ export function endRound(state, players, outcome) {
     } else {
       items.push(mafiaCaught ? ['마피아 검거', 5] : ['마피아 승리 허용', -5]);
       items.push(state.outs[u] ? ['투표로 쫓겨남', -1] : state.dead[u] ? ['공격받음', -1] : ['생존', 1]);
-      if (state.roles[u] === 'lawyer' && !mafiaCaught && state.outCount >= 3) items.push(['변호사 보너스', 5]);
       if (state.roles[u] === 'prophet' && state.guess?.ok) items.push(['예언 적중', 5]);
     }
     breakdown[u] = items;
@@ -142,7 +146,7 @@ export function resolve(state, players) {
   if (caught && caught === state.mafia) return endRound(s0, players, 'caught');
   const outs = caught ? { ...state.outs, [caught]: true } : state.outs;
   const s = { ...s0, outs, outCount: (state.outCount || 0) + (caught ? 1 : 0) };
-  if (mafiaWins(s, true)) return endRound(s, players, 'mafia');
+  if (mafiaWins(s)) return endRound(s, players, 'mafia');
   // 계속: 결과 알림 + 쫓겨나는 연출 뒤 바로 암전
   return { state: { ...s, phase: 'hunt', goAt: now + KICK_MS, deadline: now + KICK_MS + HUNT_MS, kick: { uid: caught, at: now, tally, runoff: state.runoff || null }, votes: {}, confirmed: {}, advice: {}, runoff: null, runoffAt: 0, found: null, meeting: null, siren: null } };
 }
@@ -206,11 +210,16 @@ export function applyMove(state, move, uid, players, env = {}) {
     if (state.phase !== 'hunt' || uid !== state.mafia) throw new Error('__noop');
     if (!going) throw new Error('아직 공격할 수 없어요');
     if (now - (state.lastKill || 0) < KILL_CD) throw new Error('잠시 후에 다시 공격할 수 있어요');
-    if (state.counter && state.counter.mafia === uid && now - state.counter.at < 1000) throw new Error('반격당해 잠시 멈췄어요');
+    if (state.counter && state.counter.mafia === uid && now - state.counter.at < STUN_MS) throw new Error('반격당해 잠시 멈췄어요');
     const tg = move.target;
     if (!state.order.includes(tg) || tg === uid || !canAct(state, tg)) throw new Error('공격할 수 없는 대상이에요');
     const pm = touching(pos, strict, state, uid, tg);
     const pt = livePos(pos, tg, state);
+    // 변호사: 다른 사람(마피아 말고)과 붙어 있으면 공격당하지 않아요
+    if (state.roles[tg] === 'lawyer' && pt) {
+      const guard = state.order.some((u) => u !== tg && u !== uid && canAct(state, u) && livePos(pos, u, state) && dist(livePos(pos, u, state), pt) <= MEET + 20);
+      if (guard) throw new Error('변호사가 다른 사람과 붙어 있어서 공격할 수 없어요');
+    }
     // 마동석: 첫 공격은 반격 (마피아 1초 정지, 마동석은 뒤로 밀려나요)
     if (state.roles[tg] === 'ma' && !state.used[tg]) {
       return { state: { ...state, used: { ...state.used, [tg]: true }, lastKill: now, counter: { mafia: uid, target: tg, at: now, from: pm ? { x: Math.round(pm.x), y: Math.round(pm.y) } : { x: Number(move.mx) || 0, y: Number(move.my) || 0 } } } };
@@ -248,6 +257,7 @@ export function applyMove(state, move, uid, players, env = {}) {
       if (state.mskill === 'eye') { if (!going) throw new Error('__noop'); return { state: { ...state, used, eyeAt: now } }; }
       if (state.mskill === 'reaper') {
         if (state.phase !== 'vote' || state.runoff) throw new Error('사신은 투표 시간에만 쓸 수 있어요');
+        if (!reaperOk(state)) throw new Error(`사신은 쓰러진 사람이 1~${winLeft(state.order.length)}명일 때만 쓸 수 있어요`);
         const tg = move.target;
         if (!state.order.includes(tg) || tg === uid || !canAct(state, tg)) throw new Error('쓰러뜨릴 수 없는 사람이에요');
         const p = livePos(pos, tg, state) || state.spawn?.[tg] || { x: 500, y: 350 };
@@ -397,6 +407,7 @@ export function split(full) {
       guess: guess && guess.by === u ? guess : null,
       revived: revived && revived.uid === u ? revived : null,
       probe: (probes || {})[u] || null,
+      spec: (full.dead || {})[u] || (full.outs || {})[u] ? { roles: roles || {}, dead: full.dead || {}, mafia: full.mafia } : null, // 관전: 직업·쓰러진 사람 모두 보여요
       round: full.round, // 라운드가 바뀌면 지난 비밀은 무시해요
     }];
   }));

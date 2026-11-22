@@ -4,7 +4,7 @@ import { GARNET } from '../profile.js';
 import { soundEvent, sfxAlert } from '../sound.js';
 import { personHtml, faceHtml } from './face.js';
 
-import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult, ROLES, MAFIA_SKILLS, MAFIA_BOOST, KICK_MS, REVIVE_MS, SIREN_MS, SCARE_MS, needLeft } from './assassin-core.js';
+import { W, H, R, MEET, SPEED, SLOW, SLOW_MS, INTRO_MS, HUNT_MS, VOTE_MS, RUNOFF_MS, KILL_CD, SEND_MS, REWARDS, dist, missionText, finalResult, ROLES, MAFIA_SKILLS, MAFIA_BOOST, KICK_MS, REVIVE_MS, SIREN_MS, SCARE_MS, needLeft, winLeft, reaperOk, STUN_MS } from './assassin-core.js';
 export { REWARDS, missionText } from './assassin-core.js';
 import { dealing } from './server-deal.js';
 
@@ -12,10 +12,10 @@ const COLORS = ['#ff4f6e', '#3d7bff', '#3ddc84', '#ffb02e', '#b26bff', '#2ee6d6'
 // 공개 상태 + 내 비밀 → 화면용 상태 (마피아 본인만 마피아·미션·쓰러진 사람을, 공격받은 사람은 자기만 알아요)
 function view(pub, sec, me) {
   if (!sec || (sec.round != null && sec.round !== pub.round)) return pub; // 지난 라운드 비밀은 무시
-  const dead = { ...(pub.dead || {}), ...(sec.dead || {}) };
+  const dead = { ...(pub.dead || {}), ...(sec.dead || {}), ...(sec.spec?.dead || {}) };
   if (sec.deadMe) dead[me] = sec.deadMe;
   return { ...pub, mafia: sec.mafia ? me : pub.mafia ?? null, mission: sec.mission || pub.mission || null, dead, lastKill: sec.lastKill || pub.lastKill || 0,
-    myRole: sec.role || null, myUsed: !!sec.used, mskill: sec.mskill || null, eyeAt: sec.eyeAt || 0, counter: sec.counter || null, revive: sec.revive || null, policeHit: sec.policeHit || null, guess: sec.guess || null, revived: sec.revived || null, probe: sec.probe || null };
+    myRole: sec.role || null, myUsed: !!sec.used, mskill: sec.mskill || null, eyeAt: sec.eyeAt || 0, counter: sec.counter || null, revive: sec.revive || null, policeHit: sec.policeHit || null, guess: sec.guess || null, revived: sec.revived || null, probe: sec.probe || null, spec: sec.spec || null };
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -30,6 +30,7 @@ export function bodyHtml(key, player) {
 // 누구의 몸통을 보여 줄지: 나는 내 직업, 결과 화면에선 모두 공개, 그 외에는 공통 코트
 function bodyKey(state, u, me) {
   if (['result', 'done'].includes(state.phase) && state.last?.roles?.[u]) return state.last.roles[u];
+  if (state.spec?.roles?.[u]) return state.spec.roles[u]; // 관전 중이면 모두의 직업이 보여요
   if (u === me && state.myRole) return state.myRole;
   return 'cover';
 }
@@ -217,11 +218,11 @@ function interact() {
   if (me === state.mafia) {
     if (!s.target) { ctl.shake = now; return; }
     if (now - (state.lastKill || 0) < KILL_CD) { ctl.shake = now; return; }
-    if (state.counter && state.counter.mafia === me && now - state.counter.at < 1000) { ctl.shake = now; return; }
+    if (state.counter && state.counter.mafia === me && now - state.counter.at < STUN_MS) { ctl.shake = now; return; }
     const p = ctl.disp[s.target];
     const blink = ctl.armed && state.mskill === 'blink' && !state.myUsed;
     const back = { ...ctl.pos };
-    sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y), mx: Math.round(ctl.pos.x), my: Math.round(ctl.pos.y), blink }, { silent: true, onError: () => { ctl.shake = Date.now(); if (blink && ctl) { ctl.pos = back; ctl.armed = true; } } });
+    sendMove({ type: 'kill', target: s.target, x: Math.round(p.x), y: Math.round(p.y), mx: Math.round(ctl.pos.x), my: Math.round(ctl.pos.y), blink }, { silent: true, onError: (e) => { ctl.shake = Date.now(); if (String(e?.message).includes('변호사')) showMsg('⚖️ 붙어 있는 사람이 있어 공격할 수 없어요'); if (blink && ctl) { ctl.pos = back; ctl.armed = true; } } });
     if (blink) { ctl.armed = false; ctl.pos = { x: Math.max(R, Math.min(W - R, W - ctl.pos.x)), y: Math.max(R + 10, Math.min(H - R, H - ctl.pos.y)) }; ctl.dashAt = Date.now(); }
   } else if (s.body) {
     sendMove({ type: 'shout', body: s.body }, { silent: true, onError: () => { ctl.shake = Date.now(); } }); // 쓰러진 사람이 아니면 흔들림
@@ -231,7 +232,7 @@ function interact() {
 function canMove(state, me, now) {
   if (state.dead?.[me] || state.outs?.[me]) return false;
   if (state.phase === 'lobby') return true;
-  if (state.counter && state.counter.mafia === me && now - state.counter.at < 1000) return false; // 마동석에게 반격당해 1초 멈춤
+  if (state.counter && state.counter.mafia === me && now - state.counter.at < STUN_MS) return false; // 마동석에게 반격당해 5초 경직
   if (state.revive && state.revive.by === me) return false; // 소생시키는 동안은 제자리
   return state.phase === 'hunt' && now >= (state.goAt || 0);
 }
@@ -364,7 +365,8 @@ function frame() {
   const map = MAPS[((state.round || 1) - 1) % MAPS.length];
   const $fl = c.$('.am-floor');
   if ($fl.dataset.map !== map) { $fl.dataset.map = map; $fl.style.backgroundImage = `url(/img/assassin/bg-${map}.webp)`; }
-  const dark = state.phase === 'dark' || state.phase === 'hunt';
+  const spec = !!state.spec && state.phase === 'hunt';
+  const dark = (state.phase === 'dark' || state.phase === 'hunt') && !spec;
   const eye = isMafia && state.mskill === 'eye' && now - (state.eyeAt || 0) < 1000; // 사륜안: 1초 동안 어둠이 걷혀요
   c.$('.am-dark').classList.toggle('eye', eye);
   // 탐정: 쓰러진 순서 번호
@@ -392,6 +394,9 @@ function frame() {
     // 암전 중 보이는 것: 나 자신, (마피아에게만) 해골
     const out = !!state.outs?.[u];
     const visible = !out && (!dark || u === me || (dead && isMafia) || (eye && !dead));
+    const rk = state.spec?.roles?.[u];
+    el.classList.toggle('spec', !!rk);
+    el.dataset.role = rk ? `${ROLES[rk]?.icon || ''} ${ROLES[rk]?.name || ''}` : '';
     const layer = dark ? $over : $under;
     if (el.parentNode !== layer) layer.appendChild(el);
     el.style.display = p && visible ? '' : 'none';
@@ -468,15 +473,15 @@ function frame() {
       else if (isMafia) center = e < 4500 ? `<b class="red">당신은 마피아입니다</b><small>🎯 ${esc(missionText(state.mission, players))}<br>아래에서 스킬을 하나 고르세요</small>` : '<b class="red">유저들을 공격하세요</b>';
       else if (role) center = e < 4500 ? `<b>${role.icon} 당신은 ${role.name}입니다</b><small>${esc(role.desc)}</small>` : '<b>마피아의 공격으로부터 피하세요</b>';
     }
-    if (!center && state.outs?.[me]) center = '<b>🚪 투표로 쫓겨났어요</b><small>이번 라운드는 구경해요</small>';
+    if (!center && state.outs?.[me] && now - (state.kick?.at || 0) < KICK_MS + 2500) center = '<b>🚪 투표로 쫓겨났어요</b><small>불이 켜진 채로 모두의 직업을 보며 구경해요</small>';
     if (!center && state.revive && state.revive.target === me) center = `<b>🩺 소생중…</b><small>${Math.max(0, Math.ceil((state.revive.at + REVIVE_MS - now) / 1000))}초 뒤 다시 일어나요</small>`;
     if (!center && state.revive && state.revive.by === me) center = `<b>🩺 살리는 중…</b><small>${Math.max(0, Math.ceil((state.revive.at + REVIVE_MS - now) / 1000))}초 · 그 자리에서 기다려요</small>`;
     if (!center && state.revived && now - state.revived.at < 2500) center = '<b>💚 다시 살아났어요!</b><small>어둠 속에서 계속 피하세요</small>';
     if (!center && state.reaped && state.reaped.uid === me && state.dead[me]) center = '<b class="red">☠️ 사신에게 당했어요</b><small>이번 라운드는 움직일 수 없어요</small>';
-    if (!center && state.counter && now - state.counter.at < 1500) center = state.counter.mafia === me ? '<b class="red">💪 반격당했어요!</b><small>1초 동안 움직일 수 없어요</small>' : state.counter.target === me ? '<b>💪 반격!</b><small>마피아를 밀쳐 내고 뒤로 물러났어요</small>' : '';
+    if (!center && state.counter && now - state.counter.at < (state.counter.mafia === me ? STUN_MS : 1500)) center = state.counter.mafia === me ? `<b class="red">💪 반격당했어요!</b><small>${Math.max(0, Math.ceil((state.counter.at + STUN_MS - now) / 1000))}초 동안 움직일 수 없어요</small>` : state.counter.target === me ? '<b>💪 반격!</b><small>마피아를 밀쳐 내고 뒤로 물러났어요</small>' : '';
     if (!center && state.policeHit && now - state.policeHit.at < 3000) center = state.policeHit.hit ? `<b class="red">🔍 ${esc(players[state.policeHit.target]?.name || '')}님은 마피아예요!</b><small>회의 때 모두에게 알려 주세요</small>` : `<b>🔍 ${esc(players[state.policeHit.target]?.name || '')}님은 마피아가 아니에요</b>`;
     if (!center && sir && !isMafia && now - sir.at < 2000) center = '<b class="red">🚨 사이렌!</b><small>경찰이 마피아를 마주쳤어요</small>';
-    if (!center && state.dead[me]) center = '<b class="red">공격당했어요</b><small>움직일 수 없고 채팅도 할 수 없어요</small>';
+    if (!center && state.dead[me] && !state.spec) center = '<b class="red">공격당했어요</b><small>움직일 수 없고 채팅도 할 수 없어요</small>';
   }
   if (!center && c.msg && now - c.msg.at < 1800) center = `<b>${esc(c.msg.text)}</b>`;
   const $c = c.$('.am-center');
@@ -565,7 +570,7 @@ function paintPanel() {
   const role = ROLES[state.myRole];
   const midRound = ['hunt', 'vote'].includes(state.phase) && Date.now() >= state.mafiaAt + 1500;
   ctl.$('.am-mission').innerHTML = !midRound || !role ? '' : isMafia
-    ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}<span class="am-goal">공격으로 시민이 <b>2명</b> 이하가 되거나, 투표 뒤 <b>마피아 1 : 시민 1</b>이 되면 승리!</span>
+    ? `🎯 <b>마피아 미션</b> ${esc(missionText(state.mission, players))}<span class="am-goal">남은 시민이 <b>${winLeft(state.order.length)}명</b> 이하가 되면 승리! (공격으로든 투표로든 · 마피아 1 : 시민 ${winLeft(state.order.length)})</span>
        ${state.mskill ? `<span class="am-myskill">${MAFIA_SKILLS[state.mskill].icon} <b>${MAFIA_SKILLS[state.mskill].name}</b> · ${esc(MAFIA_SKILLS[state.mskill].desc)}${state.myUsed ? ' (사용함)' : ''}</span>`
          : `<div class="am-mpick"><small>스킬을 하나 고르세요 (라운드마다 1번)</small>${Object.entries(MAFIA_SKILLS).map(([k, v]) => `<button data-mskill="${k}"><b>${v.icon} ${v.name}</b><small>${esc(v.desc)}</small></button>`).join('')}</div>`}`
     : `${role.icon} <b>내 직업: ${role.name}</b> ${esc(role.desc)}${state.myUsed ? ' <em>(사용함)</em>' : ''}`;
@@ -615,7 +620,7 @@ function paintPanel() {
     if (canVote && state.myRole === 'prophet') extra.push(state.guess ? `<div class="am-sbox">🔮 예언 완료: <b>${nm(state.guess.target)}</b>님은 <b>${ROLES[state.guess.role].name}</b>! (맞았는지는 라운드가 끝나면 알 수 있어요)</div>`
       : state.myUsed ? '' : `<div class="am-sbox">🔮 <b>예언자</b> · 한 사람의 직업을 맞히면 +5점 (1번)
         <div class="am-srow">${pick('data-pp', state.order.filter((u) => u !== me))}<select data-pr><option value="">직업 고르기</option>${Object.entries(ROLES).map(([k, v]) => `<option value="${k}">${v.icon} ${v.name}</option>`).join('')}</select><button class="btn sm primary" data-prophet>예언하기</button></div></div>`);
-    if (canVote && isMafia && state.mskill === 'reaper' && !state.myUsed && !ro) extra.push(`<div class="am-sbox red">☠️ <b>사신</b> · 이름을 제출하면 그 사람이 쓰러져요 (1번)
+    if (canVote && isMafia && state.mskill === 'reaper' && !state.myUsed && !ro) extra.push(!reaperOk(state) ? `<div class="am-sbox red">☠️ <b>사신</b> · 쓰러진 사람이 1~${winLeft(state.order.length)}명일 때만 쓸 수 있어요 (지금 ${Object.keys(state.dead || {}).length}명)</div>` : `<div class="am-sbox red">☠️ <b>사신</b> · 이름을 제출하면 그 사람이 쓰러져요 (1번)
         <div class="am-srow">${pick('data-rp', alive.filter((u) => u !== me))}<button class="btn sm" data-reap>사신 발동</button></div></div>`);
     if (canVote && state.myRole === 'detective') extra.push(state.myUsed ? '<div class="am-sbox">🔍 시체 위 번호 = 쓰러진 순서예요</div>' : '<div class="am-sbox">🔍 <b>탐정</b> · 스킬을 쓰면 시체 위에 쓰러진 순서가 번호로 보여요 <button class="btn sm primary" data-detect>스킬 사용</button></div>');
     html = ro ? `<div class="am-tip runoff">⚖️ <b>동점이에요!</b> ${ro.map(nm).join(' vs ')} 두 사람 중 한 명에게 <b>마지막으로 한 번 더</b> 투표하세요. (1분 · 조언 없음 · 또 동점이면 지목 없음)</div>` : `<div class="am-tip">🔦 불이 켜졌어요! ${state.meeting === 'time' ? '시간이 다 되어 회의가 열렸어요.' : '시체가 발견됐어요.'} 시민을 뽑으면 그 사람만 쫓겨나고 게임이 계속돼요. 채팅으로 이야기하고 <b>마피아라고 생각하는 사람의 프로필</b>을 눌러 투표하세요.</div>
@@ -669,14 +674,15 @@ export default {
   rules: [
     '맵 안에 모두의 캐릭터가 랜덤한 위치에 서 있어요. 조이스틱(웹은 방향키·WASD)으로 움직이고, 상호작용(스페이스)·스킬(Ctrl) 버튼을 써요.',
     '모두 준비를 누르면 불이 꺼지고, 방장이 마피아 선택을 누르면 모두에게 직업이 몰래 정해져요. 마피아 1명은 비밀 미션을 받고 스킬 3개 중 하나를 골라요. 스킬은 라운드마다 1번만 쓸 수 있어요.',
-    '마피아 스킬 — 👁 사륜안: 1초 동안 어둠이 걷혀 모두가 보여요 / ✨ 점멸자: 켜 두면 다음 공격 뒤 맵 정반대편으로 순간이동 / ☠️ 사신: 투표 때 이름을 제출해 한 사람을 쓰러뜨려요 (모두에게 알림, 당한 사람은 투표할 수 없고 그 라운드가 끝날 때까지 쓰러져 있어요). 마피아는 다른 사람보다 조금 더 빨라요.',
-    '시민 직업 — 🚨 경찰: 닿아 있는 사람을 조사해 마피아인지 알아내요 (1번) / 🩺 의사: 쓰러진 사람과 닿았을 때만 스킬이 켜지고, 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 투표로 시민이 3번 이상 쫓겨나고 마피아가 살아남으면 +5점 / 😱 겁쟁이: 마피아와 마주치면 ‼ 표시가 모두에게 뜨고 반대쪽으로 튕겨 나가요 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 1초 멈춤) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
+    '마피아 스킬 — 👁 사륜안: 1초 동안 어둠이 걷혀 모두가 보여요 / ✨ 점멸자: 켜 두면 다음 공격 뒤 맵 정반대편으로 순간이동 / ☠️ 사신: 투표 때 이름을 제출해 한 사람을 쓰러뜨려요 (쓰러진 사람이 1명 ~ 인원−5명일 때만 · 모두에게 알림). 마피아는 다른 사람보다 조금 더 빨라요.',
+    '시민 직업 — 🚨 경찰: 닿아 있는 사람을 조사해 마피아인지 알아내요 (1번) / 🩺 의사: 쓰러진 사람과 닿았을 때만 스킬이 켜지고, 5초 동안 살려요 / 🔍 탐정: 투표 때 시체 위에 쓰러진 순서가 보여요 / ⚖️ 변호사: 다른 사람과 붙어 있는 동안은 공격당하지 않아요 / 😱 겁쟁이: 마피아와 마주치면 ‼ 표시가 모두에게 뜨고 반대쪽으로 튕겨 나가요 / 💪 마동석: 마피아의 첫 공격을 반격 (뒤로 밀려나고 마피아는 5초 경직) / 🔮 예언자: 투표 때 한 사람의 직업을 맞히면 +5점',
     '어둠 속에선 내 캐릭터만 보여요. 누군가와 닿으면 👋 인사 표시만 떠요 (이름은 안 보여요, 마피아에겐 보여요). 마피아는 마주친 순간 상호작용으로 공격! 쓰러진 사람은 움직이거나 채팅할 수 없어요.',
     '누군가와 닿았을 때 상호작용을 눌러 살펴보세요. 쓰러진 사람이면 "시체발견!" — 모두 멈추고 불이 켜져 회의·투표를 해요 (3분). 3분 동안 아무도 못 찾으면 자동으로 회의가 열려요.',
     '투표에서 마피아를 뽑으면 라운드 끝(시민 승리). 시민을 뽑으면 그 사람만 문밖으로 쫓겨나고, 결과를 알려 준 뒤 바로 다시 불이 꺼져요. 동점이면 두 명으로 결선 투표, 또 동점이면 아무도 쫓겨나지 않아요.',
-    '마피아 승리: 공격으로 남은 시민이 2명 이하가 되거나, 투표 뒤 마피아 1 : 시민 1이 되면.',
+    '마피아 승리: 남은 시민이 6명일 때 1명, 7명일 때 2명, 8명일 때 3명 이하가 되면 (공격으로든 투표로든).',
     '마피아 미션: 정해진 2명만 공격 / 정해진 횟수 이상 공격 / 정해진 사람이 투표로 쫓겨나게 하기 중 하나.',
-    '점수 — 마피아 검거: 마피아 −5, 시민 모두 +5 / 마피아 승리: 마피아 +5, 시민 모두 −5. 마피아 미션 성공 +3, 시민은 쓰러지거나 쫓겨나면 −1, 끝까지 살아남으면 +1. 직업 보너스(변호사·예언자) +5',
+    '쓰러지거나 쫓겨난 사람은 불이 켜진 채로 모두의 직업을 보며 관전해요.',
+    '점수 — 마피아 검거: 마피아 −5, 시민 모두 +5 / 마피아 승리: 마피아 +5, 시민 모두 −5. 마피아 미션 성공 +3, 시민은 쓰러지거나 쫓겨나면 −1, 끝까지 살아남으면 +1. 예언 적중 +5',
     '모든 라운드 후 1등 가넷 5개, 2등 4개, 3등 3개',
   ],
 
