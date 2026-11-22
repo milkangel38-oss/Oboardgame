@@ -2215,3 +2215,26 @@ button.av-seat[data-pick] { cursor: pointer; } button.av-seat[data-pick]:hover .
 .vface i { position: absolute; right: -4px; bottom: -4px; font-size: 11px; font-style: normal; }
 .vnote { flex-basis: 100%; padding: 2px 8px 2px; font-size: 11px; font-weight: 800; color: #ffd27a; }
 .voice-audio { display: none; }
+/* 스플렌더 v10.7: 날아가는 보석·카드, 모래시계 */
+.spl-fly { position: fixed; z-index: 7000; pointer-events: none; width: 44px; height: 44px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .55)); }
+.spl-fly svg { width: 100%; height: 100%; display: block; }
+.spl-fly.card { width: auto; height: auto; }
+.spl-fly.card .spl-card { width: 64px; }
+.spl-fly-n { font-size: 40px; }
+.nb-banner:has(.spl-hg) { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.spl-hg { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.spl-hg svg { width: 22px; height: 31px; display: block; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .5)); }
+.spl-hg b { min-width: 2ch; font-family: var(--logo, inherit); font-size: 18px; color: #f2d27a; text-align: left; }
+.spl-hg.mine svg { width: 28px; height: 39px; } .spl-hg.mine b { font-size: 22px; }
+.spl-hg.pop { animation: hgPop .7s ease; }
+@keyframes hgPop { 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+.spl-hg.urgent svg { animation: hgShake .35s ease-in-out infinite; }
+.spl-hg.urgent b { color: #ff5d6c; text-shadow: 0 0 8px rgba(255, 60, 80, .7); }
+.spl-hg b.beat { animation: hgBeat .5s ease; }
+@keyframes hgBeat { 30% { transform: scale(1.6); } 100% { transform: scale(1); } }
+@keyframes hgShake { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+/* 스플렌더: 휴대폰 가로 화면 — 카드가 화면보다 커지지 않게 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .spl-market { width: 100%; max-width: 430px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
+  .spl-bank, .spl-gems { max-width: 560px; margin-left: auto; margin-right: auto; }
+}

@@ -55,6 +55,7 @@ const shuffle = (arr) => {
 const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+export const TURN_MS = 60 * 1000;
 export const bonusOf = (p) => { const b = { w: 0, u: 0, g: 0, r: 0, k: 0 }; p.cards.forEach((id) => b[CARDS[id].bonus]++); return b; };
 export const pointsOf = (p) => p.cards.reduce((s, id) => s + CARDS[id].pts, 0) + p.nobles.length * 3;
 
@@ -115,7 +116,7 @@ function nextTurn(state, uid, players) {
   state = { ...state, logs: [...(state.logs || []), { uid, text: state.log, t: Date.now() }].slice(-6) };
   const finalRound = state.finalRound || pointsOf(state.ps[uid]) >= WIN_POINTS;
   const next = (state.turn + 1) % state.order.length;
-  const s = { ...state, phase: 'play', need: 0, nobleChoices: null, finalRound, turn: next };
+  const s = { ...state, phase: 'play', need: 0, nobleChoices: null, finalRound, turn: next, turnDeadline: Date.now() + TURN_MS };
   if (finalRound && next === 0) { // 첫 플레이어 차례로 돌아오면 끝 (모두 같은 횟수)
     const done = { ...s, phase: 'done', turn: -1 };
     return { state: done, result: result(done, players) };
@@ -157,6 +158,7 @@ export default {
     '손에 든 보석은 10개까지! 넘으면 차례 끝에 골라서 반납해요.',
     '👑 귀족: 카드 보너스가 귀족 조건을 채우면 차례 끝에 자동으로 찾아와 +3점 (한 번에 한 명).',
     '누군가 15점 이상이 되면 그 바퀴를 마저 해서 모두 같은 횟수를 한 뒤 끝나요. 점수가 같으면 산 카드가 적은 사람이 이겨요.',
+    '내 차례는 1분! 시간이 지나면 차례가 넘어가요 (반납할 보석은 자동으로 반납).',
     '가넷: 2명 → 1등 2개 / 3명 → 1등 2 · 2등 1 / 4명 → 1등 3 · 2등 2 · 3등 1',
   ],
 
@@ -171,7 +173,7 @@ export default {
       market[lv] = decks[lv].splice(0, 4);
     }
     return {
-      order, turn: 0, phase: 'play', finalRound: false, need: 0, nobleChoices: null, log: '',
+      order, turn: 0, phase: 'play', finalRound: false, need: 0, nobleChoices: null, log: '', turnDeadline: Date.now() + TURN_MS,
       bank: { w: t, u: t, g: t, r: t, k: t, gold: 5 },
       decks, market, nobles: shuffle(Object.keys(NOBLES)).slice(0, n + 1),
       ps: Object.fromEntries(order.map((u) => [u, emptyPlayer()])),
@@ -179,7 +181,18 @@ export default {
   },
 
   move(state, move, uid, players) {
-    if (move?.type === 'tick') throw new Error('__noop');
+    // 제한 시간 1분: 시간이 지나면 누구의 화면이든 'tick'을 보내 차례를 넘겨요
+    if (move?.type === 'tick') {
+      if (state.phase === 'done' || !state.turnDeadline || Date.now() < state.turnDeadline) throw new Error('__noop');
+      const tu = state.order[state.turn];
+      if (state.phase === 'discard') { // 남는 보석은 많은 색부터 자동 반납
+        const p = state.ps[tu], tokens = { ...p.tokens }, bank = { ...state.bank };
+        for (let k = 0; k < state.need; k++) { const c = [...COLORS, 'gold'].sort((a, b) => tokens[b] - tokens[a])[0]; tokens[c]--; bank[c]++; }
+        return finishTurn({ ...state, ps: { ...state.ps, [tu]: { ...p, tokens } }, bank, phase: 'play', need: 0, log: `${players[tu]?.name || '?'}님 시간 초과 · 보석 자동 반납` }, tu, players);
+      }
+      if (state.phase === 'noble') return nextTurn(takeNoble(state, tu, state.nobleChoices[0]), tu, players);
+      return nextTurn({ ...state, log: `${players[tu]?.name || '?'}님 시간 초과 · 차례 넘김`, lastAction: { uid: tu, type: 'timeout', t: Date.now() } }, tu, players);
+    }
     if (!state.order.includes(uid)) throw new Error('참가자가 아니에요');
     const name = players[uid]?.name || '?';
     const myTurn = state.order[state.turn] === uid;
@@ -196,7 +209,7 @@ export default {
         if (!(c in tokens) || v < 0 || tokens[c] < v) throw new Error('가진 보석만 반납할 수 있어요');
         tokens[c] -= v; bank[c] += v;
       }
-      return finishTurn({ ...setP(state, { ...p, tokens }), bank, phase: 'play', need: 0 }, uid, players);
+      return finishTurn({ ...state, ps: { ...state.ps, [tu]: { ...p, tokens } }, bank, phase: 'play', need: 0 }, uid, players);
     }
 
     if (move.type === 'noble') {
@@ -294,12 +307,12 @@ export default {
 
     const myBonus = mp ? bonusOf(mp) : null;
     const nobleIdx = (n) => Object.keys(NOBLES).indexOf(n);
-    const nobleHtml = (n) => `<div class="spl-noble">${portraitSvg(nobleIdx(n))}<b>3</b><div class="spl-nreq">${Object.entries(NOBLES[n].req).map(([c, v]) => `<span class="spl-req">${gemSvg(c)}<i>${v}</i></span>`).join('')}</div></div>`;
+    const nobleHtml = (n) => `<div class="spl-noble" data-nb="${n}">${portraitSvg(nobleIdx(n))}<b>3</b><div class="spl-nreq">${Object.entries(NOBLES[n].req).map(([c, v]) => `<span class="spl-req">${gemSvg(c)}<i>${v}</i></span>`).join('')}</div></div>`;
     const cardHtml = (id, { sm = false, back = false } = {}) => {
       const c = CARDS[id];
-      if (back) return `<span class="spl-card back lv${c.lv} sm"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
+      if (back) return `<span class="spl-card back lv${c.lv} sm" data-cid="${id}"><b>${'Ⅰ Ⅱ Ⅲ'.split(' ')[c.lv - 1]}</b></span>`;
       const can = !sm && mp && payFor(mp, c);
-      return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
+      return `<${sm ? 'span' : 'button'} class="spl-card lv${c.lv} ${sm ? 'sm' : ''} ${ui.card === id ? 'sel' : ''} ${myTurn && can ? 'can' : ''}" ${sm ? '' : `data-card="${id}"`} data-cid="${id}" style="--gc:${GEM[c.bonus].fill};--gd:${GEM[c.bonus].dark};--gt:${GEM[c.bonus].text}">
         ${sceneSvg(c.bonus, c.lv)}
         <span class="spl-ch"><b>${c.pts || ''}</b>${gemSvg(c.bonus)}</span>
         <span class="spl-cost">${COLORS.filter((x) => c.cost[x]).map((x) => `<i class="spl-cg ${!sm && myBonus && myBonus[x] ? 'has' : ''}">${gemSvg(x)}<b>${c.cost[x]}</b></i>`).join('')}</span>
@@ -310,7 +323,7 @@ export default {
     const pickCount = (c) => ui.pick.filter((x) => x === c).length;
     const canAct = myTurn && state.phase === 'play';
     const bank = `<div class="spl-bank">${[...COLORS, 'gold'].map((c) => `
-      <div class="spl-bcol ${pickCount(c) ? 'picked' : ''}">
+      <div class="spl-bcol ${pickCount(c) ? 'picked' : ''}" data-bk="${c}">
         <div class="spl-tokwrap">${tokenSvg(c)}${pickCount(c) ? `<i class="spl-pickn">+${pickCount(c)}</i>` : ''}</div>
         <b class="spl-left">${state.bank[c] - pickCount(c)}</b>
         ${c === 'gold' ? '<small class="spl-goldtip">예약 시</small>' : `<div class="spl-pm"><button data-minus="${c}" aria-label="${GEM[c].name} 빼기">−</button><button data-plus="${c}" aria-label="${GEM[c].name} 더하기">+</button></div>`}
@@ -337,18 +350,18 @@ export default {
         <div class="spl-row"><button class="btn sm primary" data-take>가져오기</button><button class="btn sm ghost" data-clear>다시</button></div></div>`;
     }
 
-    const banner = myTurn ? '<span><b>내 차례!</b> 보석 아래 + 로 고르거나, 카드를 눌러 사기·예약</span>' : `<span><b>${name(turnUid)}</b>님 차례</span>`;
+    const banner = (myTurn ? '<span><b>내 차례!</b> 보석 아래 + 로 고르거나, 카드를 눌러 사기·예약</span>' : `<span><b>${name(turnUid)}</b>님 차례</span>`) + (turnUid ? hourglassHtml(myTurn) : '');
 
     // 내 보석: 보석 토큰 그림 + 개수 + 카드 보너스
     const myGems = mp ? `<div class="spl-gems">${[...COLORS, 'gold'].map((c) => `
-      <div class="spl-gem">${tokenSvg(c)}<b>${mp.tokens[c]}</b>${c === 'gold' ? '<small>&nbsp;</small>' : `<small class="${myBonus[c] ? 'on' : ''}">카드 +${myBonus[c]}</small>`}</div>`).join('')}</div>` : '';
+      <div class="spl-gem" data-mg="${c}">${tokenSvg(c)}<b>${mp.tokens[c]}</b>${c === 'gold' ? '<small>&nbsp;</small>' : `<small class="${myBonus[c] ? 'on' : ''}">카드 +${myBonus[c]}</small>`}</div>`).join('')}</div>` : '';
 
     // 다른 플레이어(나 제외): 점수 · 보석 · 산 카드 · 예약 카드
     const playerBox = (u) => {
       const p = state.ps[u];
       const owned = [...p.cards].sort((x, y) => COLORS.indexOf(CARDS[x].bonus) - COLORS.indexOf(CARDS[y].bonus) || CARDS[x].lv - CARDS[y].lv);
       const showHidden = u === me;
-      return `<div class="spl-op ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}">
+      return `<div class="spl-op ${u === turnUid ? 'turn' : ''} ${u === me ? 'me' : ''}" data-u="${esc(u)}">
         <div class="spl-op-h"><b>${u === turnUid ? '▶ ' : ''}${name(u)}${u === me ? ' (나)' : ''}</b>${p.nobles.length ? `<small>👑 귀족 ${p.nobles.length}명 (+${p.nobles.length * 3})</small>` : ''}<span class="spl-pts big">${pointsOf(p)}<small>점</small></span></div>
         <div class="spl-op-row"><span class="spl-op-t">보석</span><div class="spl-gems sm">${[...COLORS, 'gold'].map((c) => `<div class="spl-gem">${tokenSvg(c)}<b>${p.tokens[c]}</b></div>`).join('')}</div></div>
         <div class="spl-op-row"><span class="spl-op-t">구매 ${p.cards.length}</span><div class="spl-res sm multi">${owned.map((id) => cardHtml(id, { sm: true })).join('')}</div></div>
@@ -378,6 +391,9 @@ export default {
         <section class="spl-zone all-zone"><div class="spl-zone-t">👥 다른 플레이어 <small>점수 · 보석 · 구매/예약 카드</small></div><div class="spl-ops">${state.order.filter((u) => u !== me).map(playerBox).join('')}</div></section>
         ${guide()}
       </div>`;
+
+    flyChanges(el, state, me, room?.code, cardHtml);
+    runHourglass(el, state, me, sendMove);
 
     // 다른 사람이 카드를 사거나 예약하면 모두에게 잠깐 보여 주기
     const la = state.lastAction;
@@ -443,6 +459,109 @@ export default {
 export const gemIcon = (c) => gemSvg(c);
 
 let guideOpen = false;
+// ── 움직임: 보석·카드가 실제로 날아가요 ──
+function captureRects(el) {
+  const r = {};
+  // 페이지 기준 좌표로 저장해요 (화면을 다시 그리면서 상자가 바뀌어도, 스크롤해도 위치가 맞게)
+  const put = (k, e) => { if (e) { const b = e.getBoundingClientRect(); if (b.width) r[k] = { left: b.left + scrollX, top: b.top + scrollY, width: b.width, height: b.height }; } };
+  el.querySelectorAll('[data-cid]').forEach((e) => put('c:' + e.dataset.cid, e));
+  el.querySelectorAll('[data-bk]').forEach((e) => put('b:' + e.dataset.bk, e.querySelector('svg') || e));
+  el.querySelectorAll('[data-mg]').forEach((e) => put('g:' + e.dataset.mg, e.querySelector('svg') || e));
+  el.querySelectorAll('[data-u]').forEach((e) => put('u:' + e.dataset.u, e.querySelector('.spl-op-h') || e));
+  el.querySelectorAll('[data-nb]').forEach((e) => put('n:' + e.dataset.nb, e));
+  el.querySelectorAll('[data-deck]').forEach((e) => put('d:' + e.dataset.deck, e));
+  return r;
+}
+let snap = null;
+let lastRects = {};
+function flyChanges(el, state, me, code, cardHtml) {
+  if (typeof document === 'undefined') return;
+  const old = snap, prev = lastRects;
+  const now = captureRects(el);
+  snap = { code, ps: JSON.parse(JSON.stringify(state.ps)) };
+  lastRects = now;
+  if (!old || old.code !== code) return;
+  const rect = (k) => now[k] || prev[k];
+  const center = (b) => b && { x: b.left + b.width / 2 - scrollX, y: b.top + b.height / 2 - scrollY };
+  const meZone = () => { const b = el.querySelector('.me-zone .spl-zone-t')?.getBoundingClientRect(); return b && { left: b.left + scrollX, top: b.top + scrollY, width: b.width, height: b.height }; };
+  const destOf = (u, gem) => (u === me ? center(gem ? rect('g:' + gem) : meZone()) : center(rect('u:' + u)));
+  let delay = 0;
+  const go = (html, from, to, big = false) => {
+    if (!from || !to) return;
+    const f = document.createElement('div');
+    f.className = 'spl-fly' + (big ? ' card' : '');
+    f.innerHTML = html;
+    f.style.left = from.x + 'px'; f.style.top = from.y + 'px';
+    document.body.appendChild(f);
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const a = f.animate([
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+      { transform: 'translate(-50%,-50%) scale(1.35)', opacity: 1, offset: 0.25 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.55)`, opacity: 0.35 },
+    ], { duration: 950, delay, easing: 'cubic-bezier(.4,.1,.3,1)', fill: 'both' });
+    a.onfinish = () => f.remove();
+    setTimeout(() => f.remove(), 2500 + delay);
+    delay += 110;
+  };
+  for (const u of Object.keys(state.ps)) {
+    const a = old.ps[u], b = state.ps[u];
+    if (!a || !b) continue;
+    // 새로 산 카드 · 예약한 카드: 시장(또는 예약 칸/덱)에서 내 자리로
+    const newCards = [...b.cards.filter((id) => !a.cards.includes(id)), ...b.reserved.filter((id) => !a.reserved.includes(id))];
+    newCards.forEach((id) => go(cardHtml(id, { sm: true, back: u !== me && (b.hidden || []).includes(id) }), center(prev['c:' + id] || prev['d:' + CARDS[id].lv]), destOf(u), true));
+    b.nobles.filter((n) => !a.nobles.includes(n)).forEach((n) => go(`<div class="spl-fly-n">👑</div>`, center(prev['n:' + n]), destOf(u), true));
+    // 보석: 은행 → 자리 (가져오기·예약 황금) / 자리 → 은행 (카드 사기·반납)
+    for (const c of [...COLORS, 'gold']) {
+      const d = b.tokens[c] - a.tokens[c];
+      for (let k = 0; k < Math.min(Math.abs(d), 6); k++) {
+        if (d > 0) go(tokenSvg(c), center(prev['b:' + c]), destOf(u, c));
+        else go(tokenSvg(c), u === me ? center(prev['g:' + c]) : center(prev['u:' + u]), center(rect('b:' + c)));
+      }
+    }
+  }
+}
+
+// ── 모래시계: 차례마다 1분 ──
+function hourglassHtml(mine) {
+  return `<span class="spl-hg ${mine ? 'mine' : ''}" data-hg><svg viewBox="0 0 40 56" aria-hidden="true">
+    <defs><clipPath id="hgTop"><path d="M8 6 H32 Q32 20 20 28 Q8 20 8 6Z"/></clipPath><clipPath id="hgBot"><path d="M20 28 Q32 36 32 50 H8 Q8 36 20 28Z"/></clipPath></defs>
+    <rect x="4" y="2" width="32" height="4" rx="2" fill="#c9a85a"/><rect x="4" y="50" width="32" height="4" rx="2" fill="#c9a85a"/>
+    <path d="M8 6 H32 Q32 20 20 28 Q32 36 32 50 H8 Q8 36 20 28 Q8 20 8 6Z" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.55)" stroke-width="1.4"/>
+    <rect data-hgt clip-path="url(#hgTop)" x="6" y="6" width="28" height="22" fill="#f2c14e"/>
+    <rect data-hgb clip-path="url(#hgBot)" x="6" y="50" width="28" height="0" fill="#f2c14e"/>
+    <line data-hgs x1="20" y1="28" x2="20" y2="50" stroke="#f2c14e" stroke-width="1.2" stroke-dasharray="2 2"/>
+  </svg><b data-hgn>60</b></span>`;
+}
+let hgTimer = 0, hgState = { key: '', half: false, last: -1, tick: 0 };
+function runHourglass(el, state, me, sendMove) {
+  clearInterval(hgTimer);
+  if (!state.turnDeadline || state.phase === 'done') return;
+  const key = `${state.turn}:${state.turnDeadline}`;
+  if (hgState.key !== key) hgState = { key, half: false, last: -1, tick: 0 };
+  const myIndex = Math.max(0, state.order.indexOf(me));
+  const upd = () => {
+    const $h = el.querySelector('[data-hg]');
+    if (!el.isConnected || !$h) return clearInterval(hgTimer);
+    const now = Date.now(), left = Math.max(0, state.turnDeadline - now), k = left / TURN_MS;
+    const sec = Math.ceil(left / 1000);
+    $h.querySelector('[data-hgn]').textContent = sec;
+    const top = 22 * k, bot = 22 * (1 - k);
+    $h.querySelector('[data-hgt]').setAttribute('y', 28 - top); $h.querySelector('[data-hgt]').setAttribute('height', top);
+    $h.querySelector('[data-hgb]').setAttribute('y', 50 - bot); $h.querySelector('[data-hgb]').setAttribute('height', bot);
+    $h.querySelector('[data-hgs]').style.opacity = left > 0 ? 1 : 0;
+    if (left <= 30000 && left > 29000 && !hgState.half) { hgState.half = true; $h.classList.remove('pop'); void $h.offsetWidth; $h.classList.add('pop'); }
+    $h.classList.toggle('urgent', left <= 10000 && left > 0);
+    if (left <= 10000 && sec !== hgState.last) { hgState.last = sec; const $n = $h.querySelector('[data-hgn]'); $n.classList.remove('beat'); void $n.offsetWidth; $n.classList.add('beat'); }
+    // 시간이 지나면 누군가(차례인 사람 먼저) 차례를 넘겨요
+    if (left === 0 && now - hgState.tick > 2000 && now - state.turnDeadline > 300 + ((myIndex - state.turn + state.order.length) % state.order.length) * 400) {
+      hgState.tick = now;
+      sendMove({ type: 'tick' }, { silent: true });
+    }
+  };
+  hgTimer = setInterval(upd, 200);
+  upd();
+}
+
 function guide() {
   return `<details class="tc-guide" ${guideOpen ? 'open' : ''}><summary>📜 규칙 한눈에 보기</summary>
     <div class="tc-gsec"><div class="tc-gt">내 차례에 하나만</div><div class="tc-gnote">
