@@ -538,7 +538,9 @@ function frame() {
   }
 }
 
-// 투표로 쫓겨난 시민: 새 창에서 발로 뻥 차여 문밖으로
+const EJECT = {"w":567,"h":600,"hx":145,"hy":121,"hr":47};
+const ejectHtml = (p) => `<span class="ab ej" style="--bw:${EJECT.w};--bh:${EJECT.h};--hx:${(EJECT.hx / EJECT.w) * 100}%;--hy:${(EJECT.hy / EJECT.h) * 100}%;--hr:${(EJECT.hr * 2 / EJECT.h) * 100}"><img src="/img/assassin/eject.webp" alt="" draggable="false"><span class="ab-face">${faceHtml(p)}</span></span>`;
+// 투표로 쫓겨난 시민: 새 창에서 옥상 문밖으로 내던져져 도시 밤하늘로 빙글빙글 날아가요
 function kickShow(state, players) {
   document.querySelector('.am-kick')?.remove();
   const k = state.kick;
@@ -548,10 +550,14 @@ function kickShow(state, players) {
   const nm = esc(players[k.uid]?.name || '');
   const t = k.tally || {};
   const tallyHtml = `<div class="am-vgrid">${Object.keys(t).sort((a, b) => t[b] - t[a]).map((u) => `<div class="am-vsq ${u === k.uid ? 'top' : ''}" style="--pc:${COLORS[state.order.indexOf(u) % COLORS.length]}"><b>${esc(players[u]?.name || '')}</b><strong>${t[u]}</strong><small>표</small></div>`).join('')}</div>`;
-  o.innerHTML = k.uid ? `<div class="am-kbox">
-      <div class="am-kstage"><div class="am-door"><i></i></div><div class="am-kfig">${bodyHtml('cover', players[k.uid])}</div><div class="am-boot">🦶</div><span class="am-kpow">뻥!</span></div>
-      <b>${nm}님이 쫓겨났어요</b>${tallyHtml}<small>${nm}님은 <em>시민</em>이었어요 · 마피아는 아직 숨어 있어요<br>곧 다시 불이 꺼져요!</small></div>`
-    : `<div class="am-kbox"><div class="am-kstage none">🤷</div><b>아무도 쫓겨나지 않았어요</b>${tallyHtml}<small>${k.runoff ? '결선 투표도 동점이에요' : '최다 득표가 동점이거나 투표가 없었어요'}<br>곧 다시 불이 꺼져요!</small></div>`;
+  const lines = k.uid ? [`${nm}님은 시민이었어요.`, '마피아는 아직 숨어 있어요…'] : ['아무도 쫓겨나지 않았어요.', k.runoff ? '결선 투표도 동점이에요' : '최다 득표가 동점이거나 투표가 없었어요'];
+  const typed = (txt, delay) => [...txt].map((ch, j) => `<i style="animation-delay:${(delay + j * 0.06).toFixed(2)}s">${ch === ' ' ? '&nbsp;' : ch}</i>`).join('');
+  o.innerHTML = `<div class="am-ej">
+      <div class="am-ej-sky">
+        ${k.uid ? `<div class="am-ej-fig">${ejectHtml(players[k.uid])}</div>` : ''}
+        <div class="am-ej-text"><p>${typed(lines[0], k.uid ? 2.3 : 0.4)}</p><small>${typed(lines[1], k.uid ? 2.3 + lines[0].length * 0.06 + 0.3 : 0.4 + lines[0].length * 0.06 + 0.3)}</small></div>
+      </div>
+      ${tallyHtml}<small class="am-ej-next">곧 다시 불이 꺼져요!</small></div>`;
   document.body.appendChild(o);
   setTimeout(() => o.remove(), Math.max(800, KICK_MS - (Date.now() - k.at)));
 }
