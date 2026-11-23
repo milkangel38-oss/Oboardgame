@@ -1,0 +1,48 @@
+import { cardHtml } from '/js/games/skullking.js';
+import { person, P, move } from './_kit.js';
+const c = (id, w = 110) => `<div class="skv" style="--w:${w}px">${cardHtml(id).replace(' loading="lazy"', '')}</div>`;
+const X4 = [280, 520, 760, 1000];
+const people = (y = 140) => X4.map((x, i) => ({ h: person(i), x, y }));
+export default {
+  meta: { name: '스컬킹', emoji: '🏴‍☠️', sub: '보드게임 · 2~8명', pills: ['<b>10라운드</b> 해적 카드 승부', '승리 횟수를 <b>예측</b>하라!'] },
+  scenes: [
+    { step: '카드 받기', stepNo: 1, d: 5.6, bg: 'ship', cap: '<i>1라운드 1장</i> → … → <i>10라운드 10장</i>',
+      narr: '라운드마다 카드를 받아요. 1라운드는 한 장, 마지막 10라운드는 열 장이에요.',
+      items: [{ h: '<div class="tag dark">1라운드</div>', x: 240, y: 160, at: .2, pop: true }, { h: c('y7'), x: 240, y: 330, at: .5, pop: true },
+        { h: '<div class="tag gold">10라운드</div>', x: 780, y: 160, at: 1.6, pop: true },
+        ...['g3', 'g11', 'y5', 'y14', 'p8', 'k2', 'k12', 'pr2', 'm1', 'e1'].map((id, i) => ({ h: c(id, 84), x: 520 + i * 56, y: 340 + Math.abs(i - 4.5) * 6, r: (i - 4.5) * 4, at: 1.9 + i * .12, pop: true }))] },
+    { step: '예측', stepNo: 2, d: 5, bg: 'ship', cap: '이번 라운드에 <i>몇 번 이길지</i> 모두 함께 예측!',
+      narr: '카드를 보고, 이번 라운드에 승리를 몇 번 가져갈지 모두 함께 예측해요. 요호호!',
+      items: [...people(), ...[1, 0, 2, 1].map((b, i) => ({ h: `<div class="tag dark">예측 <i>${b}</i></div>`, x: X4[i], y: 300, at: 1.4 + i * .15, pop: true })),
+        { h: '<div class="skv-yoho">요호호! 🏴‍☠️</div>', x: 640, y: 470, at: 2.6, pop: true }] },
+    { step: '카드 내기', stepNo: 3, d: 6.6, bg: 'ship', cap: '처음 나온 색이 있으면 <i>반드시 그 색</i>을 내야 해요',
+      narr: '선 플레이어부터 한 장씩 내요. 처음 나온 색을 가지고 있다면, 반드시 그 색을 내야 해요.',
+      items: [...people(), { h: '<div class="tag gold">⚓ 선</div>', x: X4[0], y: 300, at: .3, pop: true },
+        { h: c('g9', 100), k: move({ x: X4[0], y: 160, s: .4 }, { x: 460, y: 420, s: 1 }, .8), at: .8 },
+        { h: '<div class="tag dark">기준 색: <i>초록 앵무새</i></div>', x: 640, y: 290, at: 1.6, pop: true },
+        { h: c('g4', 100), k: move({ x: X4[1], y: 160, s: .4 }, { x: 580, y: 420, s: 1 }, 2.6), at: 2.6 },
+        { h: '<div class="tag green">초록이 있으면 초록!</div>', x: 640, y: 560, at: 3.4, pop: true }] },
+    { step: '숫자 대결', stepNo: 4, d: 6, bg: 'ship', cap: '같은 색은 <i>높은 숫자</i> 승 · <i>검정 해골기</i>는 으뜸패',
+      narr: '같은 색은 높은 숫자가 이기고, 검정 해골기는 다른 색을 모두 이기는 으뜸패예요.',
+      items: [...['g9', 'g12', 'y14', 'k2'].map((id, i) => ({ h: c(id, 120), x: 340 + i * 200, y: 330, at: .2 + i * .25, pop: true })),
+        { h: '<div class="tag dark">9 &lt; 12</div>', x: 440, y: 160, at: 1.4, pop: true },
+        { h: '<div class="x s">✕</div>', x: 740, y: 330, at: 2.2, pop: true, z: 999 }, { h: '<div class="tag red">기준 색 아님</div>', x: 740, y: 500, at: 2.3, pop: true },
+        { h: '<div style="width:136px;height:206px"><div class="box-ring"></div></div>', x: 940, y: 330, at: 3.4, pulse: true },
+        { h: '<div class="tag gold">검정 2 승리!</div>', x: 940, y: 500, at: 3.6, pop: true }] },
+    { step: '특수 카드', stepNo: 5, d: 6.6, bg: 'ship', cap: '해적 ▶ 인어 · 스컬킹 ▶ 해적 · 인어 ▶ 스컬킹 · <i>도망은 항상 짐</i>',
+      narr: '해적은 인어를, 스컬킹은 해적을, 인어는 스컬킹을 잡아요. 도망 카드는 항상 져요.',
+      items: [{ h: c('pr1', 120), x: 250, y: 300, at: .2, pop: true }, { h: '<div class="skv-arr">▶</div>', x: 370, y: 300, at: .5, pop: true }, { h: c('m2', 120), x: 490, y: 300, at: .5, pop: true },
+        { h: '<div class="skv-arr">▶</div>', x: 610, y: 300, at: 1.6, pop: true }, { h: c('sk', 120), x: 730, y: 300, at: 1.6, pop: true },
+        { h: '<div class="skv-arr">▶</div>', x: 850, y: 300, at: 2.6, pop: true }, { h: c('pr4', 120), x: 970, y: 300, at: 2.6, pop: true },
+        { h: '<div class="tag gold">스컬킹은 해적을, 인어는 스컬킹을!</div>', x: 640, y: 120, at: 2.9, pop: true },
+        { h: c('e2', 90), x: 1150, y: 470, at: 4.1, pop: true }, { h: '<div class="tag red">도망 = 항상 짐</div>', x: 1050, y: 600, at: 4.3, pop: true }] },
+    { step: '점수', stepNo: 6, d: 5.8, bg: 'ship', cap: '예측 성공 <i>승리 × 20점</i> · 실패 <i>차이 × −10점</i>',
+      narr: '예측을 정확히 맞히면 승리 한 번에 20점! 틀리면 차이만큼 10점씩 깎여요.',
+      items: [{ h: person(0), x: 380, y: 200 }, { h: '<div class="panel">예측 <i>2</i> · 획득 <i>2</i></div>', x: 380, y: 370, at: .3, pop: true }, { h: '<div class="skv-pts up">+40</div>', x: 380, y: 490, at: 1.2, pop: true },
+        { h: person(1), x: 900, y: 200 }, { h: '<div class="panel">예측 <i>1</i> · 획득 <i>3</i></div>', x: 900, y: 370, at: 2.4, pop: true }, { h: '<div class="skv-pts dn">−20</div>', x: 900, y: 490, at: 3.2, pop: true }] },
+    { step: '보너스 · 결과', stepNo: 7, d: 6.3, bg: 'ship', cap: '예측 성공 시 <i>보너스</i> · 10라운드 후 <i>최고 점수</i>가 해적왕!',
+      narr: '예측에 성공하면 보너스까지! 열 번의 항해 끝에 점수가 가장 높은 해적이 해적왕이에요.',
+      items: [{ h: '<div class="panel" style="font-size:24px;text-align:left">색 14 <i>+10</i> · 검정 14 <i>+20</i><br>해적이 인어를 <i>+20</i> · 스컬킹이 해적을 <i>+30</i><br>인어가 스컬킹을 <i>+40</i></div>', x: 640, y: 220, at: .3, pop: true },
+        { h: '<div class="skv-king">👑</div>', x: 640, y: 420, at: 2.8, pop: true }, { h: person(2), x: 640, y: 480, at: 2.8, pop: true }] },
+  ],
+};

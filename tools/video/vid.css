@@ -80,3 +80,12 @@ html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#140c2c}
 .ncard.sm{width:46px;height:64px;font-size:30px;border-radius:6px}
 .seqno{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#3ddc84;color:#0d2b18;font-size:26px;font-weight:900;box-shadow:0 3px 8px rgba(0,0,0,.4)}
 .seqno.g{background:#f2d27a;color:#2a1d08}
+/* 스컬킹 */
+.scene.ship{background:url(/img/skullking/bg-wide.webp) center/cover}
+.scene.ship::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,.15),rgba(0,0,0,.6))}
+.skv .skc{width:var(--w);box-shadow:0 8px 20px rgba(0,0,0,.6)}
+.skv .skc-n{font-size:calc(var(--w)*.2)}.skv .skc-name{font-size:calc(var(--w)*.11)}
+.skv-yoho{font-size:64px;font-weight:900;color:#ffd84d;text-shadow:0 4px 0 #7a1020,0 0 20px rgba(0,0,0,.8)}
+.skv-arr{font-size:46px;color:#ffd84d;text-shadow:0 2px 6px #000}
+.skv-pts{font-size:60px;font-weight:900;text-shadow:0 3px 8px #000}.skv-pts.up{color:#4ee07a}.skv-pts.dn{color:#ff5c7a}
+.skv-king{font-size:70px;transform:translateY(-90px)}
