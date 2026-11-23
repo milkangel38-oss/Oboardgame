@@ -3050,3 +3050,48 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .jg-seat { padding: 6px 12px; }
 .jg-seat b { align-self: end; } .jg-seat small { grid-column: 2; align-self: start; }
 .jg-c.sel .jg-p { box-shadow: none; } .jg-c.sel::after { content: ''; position: absolute; inset: 4%; border-radius: 50%; box-shadow: 0 0 0 3px #ffd84d, 0 0 14px #ffd84d; pointer-events: none; }
+
+/* 오목·장기: 기원 · 앉은 캐릭터 */
+.sit { position: relative; display: grid; justify-items: center; gap: 1px; width: 96px; }
+.sit-fig { position: relative; width: 96px; height: 92px; }
+.sit-fig svg { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; }
+.sit-face { position: absolute; left: 50%; top: 0; width: 40px; height: 40px; transform: translateX(-50%); border-radius: 50%; box-shadow: 0 0 0 2.5px #f2ead8, 0 3px 6px rgba(0, 0, 0, .5); background: #333; }
+.sit-face > .pf { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: grid; place-items: center; object-fit: cover; font-weight: 800; font-size: 17px; color: #fff; }
+.sit-face > .pf.char svg { width: 100%; height: 100%; }
+.sit-face .om-stone { width: 16px; height: 16px; right: -6px; bottom: -4px; }
+.sit-face .jg-mark { right: -10px; bottom: -6px; width: 19px; height: 19px; font-size: 11px; }
+.sit.turn .sit-face { box-shadow: 0 0 0 3px #ffd84d, 0 0 16px #ffd84d; animation: skxTurn 1s infinite alternate; }
+.sit.me .sit-name { color: #ffd1e6; }
+.sit-name { max-width: 96px; font-size: 12px; color: #fff; text-shadow: 0 1px 3px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sit-label { font-size: 10.5px; color: #f2d27a; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.sit .seat-bubble { bottom: calc(100% - 4px); }
+.sit.up .seat-bubble { bottom: auto; top: calc(100% + 2px); }
+.sit.up .seat-bubble .bub::after { bottom: auto; top: -6px; border-top: 0; border-bottom: 6px solid #fff; }
+.sit-chat { margin-top: 2px; }
+/* 오목 방 */
+.om2 .om-room { position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: 'l r' 'b b'; gap: 6px 10px; align-items: end; padding: 14px 10px 12px; border-radius: 20px;
+  background: linear-gradient(180deg, rgba(20, 12, 6, .1), rgba(20, 12, 6, .45)), repeating-linear-gradient(90deg, #6b4423 0 46px, #5a381c 46px 48px), #5a381c;
+  box-shadow: inset 0 0 0 3px #3a2210, inset 0 0 40px rgba(0, 0, 0, .5), 0 10px 26px rgba(0, 0, 0, .45); }
+.om2 .om-sit.l { grid-area: l; justify-self: start; } .om2 .om-sit.r { grid-area: r; justify-self: end; }
+.om2 .om-board { grid-area: b; }
+.om-c.ban::before { content: '✕'; position: absolute; inset: 0; display: grid; place-items: center; color: rgba(200, 30, 50, .55); font-size: 11px; font-weight: 900; }
+.om-board.can .om-c.ban { cursor: not-allowed; }
+@media (orientation: landscape) and (min-width: 700px) {
+  .om2 .om-room { grid-template-columns: auto 1fr auto; grid-template-areas: 'l b r'; align-items: center; }
+  .om2 .om-board { width: min(100%, 560px, 72vh); }
+}
+/* 장기 방 */
+.jg .jg-room { display: grid; justify-items: center; gap: 6px; padding: 10px 8px; border-radius: 20px;
+  background: linear-gradient(180deg, rgba(20, 12, 6, .1), rgba(20, 12, 6, .45)), repeating-linear-gradient(0deg, #7a5530 0 40px, #66451f 40px 42px), #66451f;
+  box-shadow: inset 0 0 0 3px #3a2210, inset 0 0 40px rgba(0, 0, 0, .5), 0 10px 26px rgba(0, 0, 0, .45); }
+.jg-sit.jg-top, .jg-sit.jg-bot { width: 100%; grid-template-columns: auto auto; justify-content: center; column-gap: 8px; align-items: center; }
+.jg-sit .sit-fig { grid-row: span 2; width: 78px; height: 76px; } .jg-sit .sit-face { width: 34px; height: 34px; }
+.jg-sit .sit-name, .jg-sit .sit-label { justify-self: start; }
+.jg-sit .sit-name { align-self: end; } .jg-sit .sit-label { align-self: start; }
+.jg-sit .seat-bubble { left: calc(50% - 40px); }
+.jg-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.jg-form { appearance: none; border: 0; cursor: pointer; display: grid; justify-items: center; gap: 2px; padding: 10px 6px; border-radius: 14px; background: rgba(255, 255, 255, .06); color: #fff; font: inherit; }
+.jg-form.on { background: rgba(255, 216, 77, .14); box-shadow: inset 0 0 0 2px #ffd84d; }
+.jg-form b { font-size: 15px; } .jg-form small { font-size: 11px; color: var(--muted); }
+.jg-frow { display: flex; align-items: center; gap: 2px; }
+.jg-frow .jg-p { width: 26px; } .jg-frow .jg-p b { font-size: 13px; } .jg-frow i { width: 10px; }

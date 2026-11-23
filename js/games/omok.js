@@ -1,6 +1,6 @@
 // 미니게임: 오목 (2명) — 15×15 바둑판, 흑이 먼저, 가로·세로·대각선으로 5개 이상 이으면 승리
 import { turnAlert, bigFlash } from './turn-alert.js';
-import { faceHtml } from './face.js';
+import { sitHtml, chatFormHtml, bindChat } from './sit.js';
 import { sfxToken } from '../sound.js';
 
 const N = 15;
@@ -22,6 +22,31 @@ export function fiveLine(board, idx, color) {
   return null;
 }
 
+// 열린 3: 한 수 더 두면 양쪽이 빈 4(.XXXX.)가 되는 줄
+function openThreeDir(board, idx, color, dx, dy) {
+  const x0 = idx % N, y0 = Math.floor(idx / N);
+  const cell = (k) => { const x = x0 + dx * k, y = y0 + dy * k; if (x < 0 || y < 0 || x >= N || y >= N) return -1; const v = board[y * N + x]; return k === 0 || v === color ? 1 : v === '0' ? 0 : -1; };
+  const arr = {}; for (let k = -5; k <= 5; k++) arr[k] = cell(k);
+  // 이미 4개 이상 이어졌으면 3이 아니에요
+  let run = 1; for (const s of [1, -1]) for (let k = s; arr[k] === 1; k += s) run++;
+  if (run >= 4) return false;
+  for (let e = -4; e <= 4; e++) {
+    if (e === 0 || arr[e] !== 0) continue;
+    const a = { ...arr, [e]: 1 };
+    for (let st = -5; st <= 0; st++) {
+      if (st + 5 > 5) continue;
+      if (a[st] !== 0 || a[st + 5] !== 0) continue;
+      let ok = true; for (let k = st + 1; k <= st + 4; k++) if (a[k] !== 1) ok = false;
+      if (ok && st + 1 <= 0 && 0 <= st + 4 && st + 1 <= e && e <= st + 4) return true;
+    }
+  }
+  return false;
+}
+// 33: 한 수로 열린 3이 두 줄 이상 생기면 금지 (5목을 만드는 수는 괜찮아요)
+export function isDoubleThree(board, idx, color) {
+  return DIRS.filter(([dx, dy]) => openThreeDir(board, idx, String(color), dx, dy)).length >= 2;
+}
+
 function result(state, players, winner, why) {
   const order = [state.black, state.white];
   if (!winner) {
@@ -36,7 +61,6 @@ function result(state, players, winner, why) {
   };
 }
 
-const ui = { key: '', pick: -1 };
 const fx = { n: -1 };
 
 export default {
@@ -54,9 +78,9 @@ export default {
     '2명이 흑돌과 백돌을 나눠 가지고, 흑돌이 먼저 둬요. (흑·백은 무작위)',
     '번갈아 가며 15×15 판의 빈 교차점에 돌을 하나씩 놓아요.',
     '가로·세로·대각선 중 한 줄로 돌 5개 이상을 먼저 이으면 승리!',
-    '실수 방지: 칸을 한 번 누르면 미리보기, 같은 칸을 한 번 더 누르면 돌이 놓여요.',
+    '33 금지: 한 수로 열린 3(막히지 않은 3)이 두 줄 동시에 생기는 자리에는 둘 수 없어요. (흑·백 모두)',
     '판이 가득 차면 무승부. 언제든 기권할 수 있어요.',
-    '가넷: 승리한 사람 +1',
+    '단판 승부! 이긴 사람 가넷 +1 (진 사람은 없어요)',
   ],
 
   setup(players) {
@@ -79,6 +103,7 @@ export default {
     if (!Number.isInteger(i) || i < 0 || i >= N * N) throw new Error('판 밖이에요');
     if (state.board[i] !== '0') throw new Error('이미 돌이 있어요');
     const board = state.board.slice(0, i) + color + state.board.slice(i + 1);
+    if (!fiveLine(board, i, String(color)) && isDoubleThree(state.board, i, color)) throw new Error('33은 둘 수 없어요 (열린 3이 두 줄)');
     const s = { ...state, board, last: i, n: state.n + 1, turn: color === 1 ? 2 : 1 };
     const line = fiveLine(board, i, String(color));
     if (line) {
@@ -95,7 +120,6 @@ export default {
     const myColor = me === state.black ? 1 : me === state.white ? 2 : 0;
     const turnUid = state.turn === 1 ? state.black : state.white;
     const myTurn = !finished && state.phase === 'play' && myColor === state.turn;
-    if (ui.key !== `${room?.code}:${state.n}`) ui.key = `${room?.code}:${state.n}`, ui.pick = -1;
     if (room) turnAlert(room.code, `om:${room.startedAt}:${state.n}`, myTurn);
     if (fx.n !== state.n) { if (fx.n >= 0 && state.n > fx.n) sfxToken(); fx.n = state.n; }
 
@@ -104,41 +128,48 @@ export default {
     const stars = STARS.map(([x, y]) => `<circle cx="${x + 0.5}" cy="${y + 0.5}" r=".12"/>`).join('');
     const cells = Array.from(state.board, (v, i) => {
       const stone = v === '1' ? 'b' : v === '2' ? 'w' : '';
-      const cls = [stone && `st ${stone}`, i === state.last && 'last', win.has(i) && 'win', ui.pick === i && 'pick'].filter(Boolean).join(' ');
-      return `<button class="om-c ${cls}" data-i="${i}" ${stone || !myTurn ? 'tabindex="-1"' : ''}></button>`;
+      const ban = myTurn && !stone && isDoubleThree(state.board, i, myColor) && !fiveLine(state.board.slice(0, i) + myColor + state.board.slice(i + 1), i, String(myColor));
+      const cls = [stone && `st ${stone}`, i === state.last && 'last', win.has(i) && 'win', ban && 'ban'].filter(Boolean).join(' ');
+      return `<button class="om-c ${cls}" data-i="${i}" tabindex="-1"></button>`;
     }).join('');
-    const seat = (u, c) => `<div class="om-p ${u === me ? 'me' : ''} ${!finished && u === turnUid ? 'turn' : ''}">
-      <span class="om-face">${faceHtml(players[u] || { name: '?' })}<i class="om-stone ${c}"></i></span>
-      <b>${name(u)}</b><small>${c === 'b' ? '흑 · 먼저' : '백'}</small></div>`;
+    const seat = (u, c, side) => sitHtml(players[u], {
+      uid: u, robe: c === 'b' ? '#2b2f3a' : '#e8e2d2', trim: c === 'b' ? '#e8e2d2' : '#3d4f7a', me: u === me, turn: !finished && u === turnUid,
+      badge: `<i class="om-stone ${c}"></i>`, label: c === 'b' ? '흑 · 먼저' : '백',
+    }).replace('class="sit ', `class="sit om-sit ${side} `);
 
     let banner;
     if (finished || state.phase === 'done') {
       const w = state.win ? (state.board[state.win[0]] === '1' ? state.black : state.white) : state.resign ? (state.resign === state.black ? state.white : state.black) : null;
       banner = w ? `<b>${name(w)}</b>님 승리! ${state.resign ? '(상대 기권)' : '🎉 오목 완성'}` : '무승부!';
-    } else if (myTurn) banner = ui.pick >= 0 ? '<b>같은 자리를 한 번 더</b> 누르면 돌이 놓여요' : `<b>내 차례!</b> ${myColor === 1 ? '흑돌' : '백돌'}을 놓을 자리를 누르세요`;
+    } else if (myTurn) banner = `<b>내 차례!</b> ${myColor === 1 ? '흑돌' : '백돌'}을 놓을 자리를 누르세요 <small class="muted">· ✕ 자리는 33 금지</small>`;
     else if (myColor) banner = `<b>${name(turnUid)}</b>님이 생각하는 중…`;
     else banner = `${name(turnUid)}님 차례`;
 
     el.innerHTML = `
-      <div class="om">
-        <div class="om-top">${seat(state.black, 'b')}<span class="om-vs">VS<small>${state.n}수</small></span>${seat(state.white, 'w')}</div>
-        <div class="nb-banner"><span>${banner}</span></div>
-        <div class="om-board ${myTurn ? `can ${myColor === 1 ? 'mb' : 'mw'}` : ''}">
-          <svg class="om-grid" viewBox="0 0 ${N} ${N}" preserveAspectRatio="none">${lines}${stars}</svg>
-          <div class="om-cells">${cells}</div>
+      <div class="om om2">
+        <div class="nb-banner"><span>${banner} <small class="jg-n">${state.n}수</small></span></div>
+        <div class="om-room">
+          ${seat(state.black, 'b', 'l')}
+          <div class="om-board ${myTurn ? `can ${myColor === 1 ? 'mb' : 'mw'}` : ''}">
+            <svg class="om-grid" viewBox="0 0 ${N} ${N}" preserveAspectRatio="none">${lines}${stars}</svg>
+            <div class="om-cells">${cells}</div>
+          </div>
+          ${seat(state.white, 'w', 'r')}
         </div>
         ${myColor && !finished && state.phase === 'play' ? '<button class="btn ghost sm om-resign" data-resign>🏳️ 기권</button>' : ''}
+        ${myColor ? chatFormHtml() : ''}
       </div>`;
 
     el.querySelectorAll('.om-c').forEach((b) => (b.onclick = () => {
-      if (!myTurn) return;
+      if (!myTurn || b.classList.contains('ban')) return;
       const i = Number(b.dataset.i);
       if (state.board[i] !== '0') return;
-      if (ui.pick === i) { ui.pick = -1; sendMove({ type: 'place', i }); return; }
-      ui.pick = i; this.render(el, ctx);
+      b.classList.add('st', myColor === 1 ? 'b' : 'w');
+      sendMove({ type: 'place', i });
     }));
     const $r = el.querySelector('[data-resign]');
     if ($r) $r.onclick = () => { if (confirm('정말 기권할까요?')) sendMove({ type: 'resign' }); };
+    bindChat(el);
     if (state.win && !fx.shown) { fx.shown = true; bigFlash('<div class="spl-myturn">오목 완성! 🎉</div>', 1600); }
     if (!state.win) fx.shown = false;
   },

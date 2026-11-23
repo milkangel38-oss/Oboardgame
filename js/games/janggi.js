@@ -2,7 +2,7 @@
 // 칸 번호: r*9 + c (r 0~9 위→아래, c 0~8). 한(漢·빨강)은 위, 초(楚·초록)는 아래에서 시작
 // 말: K 궁 · R 차 · C 포 · H 마 · E 상 · A 사 · P 졸/병, 앞에 진영 글자 c(초) / h(한)
 import { turnAlert, bigFlash } from './turn-alert.js';
-import { faceHtml } from './face.js';
+import { sitHtml, chatFormHtml, bindChat } from './sit.js';
 import { sfxToken } from '../sound.js';
 
 const W = 9, H = 10;
@@ -25,10 +25,15 @@ export const NAMES = { K: '궁', R: '차', C: '포', H: '마', E: '상', A: '사
 const HANJA = { c: { K: '楚', R: '車', C: '包', H: '馬', E: '象', A: '士', P: '卒' }, h: { K: '漢', R: '車', C: '包', H: '馬', E: '象', A: '士', P: '兵' } };
 const SCORE = { R: 13, C: 7, H: 5, E: 3, A: 3, P: 2, K: 0 };
 
-export function initialBoard() {
+// 상·마 배치: 내 쪽에서 봤을 때 왼쪽부터 (차 옆 두 칸, 사 옆 두 칸)
+export const FORMS = ['마상마상', '상마상마', '마상상마', '상마마상'];
+const FORM_NAME = { 마상마상: '왼상 차림', 상마상마: '오른상 차림', 마상상마: '안상 차림', 상마마상: '바깥상 차림' };
+const KIND = { 마: 'H', 상: 'E' };
+export function initialBoard(fc = '마상마상', fh = '마상마상') {
   const b = Array(W * H).fill('');
-  const back = ['R', 'H', 'E', 'A', '', 'A', 'E', 'H', 'R'];
-  back.forEach((p, c) => { if (p) { b[at(0, c)] = 'h' + p; b[at(9, c)] = 'c' + p; } });
+  ['R', '', '', 'A', '', 'A', '', '', 'R'].forEach((p, c) => { if (p) { b[at(0, c)] = 'h' + p; b[at(9, c)] = 'c' + p; } });
+  // 초는 아래에서 보니 왼쪽 = 0열, 한은 위에서 보니 왼쪽 = 8열
+  [1, 2, 6, 7].forEach((c, k) => { b[at(9, c)] = 'c' + KIND[fc[k]]; b[at(0, 8 - c)] = 'h' + KIND[fh[k]]; });
   b[at(1, 4)] = 'hK'; b[at(8, 4)] = 'cK';
   [1, 7].forEach((c) => { b[at(2, c)] = 'hC'; b[at(7, c)] = 'cC'; });
   [0, 2, 4, 6, 8].forEach((c) => { b[at(3, c)] = 'hP'; b[at(6, c)] = 'cP'; });
@@ -150,19 +155,27 @@ export default {
     '졸·병: 앞이나 옆으로 한 칸 (뒤로는 못 가요). 궁성 안에서는 선을 따라 대각선으로도 갈 수 있어요.',
     '상대 궁을 공격하면 "장군!" 내 궁이 공격받으면 반드시 피해야 해요. 피할 수 없으면 외통으로 패배!',
     '둘 곳이 마땅치 않으면 "한수쉼"으로 차례를 넘길 수 있어요 (장군일 때는 안 돼요).',
+    '시작하기 전에 각자 상·마 배치(마상마상 · 상마상마 · 마상상마 · 상마마상)를 골라요.',
     '200수가 지나면 남은 기물 점수로 승부해요 (차13·포7·마5·상3·사3·졸2, 한은 덤 1.5점).',
-    '가넷: 승리한 사람 +1',
+    '단판 승부! 이긴 사람 가넷 +1 (진 사람은 없어요)',
   ],
 
   setup(players) {
     const [a, b] = players.map((p) => p.uid).sort(() => Math.random() - 0.5);
-    return { cho: a, han: b, board: initialBoard(), turn: 'c', n: 0, last: null, check: false, passes: 0, phase: 'play' };
+    return { cho: a, han: b, board: initialBoard(), forms: { c: null, h: null }, turn: 'c', n: 0, last: null, check: false, passes: 0, phase: 'form' };
   },
 
   move(state, move, uid, players) {
-    if (state.phase !== 'play') throw new Error('__noop');
     const side = uid === state.cho ? 'c' : uid === state.han ? 'h' : '';
     if (!side) throw new Error('참가자가 아니에요');
+    if (state.phase === 'form') {
+      if (move?.type === 'resign') { const s = { ...state, phase: 'done', resign: uid }; return { state: s, result: result(s, players, side === 'c' ? state.han : state.cho, '(상대 기권)') }; }
+      if (move?.type !== 'form' || !FORMS.includes(move.f)) throw new Error('배치를 골라 주세요');
+      const forms = { ...state.forms, [side]: move.f };
+      if (forms.c && forms.h) return { state: { ...state, forms, board: initialBoard(forms.c, forms.h), phase: 'play' } };
+      return { state: { ...state, forms } };
+    }
+    if (state.phase !== 'play') throw new Error('__noop');
     const opp = side === 'c' ? 'h' : 'c';
     const oppUid = side === 'c' ? state.han : state.cho;
     if (move?.type === 'resign') { const s = { ...state, phase: 'done', resign: uid }; return { state: s, result: result(s, players, oppUid, '(상대 기권)') }; }
@@ -221,30 +234,38 @@ export default {
       return `<button class="${cls}" data-i="${i}">${p ? pieceHtml(p) : ''}</button>`;
     }).join('');
 
-    const seat = (u, side) => `<div class="om-p jg-seat ${side} ${u === me ? 'me' : ''} ${!finished && u === turnUid ? 'turn' : ''}">
-      <span class="om-face">${faceHtml(players[u] || { name: '?' })}<i class="jg-mark ${side}">${side === 'c' ? '楚' : '漢'}</i></span>
-      <b>${name(u)}</b><small>${side === 'c' ? '초 · 먼저' : '한'}</small></div>`;
+    const seat = (u, side, up) => sitHtml(players[u], {
+      uid: u, up, robe: side === 'c' ? '#1f6a45' : '#a3242f', trim: '#f2ead8', me: u === me, turn: !finished && state.phase === 'play' && u === turnUid,
+      badge: `<i class="jg-mark ${side}">${side === 'c' ? '楚' : '漢'}</i>`, label: (side === 'c' ? '초 · 먼저' : '한') + (state.forms?.[side] && state.phase !== 'form' ? ` · ${state.forms[side]}` : ''),
+    }).replace('class="sit ', `class="sit jg-sit ${up ? 'jg-top' : 'jg-bot'} `);
     const top = flip ? state.cho : state.han, bottom = flip ? state.han : state.cho;
 
     let banner;
     if (finished || state.phase === 'done') {
       const w = room?.result?.winners?.[0];
       banner = w ? `<b>${name(w)}</b>님 승리! ${state.mate ? '외통 장군 🎉' : state.resign ? '(상대 기권)' : state.score ? `(점수 ${state.score.c} : ${state.score.h})` : ''}` : '무승부!';
-    } else if (myTurn) banner = state.check ? '<b class="red">장군!</b> 궁을 지키세요' : ui.sel >= 0 ? `<b>${NAMES[b[ui.sel][1]]}</b> 선택 · 갈 곳을 누르세요` : '<b>내 차례!</b> 움직일 말을 누르세요';
+    } else if (state.phase === 'form') banner = mySide ? (state.forms[mySide] ? `내 배치 <b>${state.forms[mySide]}</b> · 상대가 고르는 중…` : '<b>상·마 배치</b>를 골라 주세요 (왼쪽부터)') : '배치를 고르는 중…';
+    else if (myTurn) banner = state.check ? '<b class="red">장군!</b> 궁을 지키세요' : ui.sel >= 0 ? `<b>${NAMES[b[ui.sel][1]]}</b> 선택 · 갈 곳을 누르세요` : '<b>내 차례!</b> 움직일 말을 누르세요';
     else banner = `<b>${name(turnUid)}</b>님 차례${state.check ? ' · <b class="red">장군!</b>' : ''}`;
 
     el.innerHTML = `
       <div class="om jg">
-        ${seat(top, flip ? 'c' : 'h')}
         <div class="nb-banner"><span>${banner} <small class="jg-n">${state.n}수</small></span></div>
-        <div class="jg-board">
-          <svg class="jg-grid" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${L.join('')}</svg>
-          <div class="jg-cells">${cells}</div>
+        <div class="jg-room">
+          ${seat(top, flip ? 'c' : 'h', true)}
+          <div class="jg-board">
+            <svg class="jg-grid" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${L.join('')}</svg>
+            <div class="jg-cells">${cells}</div>
+          </div>
+          ${seat(bottom, flip ? 'h' : 'c', false)}
         </div>
-        ${seat(bottom, flip ? 'h' : 'c')}
+        ${state.phase === 'form' && mySide && !finished ? `<div class="jg-forms">${FORMS.map((f) => `<button class="jg-form ${state.forms[mySide] === f ? 'on' : ''}" data-form="${f}">
+            <span class="jg-frow">${['R', ...f.split('').map((x) => KIND[x])].slice(0, 3).map((k) => pieceHtml(mySide + k)).join('')}<i></i>${f.split('').slice(2).map((x) => pieceHtml(mySide + KIND[x])).join('')}${pieceHtml(mySide + 'R')}</span>
+            <b>${f}</b><small>${FORM_NAME[f]}</small></button>`).join('')}</div>` : ''}
         ${mySide && !finished && state.phase === 'play' ? `<div class="jg-acts">
           <button class="btn sm" data-pass ${!myTurn || state.check ? 'disabled' : ''}>⏸ 한수쉼</button>
           <button class="btn ghost sm" data-resign>🏳️ 기권</button></div>` : ''}
+        ${mySide ? chatFormHtml() : ''}
       </div>`;
 
     el.querySelectorAll('.jg-c').forEach((btn) => (btn.onclick = () => {
@@ -253,6 +274,8 @@ export default {
       if (b[i] && b[i][0] === mySide) { ui.sel = ui.sel === i ? -1 : i; this.render(el, ctx); return; }
       if (ui.sel >= 0 && targets.includes(i)) { const from = ui.sel; ui.sel = -1; sendMove({ type: 'move', from, to: i }); }
     }));
+    el.querySelectorAll('[data-form]').forEach((x) => (x.onclick = () => sendMove({ type: 'form', f: x.dataset.form })));
+    bindChat(el);
     const $p = el.querySelector('[data-pass]');
     if ($p) $p.onclick = () => sendMove({ type: 'pass' });
     const $r = el.querySelector('[data-resign]');
