@@ -5,7 +5,7 @@
 import { GARNET } from '../profile.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { faceHtml } from './face.js';
-import { soundEvent, sfxCard } from '../sound.js';
+import { soundEvent, sfxCard, isMuted, getVolume } from '../sound.js';
 
 const SUITS = {
   g: { name: '앵무새', color: '#2f9e5b' },
@@ -156,6 +156,25 @@ export function cardHtml(id, { small = false } = {}) {
 
 const fx = { bid: '', rk: '', tno: 0, hold: null, ckey: '', cnt: 0 };
 const HOLD_MS = 2800;
+// 모두 예측하면 해적 목소리로 "요호호호!" (기기 음성 · 굵고 낮게)
+function yoho() {
+  try {
+    if (isMuted() || typeof speechSynthesis === 'undefined') return;
+    const u = new SpeechSynthesisUtterance('요호호호!');
+    u.lang = 'ko-KR'; u.pitch = 0.2; u.rate = 0.85; u.volume = Math.min(1, getVolume() * 1.6);
+    const v = speechSynthesis.getVoices().filter((x) => x.lang?.startsWith('ko'));
+    if (v.length) u.voice = v.find((x) => /male|남/i.test(x.name)) || v[0];
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch {}
+}
+// 배경 소품: 금은보화 · 보물상자 · 쇠사슬
+const COINS = (w) => `<svg viewBox="0 0 120 70" width="${w}"><g stroke="#8a5a0a" stroke-width="1.2">${[[20,58],[38,60],[56,61],[74,60],[92,58],[29,50],[47,51],[65,51],[83,50],[38,42],[56,42],[74,42],[47,34],[65,34],[56,26]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="5" fill="#f5c32c"/><ellipse cx="${x}" cy="${y - 1}" rx="7" ry="2.6" fill="#ffe27a" stroke="none"/>`).join('')}</g><path d="M88 40 l6 -8 l6 8 l-6 6 z" fill="#e0304a" stroke="#7a0a1a"/><path d="M22 44 l5 -6 l5 6 l-5 5 z" fill="#2fb3e0" stroke="#0a4a7a"/><path d="M60 18 l4 -5 l4 5 l-4 4 z" fill="#3ddc84" stroke="#0a6a3a"/></svg>`;
+const CHEST = (w) => `<svg viewBox="0 0 110 90" width="${w}"><path d="M12 30 Q55 0 98 30 L98 38 L12 38 Z" fill="#6b3a17" stroke="#2a1405" stroke-width="2" transform="rotate(-14 12 38)"/><g stroke="#8a5a0a" stroke-width="1">${[[30,38],[44,34],[58,33],[72,35],[84,38],[38,30],[54,27],[68,29],[50,22]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="9" ry="4" fill="#f5c32c"/>`).join('')}</g><path d="M46 20 l4 -6 l4 6 l-4 4 z" fill="#e0304a"/><path d="M66 24 l4 -5 l4 5 l-4 4 z" fill="#2fb3e0"/><rect x="12" y="38" width="86" height="44" rx="4" fill="#7a4520" stroke="#2a1405" stroke-width="2"/><path d="M12 50 h86 M12 70 h86" stroke="#5a3010" stroke-width="2"/><rect x="24" y="38" width="8" height="44" fill="#d8a73a" stroke="#6a4a0a"/><rect x="78" y="38" width="8" height="44" fill="#d8a73a" stroke="#6a4a0a"/><rect x="48" y="46" width="14" height="16" rx="2" fill="#d8a73a" stroke="#6a4a0a"/><circle cx="55" cy="54" r="2.4" fill="#2a1405"/></svg>`;
+const CHAIN = (w) => `<svg viewBox="0 0 200 40" width="${w}"><g fill="none" stroke-width="4">${Array.from({ length: 9 }, (_, i) => `<ellipse cx="${14 + i * 21}" cy="${20 + Math.sin(i / 1.3) * 7}" rx="12" ry="${i % 2 ? 4 : 7}" stroke="${i % 2 ? '#6f7883' : '#9aa4b0'}"/>`).join('')}</g></svg>`;
+const DECOR = `<div class="skx-decor" aria-hidden="true">
+  <span class="d-chest">${CHEST(96)}</span><span class="d-coins r">${COINS(104)}</span>
+  <span class="d-chain a">${CHAIN(150)}</span><span class="d-chain b">${CHAIN(130)}</span>
+</div>`;
 const chat = { draft: '', focus: false };
 let lastCtx = null;
 const COMPASS = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width=".8" stroke-dasharray="2 3"/><path d="M50 4 L56 44 L96 50 L56 56 L50 96 L44 56 L4 50 L44 44 Z" fill="currentColor" opacity=".55"/><path d="M50 18 L53 47 L82 50 L53 53 L50 82 L47 53 L18 50 L47 47 Z" fill="currentColor" opacity=".35" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>`;
@@ -315,6 +334,7 @@ export default {
       const bk = `${room.code}:${room.startedAt}:${state.ri}`;
       if (state.phase === 'play' && fx.bid !== bk && !state.lastTrick && !state.trick.length) {
         fx.bid = bk;
+        yoho();
         bigFlash(`<div class="sk-yoho"><b>요호호! 🏴‍☠️</b><div>${state.order.map((u) => `<span>${name(u)} <i>${state.bids[u]}</i></span>`).join('')}</div></div>`, 2200, 'sk-flash');
       }
       // 트릭이 끝나면 가운데에 잠깐 남겨 두었다가 이긴 사람에게 카드가 날아가요
@@ -394,7 +414,7 @@ export default {
       const x = 50 + Math.cos(ang) * 43, y = 50 + Math.sin(ang) * 41;
       const bid = state.bids[u];
       const stat = state.phase === 'bid' ? (bid === null ? '<i class="think">생각 중…</i>' : '<i class="done">예측 완료</i>')
-        : `<span class="skx-bw ${bid !== null && state.won[u] === bid ? 'hit' : state.won[u] > bid ? 'over' : ''}">🎯${bid} · ⚔${state.won[u]}</span>`;
+        : `<span class="skx-bw ${bid !== null && state.won[u] === bid ? 'hit' : state.won[u] > bid ? 'over' : ''}">예측 <b>${bid}</b> · 획득 <b>${state.won[u]}</b></span>`;
       return `<div class="skx-seat ${u === me ? 'me' : ''} ${u === turnUid && !holding ? 'turn' : ''} ${winU === u ? 'win' : ''} ${y < 45 ? 'up' : ''}" data-u="${esc(u)}" style="left:${x}%;top:${y}%">
         <span class="seat-bubble" data-bub="${esc(u)}"></span>
         <span class="skx-face">${faceHtml(players[u] || { name: '?' })}${u === leader && state.phase !== 'roundEnd' ? '<i class="skx-lead" title="이번 트릭 선">⚓</i>' : ''}</span>
@@ -416,8 +436,10 @@ export default {
     el.innerHTML = `
       <div class="sk skx">
         <div class="sk-head"><span class="sk-round">${state.ri + 1}<small>/${state.rounds.length}라운드</small></span><span class="sk-cards">카드 ${cards}장</span></div>
+        <div class="skx-board">${state.order.map((u) => `<div class="skx-bp ${u === me ? 'me' : ''} ${u === turnUid && !holding ? 'turn' : ''}">
+          <span class="skx-bface">${faceHtml(players[u] || { name: '?' })}</span><b>${name(u)}</b><em>${state.scores[u]}<small>점</small></em></div>`).join('')}</div>
         <div class="skx-stage">
-          <i class="skx-lamp l"></i><i class="skx-lamp r"></i>
+          ${DECOR}<i class="skx-lamp l"></i><i class="skx-lamp r"></i>
           <div class="skx-deck"><div class="skx-rope"></div><div class="skx-compass">${COMPASS}</div>
             <div class="skx-mid">${label}${center}</div>
           </div>

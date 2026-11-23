@@ -2855,8 +2855,8 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
   background:
     radial-gradient(circle at 8% 8%, rgba(255, 190, 90, .28), transparent 16%),
     radial-gradient(circle at 92% 8%, rgba(255, 190, 90, .28), transparent 16%),
-    repeating-radial-gradient(ellipse at 50% 130%, rgba(120, 220, 230, .06) 0 3px, transparent 3px 22px),
-    radial-gradient(ellipse at 50% 115%, #146577, #0b3350 48%, #050e1d 92%);
+    radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0, 0, 0, .55) 100%),
+    repeating-linear-gradient(0deg, #2c3846 0 30px, #161d26 30px 32px, #27313d 32px 62px, #161d26 62px 64px);
   box-shadow: inset 0 0 0 3px #4a2c12, inset 0 0 0 6px rgba(201, 168, 90, .35), inset 0 0 60px rgba(0, 0, 0, .55), 0 12px 30px rgba(0, 0, 0, .5); }
 .skx-stage::before { content: '🏴‍☠️'; position: absolute; left: 50%; top: 2%; transform: translateX(-50%); font-size: 18px; opacity: .25; }
 .skx-lamp { position: absolute; top: 5%; width: 14px; height: 18px; border-radius: 6px 6px 8px 8px; background: radial-gradient(circle at 50% 60%, #fff2b0, #ffb02e 55%, #a0560a); box-shadow: 0 0 18px 6px rgba(255, 176, 46, .45); animation: skxFlicker 2.4s infinite alternate; }
@@ -2911,3 +2911,38 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
   .skx-deck { inset: 16% 14%; }
 }
 @media (orientation: landscape) and (max-height: 560px) { .skx-trick { --cw: 54px !important; } }
+
+/* 스컬킹: 배경 소품 · 상단 점수판 · 자리 글자 */
+.skx-stage { overflow: visible; }
+.skx-decor { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; pointer-events: none; }
+.skx-decor > span { position: absolute; display: block; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .6)); }
+.skx-decor svg { display: block; }
+.d-chest { left: 1%; bottom: 1%; }
+.d-coins.r { right: 1%; bottom: 0; }
+.d-coins.l { left: 22%; bottom: -2%; opacity: .85; }
+.d-coins.t { right: 22%; top: 1%; opacity: .7; transform: scale(.9); }
+.d-chain.a { left: -4%; top: 30%; transform: rotate(-62deg); opacity: .8; }
+.d-chain.b { right: -6%; top: 26%; transform: rotate(58deg); opacity: .8; }
+.skx-deck { z-index: 1; }
+.skx-seat { z-index: 3; }
+.skx-bw { font-size: 12px !important; padding: 2px 8px !important; color: #fff !important; background: rgba(0, 0, 0, .72) !important; }
+.skx-bw b { color: #ffd84d; font-size: 13px; }
+.skx-bw.hit { box-shadow: inset 0 0 0 1.5px #4ee07a; } .skx-bw.hit b { color: #4ee07a; } .skx-bw.over b { color: #ff7a8e; }
+.skx-seat > i { font-size: 11.5px !important; padding: 2px 8px !important; }
+.skx-score { font-size: 13px; padding: 1px 8px; border-radius: 99px; background: rgba(0, 0, 0, .55); }
+.skx-name { font-size: 12px; }
+.skx-seat { width: 96px; }
+.skx-name { max-width: 92px; }
+.skx-board { display: flex; gap: 6px; justify-content: center; overflow-x: auto; padding: 4px 2px 2px; scrollbar-width: none; }
+.skx-bp { flex: 0 0 auto; min-width: 54px; max-width: 72px; display: grid; justify-items: center; gap: 1px; padding: 5px 4px; border-radius: 12px; background: rgba(255, 255, 255, .06); }
+.skx-bp.me { background: rgba(255, 79, 154, .16); }
+.skx-bp.turn { box-shadow: inset 0 0 0 2px #ffd84d; }
+.skx-bface { width: 32px; height: 32px; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 2px #c9a85a; }
+.skx-bface > .pf { width: 100%; height: 100%; display: grid; place-items: center; object-fit: cover; font-weight: 800; font-size: 15px; color: #fff; }
+.skx-bface > .pf.char svg { width: 100%; height: 100%; }
+.skx-bp b { max-width: 66px; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skx-bp em { font-style: normal; font-family: var(--logo); font-size: 17px; color: #ffd84d; line-height: 1; }
+.skx-bp em small { font-size: 10px; margin-left: 1px; }
+.skx-stage { margin: 34px -4px 60px; }
+.skx-chat { margin-top: -42px; }
+@media (orientation: landscape) and (max-height: 560px) { .skx-stage { margin: 34px 0 56px; } }
