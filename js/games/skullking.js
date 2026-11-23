@@ -5,7 +5,7 @@
 import { GARNET } from '../profile.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { faceHtml } from './face.js';
-import { soundEvent, sfxCard, isMuted, getVolume } from '../sound.js';
+import { soundEvent, sfxCard, playSfxFile, preloadSfx } from '../sound.js';
 
 const SUITS = {
   g: { name: '앵무새', color: '#2f9e5b' },
@@ -156,17 +156,9 @@ export function cardHtml(id, { small = false } = {}) {
 
 const fx = { bid: '', rk: '', tno: 0, hold: null, ckey: '', cnt: 0 };
 const HOLD_MS = 2800;
-// 모두 예측하면 해적 목소리로 "요호호호!" (기기 음성 · 굵고 낮게)
-function yoho() {
-  try {
-    if (isMuted() || typeof speechSynthesis === 'undefined') return;
-    const u = new SpeechSynthesisUtterance('요호호호!');
-    u.lang = 'ko-KR'; u.pitch = 0.2; u.rate = 0.85; u.volume = Math.min(1, getVolume() * 1.6);
-    const v = speechSynthesis.getVoices().filter((x) => x.lang?.startsWith('ko'));
-    if (v.length) u.voice = v.find((x) => /male|남/i.test(x.name)) || v[0];
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
-  } catch {}
-}
+// 모두 예측하면 해적 목소리로 "요호호호!"
+const YOHO = '/sfx/skullking-yoho.mp3';
+function yoho() { playSfxFile(YOHO, 1.3); }
 // 배경 소품: 금은보화 · 보물상자 · 쇠사슬
 const COINS = (w) => `<svg viewBox="0 0 120 70" width="${w}"><g stroke="#8a5a0a" stroke-width="1.2">${[[20,58],[38,60],[56,61],[74,60],[92,58],[29,50],[47,51],[65,51],[83,50],[38,42],[56,42],[74,42],[47,34],[65,34],[56,26]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="5" fill="#f5c32c"/><ellipse cx="${x}" cy="${y - 1}" rx="7" ry="2.6" fill="#ffe27a" stroke="none"/>`).join('')}</g><path d="M88 40 l6 -8 l6 8 l-6 6 z" fill="#e0304a" stroke="#7a0a1a"/><path d="M22 44 l5 -6 l5 6 l-5 5 z" fill="#2fb3e0" stroke="#0a4a7a"/><path d="M60 18 l4 -5 l4 5 l-4 4 z" fill="#3ddc84" stroke="#0a6a3a"/></svg>`;
 const CHEST = (w) => `<svg viewBox="0 0 110 90" width="${w}"><path d="M12 30 Q55 0 98 30 L98 38 L12 38 Z" fill="#6b3a17" stroke="#2a1405" stroke-width="2" transform="rotate(-14 12 38)"/><g stroke="#8a5a0a" stroke-width="1">${[[30,38],[44,34],[58,33],[72,35],[84,38],[38,30],[54,27],[68,29],[50,22]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="9" ry="4" fill="#f5c32c"/>`).join('')}</g><path d="M46 20 l4 -6 l4 6 l-4 4 z" fill="#e0304a"/><path d="M66 24 l4 -5 l4 5 l-4 4 z" fill="#2fb3e0"/><rect x="12" y="38" width="86" height="44" rx="4" fill="#7a4520" stroke="#2a1405" stroke-width="2"/><path d="M12 50 h86 M12 70 h86" stroke="#5a3010" stroke-width="2"/><rect x="24" y="38" width="8" height="44" fill="#d8a73a" stroke="#6a4a0a"/><rect x="78" y="38" width="8" height="44" fill="#d8a73a" stroke="#6a4a0a"/><rect x="48" y="46" width="14" height="16" rx="2" fill="#d8a73a" stroke="#6a4a0a"/><circle cx="55" cy="54" r="2.4" fill="#2a1405"/></svg>`;
@@ -378,6 +370,7 @@ export default {
       }
     }
     lastCtx = { el, ctx, self: this };
+    preloadSfx(YOHO);
     if (ui.key !== key) ui = { key, pick: null };
 
     const scoreTable = (withRound) => `

@@ -298,3 +298,19 @@ export function sfxAlert() {
   o.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 0.34);
   tone(t + 0.05, 1760, 0.12, 'triangle', 0.08, sfxBus, 0.003);
 }
+
+// 녹음된 효과음 파일 재생 (이미 깨워 둔 소리 장치로 → 휴대폰에서도 나와요)
+const fileBufs = {};
+export function preloadSfx(url) {
+  const c = ensure(); if (!c || fileBufs[url]) return;
+  fileBufs[url] = fetch(url).then((r) => r.arrayBuffer()).then((b) => c.decodeAudioData(b)).catch(() => null);
+}
+export async function playSfxFile(url, gain = 1) {
+  const c = ensure(); if (!c) return;
+  preloadSfx(url);
+  const buf = await fileBufs[url]; if (!buf) return;
+  resume();
+  const src = c.createBufferSource(); src.buffer = buf;
+  const g = c.createGain(); g.gain.value = gain;
+  src.connect(g); g.connect(sfxBus); src.start();
+}
