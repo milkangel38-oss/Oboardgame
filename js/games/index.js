@@ -15,7 +15,7 @@ import combo from './combo.js';
 import typing from './typing.js';
 import seedpoker from './seedpoker.js';
 import underdog from './underdog.js';
-// import skullking from './skullking.js'; // 스컬킹: 보류 중
+import skullking from './skullking.js';
 import tichu from './tichu.js';
 import chosung from './chosung.js';
 import lexio from './lexio.js';
@@ -55,6 +55,7 @@ export const GAMES = [
   rummikub,
   merge,
   lexio,
+  skullking,
   splendor,
   avalon,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));

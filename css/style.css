@@ -2796,3 +2796,12 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .theme-place { margin: 8px 0 6px; font-weight: 900; font-size: 14px; color: #141218; }
 .theme-story { margin: 0; font-size: 13.5px; line-height: 1.75; word-break: keep-all; color: #2a2630; }
 .theme-story em { font-style: normal; font-weight: 800; color: #d4202c; }
+/* 스컬킹: 예측 공개 · 트릭 승자 알림 */
+.sk-flash .sk-yoho { display: grid; gap: 8px; justify-items: center; }
+.sk-yoho > b { font-family: var(--logo); font-size: 34px; color: #ffd84d; text-shadow: 0 3px 0 #7a1020, 0 0 14px rgba(0, 0, 0, .7); }
+.sk-yoho > div { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 320px; }
+.sk-yoho span { padding: 4px 10px; border-radius: 99px; background: rgba(10, 6, 24, .85); color: #fff; font-size: 13px; font-weight: 700; }
+.sk-yoho span i { font-style: normal; color: #ffd84d; font-weight: 900; margin-left: 2px; }
+.sk-win { display: grid; justify-items: center; gap: 4px; padding: 10px 18px; border-radius: 14px; background: rgba(10, 6, 24, .88); color: #fff; font-size: 18px; box-shadow: 0 0 0 2px #c9a85a; }
+.sk-win b { color: #ffd84d; }
+.sk-win small { font-size: 13px; color: #3ddc84; }

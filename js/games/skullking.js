@@ -1,8 +1,10 @@
-// 보드게임: 스컬킹 (2~6명, 트릭테이킹 + 비딩)
+// 보드게임: 스컬킹 (2~8명, 트릭테이킹 + 비딩) — 7~8명은 카드가 모자라 한 사람 최대 10장·8장
 // 덱 70장: 초록 앵무새·노랑 보물상자·보라 보물지도 1~14, 검정 해골기 1~14(으뜸패),
 //          도망 5, 해적 5, 변신 해적 1(해적 또는 도망), 스컬킹 1, 인어 2
 // 라운드 N: 카드 N장씩 → 몇 트릭을 가져갈지 동시에 예측(비딩) → 트릭 진행 → 점수
 import { GARNET } from '../profile.js';
+import { turnAlert, bigFlash } from './turn-alert.js';
+import { soundEvent, sfxCard } from '../sound.js';
 
 const SUITS = {
   g: { name: '앵무새', color: '#2f9e5b' },
@@ -34,6 +36,7 @@ const shuffle = (arr) => {
   return a;
 };
 export const rewardsFor = (n) => (n === 2 ? [1] : n <= 4 ? [2, 1] : [3, 2, 1]);
+export const maxCards = (n) => Math.min(10, Math.floor(70 / n)); // 8명이면 최대 8장
 const isSpecial = (c) => c.kind !== 'num';
 
 // 트릭의 기준 색: 처음 나온 숫자 카드의 색
@@ -151,6 +154,7 @@ export function cardHtml(id, { small = false } = {}) {
   return `<div class="skc ${small ? 'sm' : ''} sp-${c.kind}"><b class="skc-n l">${tag}</b><span class="skc-art">${art}</span><span class="skc-name">${esc(cardName(c))}</span></div>`;
 }
 
+const fx = { bid: '', trick: '' };
 // 고른 카드 (변신 해적 선택 등)
 let ui = { key: '', pick: null };
 
@@ -160,7 +164,7 @@ export default {
   emoji: '🏴‍☠️',
   category: 'board',
   minPlayers: 2,
-  maxPlayers: 6,
+  maxPlayers: 8,
   duration: '20~40분',
   rewards: [3, 2, 1],
   rewardLabel: '1등 최대 +3',
@@ -176,14 +180,15 @@ export default {
     '트릭을 이긴 사람이 다음 트릭의 선이 돼요.',
     '점수: 예측 성공 시 이긴 트릭 × 20점 / 실패 시 차이 × −10점. 0을 예측하면 성공 시 라운드 수 × 10점, 실패 시 라운드 수 × −10점.',
     '보너스(예측 성공했을 때만): 색 14 +10, 검정 14 +20, 해적이 인어를 잡으면 +20, 스컬킹이 해적을 잡으면 1명당 +30, 인어가 스컬킹을 잡으면 +40.',
-    '가넷: 2명 → 1등 1개 / 3~4명 → 1등 2개, 2등 1개 / 5~6명 → 1등 3개, 2등 2개, 3등 1개',
+    '8명일 때는 카드가 모자라 9·10라운드도 8장씩 받아요.',
+    '가넷: 2명 → 1등 1개 / 3~4명 → 1등 2개, 2등 1개 / 5~8명 → 1등 3개, 2등 2개, 3등 1개',
   ],
 
   setup(players, room) {
     const short = String(room?.options?.length || '').includes('5');
     const order = shuffle(players.map((p) => p.uid));
     const base = {
-      order, rounds: short ? [2, 4, 6, 8, 10] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], ri: 0, startIdx: 0,
+      order, rounds: (short ? [2, 4, 6, 8, 10] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((c) => Math.min(c, maxCards(order.length))), ri: 0, startIdx: 0,
       scores: Object.fromEntries(order.map((u) => [u, 0])), history: [],
     };
     return deal(base);
@@ -257,6 +262,22 @@ export default {
     const turnUid = state.turnIdx >= 0 ? state.order[state.turnIdx] : null;
     const myTurn = state.phase === 'play' && turnUid === me;
     const key = `${room?.code}:${state.ri}:${state.phase}:${state.trick.length}`;
+    if (!finished && room) {
+      turnAlert(room.code, `sk:${state.ri}:${state.phase}:${state.trick.length}:${Object.values(state.won).join()}`, myTurn || (state.phase === 'bid' && isPlayer && state.bids[me] === null));
+      // 모두 예측하면 "요호호!" 하고 한꺼번에 공개
+      const bk = `${room.code}:${room.startedAt}:${state.ri}`;
+      if (state.phase === 'play' && fx.bid !== bk && !state.lastTrick && !state.trick.length) {
+        fx.bid = bk;
+        bigFlash(`<div class="sk-yoho"><b>요호호! 🏴‍☠️</b><div>${state.order.map((u) => `<span>${name(u)} <i>${state.bids[u]}</i></span>`).join('')}</div></div>`, 2200, 'sk-flash');
+      }
+      // 트릭이 끝나면 누가 가져갔는지
+      const tk = `${bk}:${Object.values(state.won).join()}`;
+      if (state.lastTrick && fx.trick !== tk) {
+        const first = fx.trick === '';
+        fx.trick = tk;
+        if (!first) { bigFlash(`<div class="sk-win">⚓ <b>${name(state.lastTrick.winner)}</b>님이 가져갔어요!${state.lastTrick.note ? `<small>${esc(state.lastTrick.note)}</small>` : ''}</div>`, 1500, 'sk-flash'); sfxCard(); }
+      }
+    }
     if (ui.key !== key) ui = { key, pick: null };
 
     const scoreTable = (withRound) => `
