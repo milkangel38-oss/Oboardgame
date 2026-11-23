@@ -135,7 +135,12 @@ export default {
     const seat = (u, c, side) => sitHtml(players[u], {
       uid: u, robe: c === 'b' ? '#2b2f3a' : '#e8e2d2', trim: c === 'b' ? '#e8e2d2' : '#3d4f7a', me: u === me, turn: !finished && u === turnUid,
       badge: `<i class="om-stone ${c}"></i>`, label: c === 'b' ? '흑 · 먼저' : '백',
-    }).replace('class="sit ', `class="sit om-sit ${side} `);
+      up: side === 'top',
+    }).replace('class="sit ', `class="sit jg-sit ${side === 'top' ? 'jg-top' : 'jg-bot'} `);
+    // 나는 항상 아래 (관전자는 흑이 아래)
+    const bottomU = myColor === 2 ? state.white : state.black;
+    const topU = bottomU === state.black ? state.white : state.black;
+    const colorOf = (u) => (u === state.black ? 'b' : 'w');
 
     let banner;
     if (finished || state.phase === 'done') {
@@ -148,13 +153,13 @@ export default {
     el.innerHTML = `
       <div class="om om2">
         <div class="nb-banner"><span>${banner} <small class="jg-n">${state.n}수</small></span></div>
-        <div class="om-room">
-          ${seat(state.black, 'b', 'l')}
+        <div class="om-room om-room2">
+          ${seat(topU, colorOf(topU), 'top')}
           <div class="om-board ${myTurn ? `can ${myColor === 1 ? 'mb' : 'mw'}` : ''}">
             <svg class="om-grid" viewBox="0 0 ${N} ${N}" preserveAspectRatio="none">${lines}${stars}</svg>
             <div class="om-cells">${cells}</div>
           </div>
-          ${seat(state.white, 'w', 'r')}
+          ${seat(bottomU, colorOf(bottomU), 'bot')}
         </div>
         ${myColor && !finished && state.phase === 'play' ? '<button class="btn ghost sm om-resign" data-resign>🏳️ 기권</button>' : ''}
         ${myColor ? chatFormHtml() : ''}

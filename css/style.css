@@ -3012,7 +3012,8 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .om-c { appearance: none; border: 0; padding: 0; margin: 0; background: none; position: relative; cursor: default; }
 .om-board.can .om-c:not(.st) { cursor: pointer; }
 .om-c::after { content: ''; position: absolute; inset: 6%; border-radius: 50%; }
-.om-c.st::after { box-shadow: 1px 2px 3px rgba(0, 0, 0, .5); animation: omDrop .18s ease-out; }
+.om-c.st::after { box-shadow: 1px 2px 3px rgba(0, 0, 0, .5); }
+.om-c.st.last::after { animation: omDrop .18s ease-out; }
 @keyframes omDrop { from { transform: scale(1.35); opacity: .3; } }
 .om-board.can .om-c:not(.st):hover::after { opacity: .45; }
 .om-c.pick::after { opacity: .6 !important; box-shadow: 0 0 0 2px #ff4f9a; }
@@ -3095,3 +3096,10 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .jg-form b { font-size: 15px; } .jg-form small { font-size: 11px; color: var(--muted); }
 .jg-frow { display: flex; align-items: center; gap: 2px; }
 .jg-frow .jg-p { width: 26px; } .jg-frow .jg-p b { font-size: 13px; } .jg-frow i { width: 10px; }
+/* 오목: 위아래 배치 (장기와 같은 틀) */
+.om2 .om-room.om-room2 { display: grid; grid-template-columns: 1fr; grid-template-areas: none; justify-items: center; gap: 6px; padding: 10px 8px; align-items: center; }
+.om2 .om-room2 .om-board { grid-area: auto; }
+@media (orientation: landscape) and (min-width: 700px) { .om2 .om-room.om-room2 { grid-template-columns: 1fr; grid-template-areas: none; } .om2 .om-room2 .om-board { width: min(100%, 560px, 66vh); } }
+/* 장기 배경 그림 (위에서 내려다본 방) */
+.jg .jg-room { background: #2a1a10 url(/img/janggi/bg.webp) center / cover no-repeat; box-shadow: inset 0 0 0 3px #2a1a0c, 0 10px 26px rgba(0, 0, 0, .45); }
+.jg .jg-board { box-shadow: inset 0 0 0 3px rgba(90, 58, 24, .55), 0 0 0 6px rgba(40, 24, 10, .55), 0 14px 30px rgba(0, 0, 0, .65); }
