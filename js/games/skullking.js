@@ -154,7 +154,11 @@ export function cardHtml(id, { small = false } = {}) {
   return `<div class="skc ${small ? 'sm' : ''} sp-${c.kind}" title="${esc(cardName(c))}">${img}<span class="skc-name">${esc(cardName(c))}</span></div>`;
 }
 
-const fx = { bid: '', trick: '' };
+const fx = { bid: '', rk: '', tno: 0, hold: null, ckey: '', cnt: 0 };
+const HOLD_MS = 2800;
+const chat = { draft: '', focus: false };
+let lastCtx = null;
+const COMPASS = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width=".8" stroke-dasharray="2 3"/><path d="M50 4 L56 44 L96 50 L56 56 L50 96 L44 56 L4 50 L44 44 Z" fill="currentColor" opacity=".55"/><path d="M50 18 L53 47 L82 50 L53 53 L50 82 L47 53 L18 50 L47 47 Z" fill="currentColor" opacity=".35" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>`;
 
 // 라운드가 끝나면 새 창: 왼쪽 플레이어, 오른쪽 트릭별 기록
 function roundModal(state, me, players, finished, sendMove) {
@@ -313,14 +317,15 @@ export default {
         fx.bid = bk;
         bigFlash(`<div class="sk-yoho"><b>요호호! 🏴‍☠️</b><div>${state.order.map((u) => `<span>${name(u)} <i>${state.bids[u]}</i></span>`).join('')}</div></div>`, 2200, 'sk-flash');
       }
-      // 트릭이 끝나면 누가 가져갔는지
-      const tk = `${bk}:${Object.values(state.won).join()}`;
-      if (state.lastTrick && fx.trick !== tk) {
-        const first = fx.trick === '';
-        fx.trick = tk;
-        if (!first) { bigFlash(`<div class="sk-win">⚓ <b>${name(state.lastTrick.winner)}</b>님이 가져갔어요!${state.lastTrick.note ? `<small>${esc(state.lastTrick.note)}</small>` : ''}</div>`, 1500, 'sk-flash'); sfxCard(); }
+      // 트릭이 끝나면 가운데에 잠깐 남겨 두었다가 이긴 사람에게 카드가 날아가요
+      const tno = Object.values(state.won).reduce((a, b) => a + b, 0);
+      if (fx.rk !== bk) { if (fx.rk) fx.cnt = 0; fx.rk = bk; fx.tno = tno; }
+      else if (tno > fx.tno && state.lastTrick) {
+        fx.tno = tno;
+        fx.hold = { k: `${bk}:${tno - 1}`, until: Date.now() + HOLD_MS, uid: state.lastTrick.winner };
       }
     }
+    lastCtx = { el, ctx, self: this };
     if (ui.key !== key) ui = { key, pick: null };
 
     const scoreTable = (withRound) => `
@@ -371,38 +376,128 @@ export default {
       banner = myTurn ? `<span><b>내 차례!</b> ${lead ? `기준 색 <b style="color:${SUITS[lead].color === '#23232b' ? '#c9c9d6' : SUITS[lead].color}">${SUITS[lead].name}</b>` : '카드를 내세요'}</span>` : `<span><b>${name(turnUid)}</b>님 차례</span>`;
     } else {
       banner = `<span><b>${state.ri + 1}라운드 끝!</b> 점수를 확인하세요</span>`;
-      action = `<button class="btn primary block" data-next>다음 라운드 (카드 ${state.rounds[state.ri + 1]}장) ▶</button>`;
+      action = state.ri < state.rounds.length - 1 ? `<button class="btn primary block" data-next>다음 라운드 (카드 ${state.rounds[state.ri + 1]}장) ▶</button>` : '';
     }
 
-    const trickView = (plays, winner) => `<div class="sk-trick">${plays.map((t) => `
-      <div class="sk-play ${winner === t.uid ? 'win' : ''}">${cardHtml(t.card, { small: true })}<span>${name(t.uid)}${t.as ? `<small>${t.as === 'pirate' ? '해적으로' : '도망으로'}</small>` : ''}</span></div>`).join('')}
-      ${state.phase === 'play' && plays === state.trick && plays.length < state.order.length ? `<div class="sk-play wait"><div class="skc sm empty">?</div><span>${name(turnUid)}</span></div>` : ''}
-    </div>`;
+    // ── 해적선 갑판: 나는 항상 아래 가운데 ──
+    const n = state.order.length;
+    const meIdx = Math.max(0, state.order.indexOf(me));
+    const tno = Object.values(state.won).reduce((a, b) => a + b, 0);
+    const holding = fx.hold && Date.now() < fx.hold.until && !state.trick.length && state.lastTrick;
+    const plays = holding ? state.lastTrick.plays : state.trick;
+    const tKey = holding ? fx.hold.k : `${room?.code}:${room?.startedAt}:${state.ri}:${tno}`;
+    const winU = holding ? state.lastTrick.winner : null;
+    const leader = state.order[state.leaderIdx];
+    const seats = state.order.map((u, k) => {
+      const i = (k - meIdx + n) % n;
+      const ang = Math.PI / 2 + (i / n) * Math.PI * 2;
+      const x = 50 + Math.cos(ang) * 43, y = 50 + Math.sin(ang) * 41;
+      const bid = state.bids[u];
+      const stat = state.phase === 'bid' ? (bid === null ? '<i class="think">생각 중…</i>' : '<i class="done">예측 완료</i>')
+        : `<span class="skx-bw ${bid !== null && state.won[u] === bid ? 'hit' : state.won[u] > bid ? 'over' : ''}">🎯${bid} · ⚔${state.won[u]}</span>`;
+      return `<div class="skx-seat ${u === me ? 'me' : ''} ${u === turnUid && !holding ? 'turn' : ''} ${winU === u ? 'win' : ''} ${y < 45 ? 'up' : ''}" data-u="${esc(u)}" style="left:${x}%;top:${y}%">
+        <span class="seat-bubble" data-bub="${esc(u)}"></span>
+        <span class="skx-face">${faceHtml(players[u] || { name: '?' })}${u === leader && state.phase !== 'roundEnd' ? '<i class="skx-lead" title="이번 트릭 선">⚓</i>' : ''}</span>
+        <b class="skx-name">${name(u)}</b>
+        ${stat}
+        <em class="skx-score">${state.scores[u]}점</em>
+      </div>`;
+    }).join('');
+    const cw = n <= 3 ? 60 : n === 4 ? 52 : n === 5 ? 42 : n === 6 ? 36 : 30;
+    const center = plays.length || state.phase === 'play' ? `<div class="skx-trick" style="--cw:${cw}px">${plays.map((t, k) => `
+        <div class="skx-slot ${winU === t.uid ? 'win' : ''}" data-i="${k}" data-from="${esc(t.uid)}">${cardHtml(t.card, { small: true })}<span>${name(t.uid)}</span></div>`).join('')}
+        ${!holding && state.phase === 'play' && plays.length < n ? `<div class="skx-slot wait"><div class="skc sm empty">?</div><span>${name(turnUid)}</span></div>` : ''}
+      </div>` : '';
+    const label = holding
+      ? `<div class="skx-cap win">⚓ <b>${name(winU)}</b> 승리!${state.lastTrick.note ? ` <em>${esc(state.lastTrick.note)}</em>` : ''}</div>`
+      : state.phase === 'play' ? `<div class="skx-cap">${lead ? `기준 색 <b style="color:${SUITS[lead].color === '#23232b' ? '#e8e8f0' : SUITS[lead].color}">${SUITS[lead].name}</b>` : `<b>${tno + 1}번째 트릭</b>`}</div>`
+      : state.phase === 'bid' ? `<div class="skx-cap">🏴‍☠️ 예측하는 중…</div>` : '';
 
     el.innerHTML = `
-      <div class="sk">
+      <div class="sk skx">
         <div class="sk-head"><span class="sk-round">${state.ri + 1}<small>/${state.rounds.length}라운드</small></span><span class="sk-cards">카드 ${cards}장</span></div>
-        ${scoreTable(state.phase === 'roundEnd')}
-        ${state.phase === 'play' ? `<div class="sk-zone"><div class="sk-zone-t">🏴‍☠️ 이번 트릭</div>${trickView(state.trick)}</div>` : ''}
+        <div class="skx-stage">
+          <i class="skx-lamp l"></i><i class="skx-lamp r"></i>
+          <div class="skx-deck"><div class="skx-rope"></div><div class="skx-compass">${COMPASS}</div>
+            <div class="skx-mid">${label}${center}</div>
+          </div>
+          ${seats}
+        </div>
+        ${isPlayer ? `<form class="sp-chat skx-chat"><input maxlength="60" placeholder="💬 채팅 (내 프로필 말풍선으로 떠요)" autocomplete="off" enterkeyhint="send"><button class="btn sm primary">전송</button></form>` : ''}
         <div class="nb-banner">${banner}</div>
         ${action}
         ${isPlayer && hand.length ? `
           <div class="ud-mine-title">🃏 내 카드 ${hand.length}장 ${myTurn ? '<small>낼 수 있는 카드만 밝게 보여요</small>' : ''}</div>
           <div class="sk-hand">${hand.map((id) => {
             const ok = myTurn && canPlay(myHand, state.trick, id);
-            return `<button class="sk-cardbtn ${ok ? 'ok' : ''} ${myTurn && !ok ? 'no' : ''} ${ui.pick === id ? 'sel' : ''}" data-card="${id}" ${myTurn && !ok ? 'disabled' : ''}>${cardHtml(id)}</button>`;
+            return `<button class="sk-cardbtn ${ok ? 'ok' : ''} ${myTurn && !ok ? 'no' : ''}" data-card="${id}" ${myTurn && !ok ? 'disabled' : ''}>${cardHtml(id)}</button>`;
           }).join('')}</div>` : ''}
       </div>`;
 
-    roundModal(state, me, players, finished, sendMove);
+    // 카드가 낸 사람 자리에서 가운데로 날아와요
+    const fromNew = fx.ckey === tKey ? fx.cnt : fx.ckey ? 0 : plays.length;
+    el.querySelectorAll('.skx-slot[data-i]').forEach(($s) => {
+      if (Number($s.dataset.i) < fromNew) return;
+      const $seat = el.querySelector(`.skx-seat[data-u="${CSS.escape($s.dataset.from)}"] .skx-face`);
+      if (!$seat) return;
+      const A = $seat.getBoundingClientRect(), B = $s.getBoundingClientRect();
+      $s.animate([
+        { transform: `translate(${A.left + A.width / 2 - B.left - B.width / 2}px, ${A.top + A.height / 2 - B.top - B.height / 2}px) scale(.45) rotate(-20deg)`, opacity: 0.4 },
+        { transform: 'translate(0,0) scale(1.08) rotate(3deg)', opacity: 1, offset: 0.8 },
+        { transform: 'none', opacity: 1 },
+      ], { duration: 520, easing: 'cubic-bezier(.3,.7,.3,1)' });
+      sfxCard();
+    });
+    fx.ckey = tKey; fx.cnt = plays.length;
+
+    // 잠깐 보여준 뒤 이긴 사람에게 카드를 모아 보내요
+    if (holding) {
+      const h = fx.hold;
+      clearTimeout(fx.t1); clearTimeout(fx.t2);
+      const flyAt = h.until - 650 - Date.now();
+      fx.t1 = setTimeout(() => {
+        const $w = el.querySelector(`.skx-seat[data-u="${CSS.escape(h.uid)}"] .skx-face`);
+        if (!$w) return;
+        const W = $w.getBoundingClientRect();
+        el.querySelectorAll('.skx-slot[data-i]').forEach(($s, k) => {
+          const B = $s.getBoundingClientRect();
+          $s.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${W.left + W.width / 2 - B.left - B.width / 2}px, ${W.top + W.height / 2 - B.top - B.height / 2}px) scale(.3) rotate(${k % 2 ? 25 : -25}deg)`, opacity: 0 }],
+            { duration: 560, delay: k * 50, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' });
+        });
+        sfxCard();
+      }, Math.max(0, flyAt));
+      fx.t2 = setTimeout(() => { fx.hold = null; if (lastCtx?.el.isConnected) lastCtx.self.render(lastCtx.el, lastCtx.ctx); }, Math.max(0, h.until - Date.now()) + 30);
+    }
+
+    if (!holding) roundModal(state, me, players, finished, sendMove);
+
+    // 채팅: 방 채팅으로 보내면 내 프로필 위 말풍선으로 떠요
+    const $cf = el.querySelector('.skx-chat');
+    if ($cf) {
+      const $in = $cf.querySelector('input');
+      $in.value = chat.draft;
+      $in.oninput = () => (chat.draft = $in.value);
+      $in.onfocus = () => (chat.focus = true);
+      $in.onblur = () => setTimeout(() => { if ($in.isConnected) chat.focus = false; }, 0);
+      if (chat.focus) $in.focus({ preventScroll: true });
+      $cf.onsubmit = (e) => {
+        e.preventDefault();
+        const text = $in.value.trim();
+        const $g = document.querySelector('.gchat');
+        if (!text || !$g) return;
+        $g.querySelector('input').value = text;
+        $g.requestSubmit();
+        chat.draft = ''; $in.value = '';
+      };
+    }
 
     el.querySelectorAll('[data-bid]').forEach((b) => (b.onclick = () => sendMove({ type: 'bid', bid: Number(b.dataset.bid) })));
     const $next = el.querySelector('[data-next]');
     if ($next) $next.onclick = () => sendMove({ type: 'next' });
     el.querySelectorAll('[data-card]').forEach((b) => (b.onclick = () => {
       if (!myTurn) return;
-      const id = b.dataset.card;
-      sendMove({ type: 'play', card: id });
+      b.classList.add('sel');
+      sendMove({ type: 'play', card: b.dataset.card });
     }));
   },
 };
