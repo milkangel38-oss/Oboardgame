@@ -2805,3 +2805,5 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .sk-win { display: grid; justify-items: center; gap: 4px; padding: 10px 18px; border-radius: 14px; background: rgba(10, 6, 24, .88); color: #fff; font-size: 18px; box-shadow: 0 0 0 2px #c9a85a; }
 .sk-win b { color: #ffd84d; }
 .sk-win small { font-size: 13px; color: #3ddc84; }
+.skc-n .skc-bonus { display: block; font-style: normal; font-size: 9px; line-height: 1; margin-top: 1px; padding: 1px 3px; border-radius: 4px; background: #ffd84d; color: #3a2400; font-weight: 900; }
+.skc.sm .skc-n .skc-bonus { font-size: 7px; padding: 0 2px; }

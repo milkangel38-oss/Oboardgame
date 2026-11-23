@@ -1,6 +1,6 @@
 // 보드게임: 스컬킹 (2~8명, 트릭테이킹 + 비딩) — 7~8명은 카드가 모자라 한 사람 최대 10장·8장
-// 덱 70장: 초록 앵무새·노랑 보물상자·보라 보물지도 1~14, 검정 해골기 1~14(으뜸패),
-//          도망 5, 해적 5, 변신 해적 1(해적 또는 도망), 스컬킹 1, 인어 2
+// 덱 69장: 초록 앵무새·노랑 보물상자·보라 보물지도 1~14, 검정 해골기 1~14(으뜸패),
+//          도망 5, 해적 5, 스컬킹 1, 인어 2 (변신 해적 없음)
 // 라운드 N: 카드 N장씩 → 몇 트릭을 가져갈지 동시에 예측(비딩) → 트릭 진행 → 점수
 import { GARNET } from '../profile.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
@@ -19,7 +19,6 @@ export const CARDS = {};
 for (const s of Object.keys(SUITS)) for (let r = 1; r <= 14; r++) CARDS[`${s}${r}`] = { id: `${s}${r}`, kind: 'num', suit: s, rank: r };
 for (let i = 1; i <= 5; i++) CARDS[`e${i}`] = { id: `e${i}`, kind: 'escape' };
 PIRATES.forEach((name, i) => (CARDS[`pr${i + 1}`] = { id: `pr${i + 1}`, kind: 'pirate', name, v: i }));
-CARDS.tg = { id: 'tg', kind: 'tigress' };
 CARDS.sk = { id: 'sk', kind: 'king' };
 CARDS.m1 = { id: 'm1', kind: 'mermaid', v: 0 };
 CARDS.m2 = { id: 'm2', kind: 'mermaid', v: 1 };
@@ -36,7 +35,7 @@ const shuffle = (arr) => {
   return a;
 };
 export const rewardsFor = (n) => (n === 2 ? [1] : n <= 4 ? [2, 1] : [3, 2, 1]);
-export const maxCards = (n) => Math.min(10, Math.floor(70 / n)); // 8명이면 최대 8장
+export const maxCards = (n) => Math.min(10, Math.floor(69 / n)); // 8명이면 최대 8장
 const isSpecial = (c) => c.kind !== 'num';
 
 // 트릭의 기준 색: 처음 나온 숫자 카드의 색
@@ -147,7 +146,7 @@ export function cardHtml(id, { small = false } = {}) {
   const c = CARDS[id];
   if (c.kind === 'num') {
     const s = SUITS[c.suit];
-    return `<div class="skc ${small ? 'sm' : ''} s-${c.suit}" style="--sc:${s.color}"><b class="skc-n l">${c.rank}</b><b class="skc-n r">${c.rank}</b><span class="skc-art">${ICON[c.suit]}</span><span class="skc-name">${s.name}</span></div>`;
+    return `<div class="skc ${small ? 'sm' : ''} s-${c.suit}" style="--sc:${s.color}"><b class="skc-n l">${c.rank}${c.rank === 14 ? `<i class="skc-bonus">+${c.suit === 'k' ? 20 : 10}</i>` : ''}</b><b class="skc-n r">${c.rank}</b><span class="skc-art">${ICON[c.suit]}</span><span class="skc-name">${s.name}</span></div>`;
   }
   const art = c.kind === 'pirate' ? SPECIAL_ART.pirate(c.v) : SPECIAL_ART[c.kind];
   const tag = { escape: '🏳️', pirate: '☠', tigress: '?', king: '👑', mermaid: '🧜' }[c.kind];
@@ -173,11 +172,11 @@ export default {
   rules: [
     '라운드 N에는 카드를 N장씩 받아요 (1라운드 1장 … 10라운드 10장). 짧게 하면 2·4·6·8·10장 5라운드예요.',
     '카드를 보고 이번 라운드에 트릭(한 바퀴 대결)을 몇 번 가져갈지 예측해요. 모두 동시에 공개돼요.',
-    '선 플레이어부터 한 장씩 내요. 처음 나온 숫자 카드의 색을 가지고 있으면 그 색을 내야 해요. 특수 카드(도망·해적·변신 해적·스컬킹·인어)는 언제든 낼 수 있어요.',
+    '선 플레이어부터 한 장씩 내요. 처음 나온 숫자 카드의 색을 가지고 있으면 그 색을 내야 해요. 특수 카드(도망·해적·스컬킹·인어)는 언제든 낼 수 있어요.',
     '이기는 순서: 숫자는 높을수록 강하고, 검정 해골기는 다른 색을 모두 이겨요(으뜸패). 다른 색이 기준일 때 그 색이 아닌 숫자는 져요.',
     '☠ 해적은 모든 숫자 카드와 인어를 이겨요. 👑 스컬킹은 해적까지 이겨요. 🧜 인어는 숫자 카드를 이기고, 스컬킹이 있으면 스컬킹을 잡아요! 🏳️ 도망은 항상 져요.',
-    '같은 종류(해적끼리·인어끼리)면 먼저 낸 카드가 이겨요. 변신 해적은 낼 때 해적 또는 도망을 골라요.',
-    '트릭을 이긴 사람이 다음 트릭의 선이 돼요.',
+    '같은 종류(해적끼리·인어끼리)면 먼저 낸 카드가 이겨요.',
+    '1라운드는 방장이 선이고, 다음 라운드부터는 입장 순서대로 선이 넘어가요. 라운드 안에서는 트릭을 이긴 사람이 다음 트릭의 선이 돼요.',
     '점수: 예측 성공 시 이긴 트릭 × 20점 / 실패 시 차이 × −10점. 0을 예측하면 성공 시 라운드 수 × 10점, 실패 시 라운드 수 × −10점.',
     '보너스(예측 성공했을 때만): 색 14 +10, 검정 14 +20, 해적이 인어를 잡으면 +20, 스컬킹이 해적을 잡으면 1명당 +30, 인어가 스컬킹을 잡으면 +40.',
     '8명일 때는 카드가 모자라 9·10라운드도 8장씩 받아요.',
@@ -186,9 +185,11 @@ export default {
 
   setup(players, room) {
     const short = String(room?.options?.length || '').includes('5');
-    const order = shuffle(players.map((p) => p.uid));
+    // 입장 순서 그대로. 1라운드 선은 방장, 이후 라운드는 입장 순서대로 한 칸씩
+    const order = players.map((p) => p.uid);
+    const hostIdx = Math.max(0, order.indexOf(room?.hostId));
     const base = {
-      order, rounds: (short ? [2, 4, 6, 8, 10] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((c) => Math.min(c, maxCards(order.length))), ri: 0, startIdx: 0,
+      order, rounds: (short ? [2, 4, 6, 8, 10] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((c) => Math.min(c, maxCards(order.length))), ri: 0, startIdx: hostIdx,
       scores: Object.fromEntries(order.map((u) => [u, 0])), history: [],
     };
     return deal(base);
@@ -216,7 +217,6 @@ export default {
       if (!canPlay(hand, state.trick, move.card)) throw new Error('그 카드는 낼 수 없어요 (같은 색을 내야 해요)');
       const c = CARDS[move.card];
       const play = { uid, card: move.card };
-      if (c.kind === 'tigress') { if (!['pirate', 'escape'].includes(move.as)) throw new Error('해적 또는 도망을 골라 주세요'); play.as = move.as; }
       const trick = [...state.trick, play];
       let s = { ...state, trick, hands: { ...state.hands, [uid]: hand.filter((x) => x !== move.card) } };
       if (trick.length < n) return { state: { ...s, turnIdx: (s.turnIdx + 1) % n } };
@@ -349,8 +349,7 @@ export default {
           <div class="sk-hand">${hand.map((id) => {
             const ok = myTurn && canPlay(myHand, state.trick, id);
             return `<button class="sk-cardbtn ${ok ? 'ok' : ''} ${myTurn && !ok ? 'no' : ''} ${ui.pick === id ? 'sel' : ''}" data-card="${id}" ${myTurn && !ok ? 'disabled' : ''}>${cardHtml(id)}</button>`;
-          }).join('')}</div>
-          ${ui.pick === 'tg' && myTurn ? `<div class="sk-tg"><span>변신 해적을 무엇으로 낼까요?</span><button class="btn primary" data-as="pirate">☠ 해적으로</button><button class="btn" data-as="escape">🏳️ 도망으로</button></div>` : ''}` : ''}
+          }).join('')}</div>` : ''}
       </div>`;
 
     el.querySelectorAll('[data-bid]').forEach((b) => (b.onclick = () => sendMove({ type: 'bid', bid: Number(b.dataset.bid) })));
@@ -359,9 +358,7 @@ export default {
     el.querySelectorAll('[data-card]').forEach((b) => (b.onclick = () => {
       if (!myTurn) return;
       const id = b.dataset.card;
-      if (id === 'tg') { ui.pick = 'tg'; ui.key = key; this.render(el, ctx); return; }
       sendMove({ type: 'play', card: id });
     }));
-    el.querySelectorAll('[data-as]').forEach((b) => (b.onclick = () => sendMove({ type: 'play', card: 'tg', as: b.dataset.as })));
   },
 };
