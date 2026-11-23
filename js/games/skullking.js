@@ -439,7 +439,7 @@ export default {
         <div class="skx-board">${state.order.map((u) => `<div class="skx-bp ${u === me ? 'me' : ''} ${u === turnUid && !holding ? 'turn' : ''}">
           <span class="skx-bface">${faceHtml(players[u] || { name: '?' })}</span><b>${name(u)}</b><em>${state.scores[u]}<small>점</small></em></div>`).join('')}</div>
         <div class="skx-stage">
-          ${DECOR}<i class="skx-lamp l"></i><i class="skx-lamp r"></i>
+          <i class="skx-glow l"></i><i class="skx-glow r"></i>
           <div class="skx-deck"><div class="skx-rope"></div><div class="skx-compass">${COMPASS}</div>
             <div class="skx-mid">${label}${center}</div>
           </div>
