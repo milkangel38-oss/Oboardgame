@@ -4,6 +4,7 @@
 // 라운드 N: 카드 N장씩 → 몇 트릭을 가져갈지 동시에 예측(비딩) → 트릭 진행 → 점수
 import { GARNET } from '../profile.js';
 import { turnAlert, bigFlash } from './turn-alert.js';
+import { faceHtml } from './face.js';
 import { soundEvent, sfxCard } from '../sound.js';
 
 const SUITS = {
@@ -100,7 +101,7 @@ function deal(state) {
     bids: Object.fromEntries(state.order.map((u) => [u, null])),
     won: Object.fromEntries(state.order.map((u) => [u, 0])),
     bonus: Object.fromEntries(state.order.map((u) => [u, 0])),
-    trick: [], leaderIdx: lead, turnIdx: lead, lastTrick: null, roundLog: null,
+    trick: [], tricks: [], leaderIdx: lead, turnIdx: lead, lastTrick: null, roundLog: null,
   };
 }
 
@@ -142,18 +143,59 @@ const SPECIAL_ART = {
   mermaid: `<svg viewBox="0 0 60 60"><path d="M24 30 C20 40 22 48 30 52 C34 54 40 52 42 56 C44 50 40 46 36 46 C32 44 32 38 34 30 Z" fill="#2fb3a3"/><path d="M42 56 C46 52 52 52 54 54 C50 56 46 58 42 56 Z M42 56 C42 50 46 46 50 46 C48 50 46 54 42 56 Z" fill="#1f8a7e"/><ellipse cx="29" cy="24" rx="7" ry="8" fill="#f0c49a"/><path d="M21 22 C20 12 36 10 37 20 C38 30 42 38 40 44 C36 36 34 28 34 22 C30 20 26 22 21 22 Z" fill="#e0603a"/><path d="M23 32 C26 30 32 30 34 32 L33 36 C30 34 27 34 24 36 Z" fill="#c45fa0"/><circle cx="27" cy="24" r="1.2" fill="#2a1a10"/><path d="M27 28 q2 1.4 4 0" stroke="#b5503a" stroke-width="1" fill="none"/></svg>`,
 };
 
+const IMG = (c) => (c.kind === 'num' ? c.suit : c.kind === 'pirate' ? `pirate${c.v + 1}` : c.kind === 'mermaid' ? `mermaid${c.v + 1}` : c.kind);
 export function cardHtml(id, { small = false } = {}) {
   const c = CARDS[id];
+  const img = `<img class="skc-img" src="/img/skullking/${IMG(c)}.webp" alt="" draggable="false" loading="lazy">`;
   if (c.kind === 'num') {
     const s = SUITS[c.suit];
-    return `<div class="skc ${small ? 'sm' : ''} s-${c.suit}" style="--sc:${s.color}"><b class="skc-n l">${c.rank}${c.rank === 14 ? `<i class="skc-bonus">+${c.suit === 'k' ? 20 : 10}</i>` : ''}</b><b class="skc-n r">${c.rank}</b><span class="skc-art">${ICON[c.suit]}</span><span class="skc-name">${s.name}</span></div>`;
+    return `<div class="skc ${small ? 'sm' : ''} s-${c.suit}" style="--sc:${s.color}" title="${esc(cardName(c))}">${img}<b class="skc-n l">${c.rank}${c.rank === 14 ? `<i class="skc-bonus">+${c.suit === 'k' ? 20 : 10}</i>` : ''}</b><b class="skc-n r">${c.rank}</b></div>`;
   }
-  const art = c.kind === 'pirate' ? SPECIAL_ART.pirate(c.v) : SPECIAL_ART[c.kind];
-  const tag = { escape: '🏳️', pirate: '☠', tigress: '?', king: '👑', mermaid: '🧜' }[c.kind];
-  return `<div class="skc ${small ? 'sm' : ''} sp-${c.kind}"><b class="skc-n l">${tag}</b><span class="skc-art">${art}</span><span class="skc-name">${esc(cardName(c))}</span></div>`;
+  return `<div class="skc ${small ? 'sm' : ''} sp-${c.kind}" title="${esc(cardName(c))}">${img}<span class="skc-name">${esc(cardName(c))}</span></div>`;
 }
 
 const fx = { bid: '', trick: '' };
+
+// 라운드가 끝나면 새 창: 왼쪽 플레이어, 오른쪽 트릭별 기록
+function roundModal(state, me, players, finished, sendMove) {
+  const show = !finished && state.phase === 'roundEnd' && state.roundLog;
+  let $m = document.querySelector('.sk-modal');
+  if (!show) { $m?.remove(); return; }
+  const key = `${state.ri}`;
+  if ($m && $m.dataset.k === key) return;
+  $m?.remove();
+  const name = (u) => esc(players[u]?.name || '나간 사람');
+  const cards = state.rounds[state.ri];
+  const last = state.ri === state.rounds.length - 1;
+  $m = document.createElement('div');
+  $m.className = 'sk-modal'; $m.dataset.k = key;
+  $m.innerHTML = `<div class="sk-mbox">
+    <div class="sk-mtitle">🏴‍☠️ ${state.ri + 1}라운드 결과 <small>카드 ${cards}장</small></div>
+    <div class="sk-mgrid">
+      <div class="sk-mplayers">${[...state.order].sort((a, b) => state.scores[b] - state.scores[a]).map((u) => {
+        const l = state.roundLog[u]; const ok = l.bid === l.won;
+        return `<div class="sk-mp ${u === me ? 'me' : ''}">
+          <span class="sk-mface">${faceHtml(players[u] || { name: '?' })}</span>
+          <div class="sk-mpi"><b>${name(u)}</b><span>예측 ${l.bid} · 획득 ${l.won} ${ok ? '<em class="ok">성공</em>' : '<em class="no">실패</em>'}</span></div>
+          <div class="sk-mpts"><b class="${l.pts >= 0 ? 'up' : 'dn'}">${l.pts >= 0 ? '+' : ''}${l.pts}</b>${l.bonus ? `<small>보너스 ${l.bonus}</small>` : ''}<span>총 ${state.scores[u]}</span></div>
+        </div>`;
+      }).join('')}</div>
+      <div class="sk-mtricks">${(state.tricks || []).map((t, i) => `
+        <div class="sk-mt">
+          <span class="sk-mtn">${i + 1}</span>
+          ${cardHtml(t.card, { small: true })}
+          <div class="sk-mti"><div><b>${name(t.winner)}</b> 승리</div><span>${esc(cardName(CARDS[t.card]))}${t.bonus ? ` · <em>${esc(t.note)}</em>` : ''}</span>
+            <div class="sk-mall">${t.plays.map((p) => `<i class="${p.uid === t.winner ? 'w' : ''}">${name(p.uid)}: ${esc(cardName(CARDS[p.card]))}</i>`).join('')}</div>
+          </div>
+        </div>`).join('')}</div>
+    </div>
+    <p class="sk-mnote">보너스는 예측에 성공했을 때만 더해져요.</p>
+    ${last ? '' : `<button class="btn primary block" data-mnext>다음 라운드 (카드 ${state.rounds[state.ri + 1]}장) ▶</button>`}
+  </div>`;
+  document.body.appendChild($m);
+  const $b = $m.querySelector('[data-mnext]');
+  if ($b) $b.onclick = () => { $b.disabled = true; sendMove({ type: 'next' }); };
+}
 // 고른 카드 (변신 해적 선택 등)
 let ui = { key: '', pick: null };
 
@@ -227,6 +269,7 @@ export default {
       s = {
         ...s, trick: [], won: { ...s.won, [wu]: s.won[wu] + 1 }, bonus: { ...s.bonus, [wu]: s.bonus[wu] + w.bonus },
         lastTrick: { plays: trick, winner: wu, note: w.note, lead: leadSuit(trick) },
+        tricks: [...(s.tricks || []), { plays: trick, winner: wu, card: trick[w.idx].card, note: w.note, bonus: w.bonus }],
       };
       const wIdx = s.order.indexOf(wu);
       if (s.hands[wu].length) return { state: { ...s, leaderIdx: wIdx, turnIdx: wIdx } };
@@ -322,7 +365,7 @@ export default {
     let banner, action = '';
     if (state.phase === 'bid') {
       const mine = state.bids[me];
-      banner = isPlayer ? (mine === null ? `<span><b>${state.ri + 1}라운드 · 카드 ${cards}장</b> 트릭을 몇 번 가져갈지 예측하세요</span>` : `<span>내 예측 <b>${mine}</b> · 다른 사람을 기다리는 중 (바꿀 수 있어요)</span>`) : '<span>예측 중…</span>';
+      banner = isPlayer ? (mine === null ? `<span><b>${state.ri + 1}라운드 · 카드 ${cards}장</b><br>승리를 몇 번 가져갈지 예측하세요</span>` : `<span>내 예측 <b>${mine}</b> · 다른 사람을 기다리는 중 (바꿀 수 있어요)</span>`) : '<span>예측 중…</span>';
       if (isPlayer) action = `<div class="sk-bids">${Array.from({ length: cards + 1 }, (_, i) => `<button class="btn ${mine === i ? 'primary' : ''}" data-bid="${i}">${i}</button>`).join('')}</div>`;
     } else if (state.phase === 'play') {
       banner = myTurn ? `<span><b>내 차례!</b> ${lead ? `기준 색 <b style="color:${SUITS[lead].color === '#23232b' ? '#c9c9d6' : SUITS[lead].color}">${SUITS[lead].name}</b>` : '카드를 내세요'}</span>` : `<span><b>${name(turnUid)}</b>님 차례</span>`;
@@ -341,7 +384,6 @@ export default {
         <div class="sk-head"><span class="sk-round">${state.ri + 1}<small>/${state.rounds.length}라운드</small></span><span class="sk-cards">카드 ${cards}장</span></div>
         ${scoreTable(state.phase === 'roundEnd')}
         ${state.phase === 'play' ? `<div class="sk-zone"><div class="sk-zone-t">🏴‍☠️ 이번 트릭</div>${trickView(state.trick)}</div>` : ''}
-        ${state.lastTrick ? `<div class="sk-zone last"><div class="sk-zone-t">지난 트릭 · <b>${name(state.lastTrick.winner)}</b>님이 가져감${state.lastTrick.note ? ` <span class="sk-note">${esc(state.lastTrick.note)}</span>` : ''}</div>${trickView(state.lastTrick.plays, state.lastTrick.winner)}</div>` : ''}
         <div class="nb-banner">${banner}</div>
         ${action}
         ${isPlayer && hand.length ? `
@@ -351,6 +393,8 @@ export default {
             return `<button class="sk-cardbtn ${ok ? 'ok' : ''} ${myTurn && !ok ? 'no' : ''} ${ui.pick === id ? 'sel' : ''}" data-card="${id}" ${myTurn && !ok ? 'disabled' : ''}>${cardHtml(id)}</button>`;
           }).join('')}</div>` : ''}
       </div>`;
+
+    roundModal(state, me, players, finished, sendMove);
 
     el.querySelectorAll('[data-bid]').forEach((b) => (b.onclick = () => sendMove({ type: 'bid', bid: Number(b.dataset.bid) })));
     const $next = el.querySelector('[data-next]');
@@ -362,3 +406,4 @@ export default {
     }));
   },
 };
+window.addEventListener?.('hashchange', () => document.querySelector('.sk-modal')?.remove());
