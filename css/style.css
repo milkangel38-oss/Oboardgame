@@ -2959,3 +2959,5 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
   .skx-glow { top: 12.5%; width: 14%; }
 }
 @media (min-width: 900px) and (orientation: landscape) { .skx-stage { background-image: url(/img/skullking/bg-wide.webp); aspect-ratio: 1.83 / 1; } .skx-glow { top: 12.5%; width: 14%; } }
+@media (orientation: landscape) and (max-height: 560px) { .skx-glow { top: 13%; } .skx-glow.l { left: 22.5%; } .skx-glow.r { left: 76.5%; } }
+@media (min-width: 900px) and (orientation: landscape) { .skx-glow { top: 13%; } .skx-glow.l { left: 22.5%; } .skx-glow.r { left: 76.5%; } }
