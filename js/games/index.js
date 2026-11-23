@@ -27,6 +27,8 @@ import stock from './stock.js';
 import rummikub from './rummikub.js';
 import avalon from './avalon.js';
 import merge from './merge.js';
+import omok from './omok.js';
+import janggi from './janggi.js';
 import { ART, CATEGORY_ART } from './art.js';
 
 // 로비에 왼쪽부터 이 순서대로 세로 열로 나와요
@@ -54,6 +56,8 @@ export const GAMES = [
   chosung,
   rummikub,
   merge,
+  omok,
+  janggi,
   lexio,
   skullking,
   splendor,

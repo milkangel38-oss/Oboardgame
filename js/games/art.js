@@ -7,6 +7,27 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 오목: 나무 바둑판 위 흑백 돌
+  omok: (() => {
+    const g = Array.from({ length: 9 }, (_, k) => `<line x1="30" y1="${70 + k * 34}" x2="270" y2="${70 + k * 34}"/><line x1="${30 + k * 30}" y1="70" x2="${30 + k * 30}" y2="342"/>`).join('');
+    const st = (x, y, w) => `<circle cx="${30 + x * 30}" cy="${70 + y * 34}" r="13" fill="url(#${w ? 'ow' : 'ob'})"/>`;
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><radialGradient id="ob" cx=".35" cy=".3"><stop offset="0" stop-color="#666"/><stop offset="1" stop-color="#0a0a0a"/></radialGradient><radialGradient id="ow" cx=".35" cy=".3"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#c9c4b8"/></radialGradient></defs>
+  <rect width="300" height="420" fill="#2a1a0e"/><rect x="14" y="54" width="272" height="304" rx="8" fill="#e0b870"/>
+  <g stroke="#5a3a18" stroke-width="1.6">${g}</g>
+  ${st(2, 2)}${st(3, 3)}${st(4, 4)}${st(5, 5)}${st(6, 6)}${st(3, 2, 1)}${st(4, 3, 1)}${st(2, 4, 1)}${st(5, 4, 1)}${st(6, 5, 1)}
+  <line x1="90" y1="138" x2="210" y2="274" stroke="#ff4f6e" stroke-width="5" stroke-linecap="round" opacity=".8"/></svg>`;
+  })(),
+  // 장기: 나무판 위 초·한 장수
+  janggi: (() => {
+    const g = Array.from({ length: 9 }, (_, k) => `<line x1="${40 + k * 27.5}" y1="40" x2="${40 + k * 27.5}" y2="380"/>`).join('') + Array.from({ length: 10 }, (_, k) => `<line x1="40" y1="${40 + k * 37.8}" x2="260" y2="${40 + k * 37.8}"/>`).join('');
+    const pc = (x, y, t, col, s = 22) => `<g transform="translate(${x} ${y})"><polygon points="${[0, 1, 2, 3, 4, 5, 6, 7].map((k) => { const a = Math.PI / 8 + k * Math.PI / 4; return `${(Math.cos(a) * s).toFixed(1)},${(Math.sin(a) * s).toFixed(1)}`; }).join(' ')}" fill="#f3dca8" stroke="${col}" stroke-width="3"/><text y="${s * 0.36}" text-anchor="middle" font-size="${s}" font-weight="900" fill="${col}" font-family="serif">${t}</text></g>`;
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="420" fill="#3a2412"/><rect x="20" y="22" width="260" height="376" rx="8" fill="#e6c27e"/>
+  <g stroke="#6a4520" stroke-width="1.5">${g}<line x1="122.5" y1="40" x2="177.5" y2="115.6"/><line x1="177.5" y1="40" x2="122.5" y2="115.6"/><line x1="122.5" y1="304.4" x2="177.5" y2="380"/><line x1="177.5" y1="304.4" x2="122.5" y2="380"/></g>
+  ${pc(150, 77.8, '漢', '#c8102e', 28)}${pc(67.5, 40, '車', '#c8102e')}${pc(122.5, 191, '包', '#c8102e')}${pc(232.5, 153, '馬', '#c8102e')}
+  ${pc(150, 342, '楚', '#0a7a3a', 28)}${pc(232.5, 380, '車', '#0a7a3a')}${pc(177.5, 229, '包', '#0a7a3a')}${pc(67.5, 266, '卒', '#0a7a3a', 17)}</svg>`;
+  })(),
   // 동글동글 합체: 별이 빛나는 상자 속에 쌓인 행성들
   merge: (() => {
     const put = (lv, x, y, sz) => { const S = sz * 1.6; return `<image href="img/planets/p${lv}.webp" x="${x - S / 2}" y="${y - S / 2}" width="${S}" height="${S}"/>`; };
