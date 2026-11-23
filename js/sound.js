@@ -314,3 +314,24 @@ export async function playSfxFile(url, gain = 1) {
   const g = c.createGain(); g.gain.value = gain;
   src.connect(g); g.connect(sfxBus); src.start();
 }
+
+// 바둑돌을 판에 '딱' 놓는 소리
+export function sfxStone() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01, p = 0.95 + Math.random() * 0.1;
+  burst(t, 0.022, 'highpass', 4200 * p, 1.2, 0.55);
+  tone(t, 2100 * p, 0.035, 'triangle', 0.1, sfxBus, 0.001);
+  tone(t, 380 * p, 0.11, 'sine', 0.22, sfxBus, 0.002);
+  burst(t + 0.004, 0.06, 'bandpass', 900 * p, 4, 0.25);
+}
+// 장기알을 나무판에 '탁' 놓는 소리 (잡으면 두 번 탁탁)
+export function sfxPiece(capture = false) {
+  if (!ensure()) return; resume();
+  const hit = (t, p, v) => {
+    burst(t, 0.035, 'bandpass', 1700 * p, 3, 0.5 * v);
+    tone(t, 240 * p, 0.14, 'sine', 0.28 * v, sfxBus, 0.002);
+    tone(t, 520 * p, 0.06, 'triangle', 0.09 * v, sfxBus, 0.001);
+  };
+  const t = ctx.currentTime + 0.01, p = 0.95 + Math.random() * 0.1;
+  if (capture) { hit(t, p * 1.1, 0.8); hit(t + 0.075, p, 1); } else hit(t, p, 1);
+}

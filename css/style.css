@@ -3117,3 +3117,9 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .jg-p.c b { color: #0b6b38; } .jg-p.h b { color: #b3121f; }
 .jg-c.sel .jg-p { filter: drop-shadow(0 0 6px #ffd84d) drop-shadow(0 3px 3px rgba(0, 0, 0, .55)); }
 .jg-frow .jg-p { width: 28px; }
+.jg-c.dim .jg-p { opacity: .45; filter: grayscale(.4) drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
+.jg-forms .jg-pick { grid-column: 1 / -1; }
+.jg-form.done small::after { content: ' · 확정'; color: #4ee07a; }
+.jg-forms { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.jg-form { min-width: 0; }
+.jg-frow { gap: 1px; } .jg-frow .jg-p { width: 21px; } .jg-frow .jg-p b { font-size: 10px; } .jg-frow i { width: 5px; }

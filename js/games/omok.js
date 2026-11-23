@@ -1,7 +1,7 @@
 // 미니게임: 오목 (2명) — 15×15 바둑판, 흑이 먼저, 가로·세로·대각선으로 5개 이상 이으면 승리
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { sitHtml, chatFormHtml, bindChat } from './sit.js';
-import { sfxToken } from '../sound.js';
+import { sfxStone } from '../sound.js';
 
 const N = 15;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -121,7 +121,7 @@ export default {
     const turnUid = state.turn === 1 ? state.black : state.white;
     const myTurn = !finished && state.phase === 'play' && myColor === state.turn;
     if (room) turnAlert(room.code, `om:${room.startedAt}:${state.n}`, myTurn);
-    if (fx.n !== state.n) { if (fx.n >= 0 && state.n > fx.n) sfxToken(); fx.n = state.n; }
+    if (fx.n !== state.n) { if (fx.n >= 0 && state.n > fx.n) sfxStone(); fx.n = state.n; }
 
     const win = new Set(state.win || []);
     const lines = Array.from({ length: N }, (_, k) => `<line x1="0.5" y1="${k + 0.5}" x2="${N - 0.5}" y2="${k + 0.5}"/><line x1="${k + 0.5}" y1="0.5" x2="${k + 0.5}" y2="${N - 0.5}"/>`).join('');

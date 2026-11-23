@@ -3,7 +3,7 @@
 // 말: K 궁 · R 차 · C 포 · H 마 · E 상 · A 사 · P 졸/병, 앞에 진영 글자 c(초) / h(한)
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { sitHtml, chatFormHtml, bindChat } from './sit.js';
-import { sfxToken } from '../sound.js';
+import { sfxPiece } from '../sound.js';
 
 const W = 9, H = 10;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -133,7 +133,7 @@ function result(state, players, winner, why) {
   };
 }
 
-const ui = { key: '', sel: -1 };
+const ui = { key: '', sel: -1, room: '', prev: '', from: '' };
 const fx = { n: -1 };
 const pieceHtml = (p) => `<span class="jg-p ${p[0]} k${p[1]}"><b>${HANJA[p[0]][p[1]]}</b></span>`;
 
@@ -214,11 +214,15 @@ export default {
     if (ui.key !== `${room?.code}:${state.n}`) ui.key = `${room?.code}:${state.n}`, ui.sel = -1;
     if (room) turnAlert(room.code, `jg:${room.startedAt}:${state.n}`, myTurn);
     if (fx.n !== state.n) {
-      if (fx.n >= 0 && state.n > fx.n) { sfxToken(); if (state.check && state.phase === 'play') bigFlash('<div class="jg-flash">장군!</div>', 1400); }
+      if (fx.n >= 0 && state.n > fx.n) { if (state.last) sfxPiece(!!state.took); if (state.check && state.phase === 'play') bigFlash('<div class="jg-flash">장군!</div>', 1400); }
       fx.n = state.n;
     }
 
-    const b = state.board;
+    if (ui.room !== `${room?.code}:${room?.startedAt}`) { ui.room = `${room?.code}:${room?.startedAt}`; ui.prev = ''; ui.from = ''; }
+    const forming = state.phase === 'form' && mySide && !finished;
+    if (forming && !ui.prev) ui.prev = state.forms[mySide] || FORMS[0];
+    // 배치 고르는 중: 내 쪽은 미리보기 배치, 상대 쪽은 기본 배치(흐리게)
+    const b = forming ? initialBoard(mySide === 'c' ? ui.prev : FORMS[0], mySide === 'h' ? ui.prev : FORMS[0]) : state.board;
     const targets = ui.sel >= 0 ? legalFrom(b, ui.sel) : [];
     const last = state.last || [];
     // 판 선 (교차점 = 칸 가운데)
@@ -229,7 +233,7 @@ export default {
     const view = (k) => (flip ? W * H - 1 - k : k); // 화면 순서 → 실제 칸
     const cells = Array.from({ length: W * H }, (_, k) => {
       const i = view(k), p = b[i];
-      const cls = ['jg-c', last.includes(i) && 'last', ui.sel === i && 'sel', targets.includes(i) && (p ? 'cap' : 'dot'),
+      const cls = ['jg-c', forming && p && p[0] !== mySide && 'dim', last.includes(i) && 'last', ui.sel === i && 'sel', targets.includes(i) && (p ? 'cap' : 'dot'),
         state.check && p === state.turn + 'K' && 'chk'].filter(Boolean).join(' ');
       return `<button class="${cls}" data-i="${i}">${p ? pieceHtml(p) : ''}</button>`;
     }).join('');
@@ -244,7 +248,7 @@ export default {
     if (finished || state.phase === 'done') {
       const w = room?.result?.winners?.[0];
       banner = w ? `<b>${name(w)}</b>님 승리! ${state.mate ? '외통 장군 🎉' : state.resign ? '(상대 기권)' : state.score ? `(점수 ${state.score.c} : ${state.score.h})` : ''}` : '무승부!';
-    } else if (state.phase === 'form') banner = mySide ? (state.forms[mySide] ? `내 배치 <b>${state.forms[mySide]}</b> · 상대가 고르는 중…` : '<b>상·마 배치</b>를 골라 주세요 (왼쪽부터)') : '배치를 고르는 중…';
+    } else if (state.phase === 'form') banner = mySide ? (state.forms[mySide] ? `내 배치 <b>${state.forms[mySide]}</b> 확정 · 상대가 고르는 중… <small class="muted">(바꿀 수 있어요)</small>` : '배치를 눌러 <b>미리 보고</b>, 마음에 들면 <b>선택 완료</b>!') : '배치를 고르는 중…';
     else if (myTurn) banner = state.check ? '<b class="red">장군!</b> 궁을 지키세요' : ui.sel >= 0 ? `<b>${NAMES[b[ui.sel][1]]}</b> 선택 · 갈 곳을 누르세요` : '<b>내 차례!</b> 움직일 말을 누르세요';
     else banner = `<b>${name(turnUid)}</b>님 차례${state.check ? ' · <b class="red">장군!</b>' : ''}`;
 
@@ -259,9 +263,10 @@ export default {
           </div>
           ${seat(bottom, flip ? 'h' : 'c', false)}
         </div>
-        ${state.phase === 'form' && mySide && !finished ? `<div class="jg-forms">${FORMS.map((f) => `<button class="jg-form ${state.forms[mySide] === f ? 'on' : ''}" data-form="${f}">
+        ${state.phase === 'form' && mySide && !finished ? `<div class="jg-forms">${FORMS.map((f) => `<button class="jg-form ${ui.prev === f ? 'on' : ''} ${state.forms[mySide] === f ? 'done' : ''}" data-form="${f}">
             <span class="jg-frow">${['R', ...f.split('').map((x) => KIND[x])].slice(0, 3).map((k) => pieceHtml(mySide + k)).join('')}<i></i>${f.split('').slice(2).map((x) => pieceHtml(mySide + KIND[x])).join('')}${pieceHtml(mySide + 'R')}</span>
-            <b>${f}</b><small>${FORM_NAME[f]}</small></button>`).join('')}</div>` : ''}
+            <b>${f}${state.forms[mySide] === f ? ' ✓' : ''}</b><small>${FORM_NAME[f]}</small></button>`).join('')}
+          <button class="btn primary block jg-pick" data-pick ${state.forms[mySide] === ui.prev ? 'disabled' : ''}>${state.forms[mySide] === ui.prev ? `✓ ${ui.prev} 선택 완료` : `${ui.prev} 으로 선택 완료`}</button></div>` : ''}
         ${mySide && !finished && state.phase === 'play' ? `<div class="jg-acts">
           <button class="btn sm" data-pass ${!myTurn || state.check ? 'disabled' : ''}>⏸ 한수쉼</button>
           <button class="btn ghost sm" data-resign>🏳️ 기권</button></div>` : ''}
@@ -274,7 +279,26 @@ export default {
       if (b[i] && b[i][0] === mySide) { ui.sel = ui.sel === i ? -1 : i; this.render(el, ctx); return; }
       if (ui.sel >= 0 && targets.includes(i)) { const from = ui.sel; ui.sel = -1; sendMove({ type: 'move', from, to: i }); }
     }));
-    el.querySelectorAll('[data-form]').forEach((x) => (x.onclick = () => sendMove({ type: 'form', f: x.dataset.form })));
+    el.querySelectorAll('[data-form]').forEach((x) => (x.onclick = () => { if (x.dataset.form === ui.prev) return; ui.from = ui.prev; ui.prev = x.dataset.form; this.render(el, ctx); }));
+    const $pick = el.querySelector('[data-pick]');
+    if ($pick) $pick.onclick = () => sendMove({ type: 'form', f: ui.prev });
+    // 배치를 바꾸면 상·마가 실제로 자리를 바꿔 움직여요
+    if (forming && ui.from && ui.from !== ui.prev) {
+      const row = mySide === 'c' ? 9 : 0;
+      const col = (k) => (mySide === 'c' ? [1, 2, 6, 7][k] : 8 - [1, 2, 6, 7][k]);
+      const rect = (k) => el.querySelector(`.jg-c[data-i="${row * W + col(k)}"]`)?.getBoundingClientRect();
+      for (const [k0, k1] of [[0, 1], [2, 3]]) {
+        if (ui.from[k0] === ui.prev[k0]) continue;
+        for (const [a, z] of [[k0, k1], [k1, k0]]) {
+          const $p = el.querySelector(`.jg-c[data-i="${row * W + col(a)}"] .jg-p`); const A = rect(a), Z = rect(z);
+          if (!$p || !A || !Z) continue;
+          const dx = Z.left - A.left, lift = a === k0 ? -16 : 16;
+          $p.animate([{ transform: `translate(${dx}px,0)` }, { transform: `translate(${dx / 2}px,${lift}px) scale(1.15)`, offset: 0.5 }, { transform: 'none' }], { duration: 460, easing: 'cubic-bezier(.4,0,.2,1)' });
+        }
+      }
+      sfxPiece();
+    }
+    ui.from = '';
     bindChat(el);
     const $p = el.querySelector('[data-pass]');
     if ($p) $p.onclick = () => sendMove({ type: 'pass' });
