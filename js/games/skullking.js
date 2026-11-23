@@ -177,6 +177,38 @@ const DECOR = `<div class="skx-decor" aria-hidden="true">
 </div>`;
 const chat = { draft: '', focus: false };
 let lastCtx = null;
+let guideOpen = false;
+// 카드 상성표 (내 카드 아래, 접었다 폈다)
+const gc = (id) => `<span class="skg-c">${cardHtml(id, { small: true })}</span>`;
+const GUIDE = () => `
+  <details class="skg" ${guideOpen ? 'open' : ''}>
+    <summary>📜 카드 상성 보기 <small>누르면 펼쳐져요</small></summary>
+    <div class="skg-body">
+      <div class="skg-row"><b class="skg-t">특수 카드 상성</b>
+        <div class="skg-cycle">
+          ${gc('sk')}<i>▶<br>이김</i>${gc('pr1')}<i>▶<br>이김</i>${gc('m1')}<i>▶<br>이김</i>${gc('sk')}
+        </div>
+        <p>👑 스컬킹은 해적을, ☠ 해적은 인어를, 🧜 인어는 스컬킹을 잡아요. 셋 다 숫자 카드는 모두 이겨요.</p>
+      </div>
+      <div class="skg-row"><b class="skg-t">숫자 카드</b>
+        <div class="skg-cycle">${gc('g9')}<i>&lt;</i>${gc('g12')}<i>&lt;</i>${gc('k2')}</div>
+        <p>처음 나온 색(기준 색)끼리는 숫자가 높을수록 이겨요. 기준 색이 아닌 색은 져요. <b>검정 해골기</b>는 으뜸패라 다른 색을 모두 이겨요.</p>
+      </div>
+      <div class="skg-row"><b class="skg-t">도망 · 같은 종류</b>
+        <div class="skg-cycle">${gc('e1')}<i>항상 짐</i></div>
+        <p>🏳️ 도망은 무엇에든 져요. 모두 도망이면 먼저 낸 사람이 가져가요. 해적끼리·인어끼리는 먼저 낸 카드가 이겨요.</p>
+      </div>
+      <div class="skg-row"><b class="skg-t">보너스 (예측 성공 시)</b>
+        <ul class="skg-bonus">
+          <li>${gc('g14')}<span>색 14 <b>+10</b></span></li>
+          <li>${gc('k14')}<span>검정 14 <b>+20</b></span></li>
+          <li><span>☠ 해적이 인어를 잡으면 <b>+20</b></span></li>
+          <li><span>👑 스컬킹이 해적을 잡으면 1명당 <b>+30</b></span></li>
+          <li><span>🧜 인어가 스컬킹을 잡으면 <b>+40</b></span></li>
+        </ul>
+      </div>
+    </div>
+  </details>`;
 const COMPASS = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width=".8" stroke-dasharray="2 3"/><path d="M50 4 L56 44 L96 50 L56 56 L50 96 L44 56 L4 50 L44 44 Z" fill="currentColor" opacity=".55"/><path d="M50 18 L53 47 L82 50 L53 53 L50 82 L47 53 L18 50 L47 47 Z" fill="currentColor" opacity=".35" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="4" fill="currentColor"/></svg>`;
 
 // 라운드가 끝나면 새 창: 왼쪽 플레이어, 오른쪽 트릭별 기록
@@ -454,7 +486,10 @@ export default {
             const ok = myTurn && canPlay(myHand, state.trick, id);
             return `<button class="sk-cardbtn ${ok ? 'ok' : ''} ${myTurn && !ok ? 'no' : ''}" data-card="${id}" ${myTurn && !ok ? 'disabled' : ''}>${cardHtml(id)}</button>`;
           }).join('')}</div>` : ''}
+        ${GUIDE()}
       </div>`;
+    const $g = el.querySelector('.skg');
+    if ($g) $g.ontoggle = () => (guideOpen = $g.open);
 
     // 카드가 낸 사람 자리에서 가운데로 날아와요
     const fromNew = fx.ckey === tKey ? fx.cnt : fx.ckey ? 0 : plays.length;

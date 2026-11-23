@@ -2961,3 +2961,28 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 @media (min-width: 900px) and (orientation: landscape) { .skx-stage { background-image: url(/img/skullking/bg-wide.webp); aspect-ratio: 1.83 / 1; } .skx-glow { top: 12.5%; width: 14%; } }
 @media (orientation: landscape) and (max-height: 560px) { .skx-glow { top: 13%; } .skx-glow.l { left: 22.5%; } .skx-glow.r { left: 76.5%; } }
 @media (min-width: 900px) and (orientation: landscape) { .skx-glow { top: 13%; } .skx-glow.l { left: 22.5%; } .skx-glow.r { left: 76.5%; } }
+
+/* 스컬킹: 카드 상성표 */
+.skg { margin-top: 4px; border-radius: 14px; background: rgba(201, 168, 90, .08); box-shadow: inset 0 0 0 1.5px rgba(201, 168, 90, .45); }
+.skg summary { cursor: pointer; padding: 10px 14px; font-weight: 800; color: #ffd84d; list-style: none; }
+.skg summary::-webkit-details-marker { display: none; }
+.skg summary::after { content: '▾'; float: right; transition: transform .2s; }
+.skg[open] summary::after { transform: rotate(180deg); }
+.skg summary small { font-weight: 400; font-size: 11.5px; color: #a89fcc; margin-left: 4px; }
+.skg[open] summary small { display: none; }
+.skg-body { display: grid; gap: 10px; padding: 0 12px 12px; }
+.skg-row { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(0, 0, 0, .25); }
+.skg-t { font-size: 13px; color: #fff; }
+.skg-row p { margin: 0; font-size: 12.5px; line-height: 1.5; color: #d8d2f0; }
+.skg-row p b { color: #ffd84d; }
+.skg-cycle { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.skg-cycle > i { font-style: normal; font-size: 11px; font-weight: 800; color: #ffd84d; white-space: nowrap; }
+.skg-c .skc.sm { width: 50px; }
+.skg-c .skc-n.r { display: none; }
+.skg-bonus { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.skg-bonus li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #d8d2f0; }
+.skg-bonus li .skc.sm { width: 34px; }
+.skg-bonus b { color: #4ee07a; }
+.skg-cycle { flex-wrap: nowrap; gap: 4px; }
+.skg-c .skc.sm { width: 46px; }
+.skg-cycle > i { font-size: 10.5px; display: grid; justify-items: center; line-height: 1.1; }
