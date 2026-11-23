@@ -3103,3 +3103,8 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 /* 장기 배경 그림 (위에서 내려다본 방) */
 .jg .jg-room { background: #2a1a10 url(/img/janggi/bg.webp) center / cover no-repeat; box-shadow: inset 0 0 0 3px #2a1a0c, 0 10px 26px rgba(0, 0, 0, .45); }
 .jg .jg-board { box-shadow: inset 0 0 0 3px rgba(90, 58, 24, .55), 0 0 0 6px rgba(40, 24, 10, .55), 0 14px 30px rgba(0, 0, 0, .65); }
+/* 오목 배경 그림 (봄날 대청마루) */
+.om2 .om-room.om-room2 { background: #c9d2da url(/img/omok/bg.webp) center / cover no-repeat; box-shadow: inset 0 0 0 3px #7d8a96, 0 10px 26px rgba(0, 0, 0, .45); }
+.om2 .om-room2 .om-board { box-shadow: inset 0 0 0 2px rgba(90, 58, 24, .5), 0 0 0 5px rgba(60, 70, 90, .35), 0 14px 30px rgba(20, 30, 50, .5); }
+.om2 .om-room2 .sit-name { text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, .7); }
+.om2 .om-room2 .sit-label { color: #fff3c4; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, .8); }
