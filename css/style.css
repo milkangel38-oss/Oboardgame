@@ -3108,3 +3108,12 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .om2 .om-room2 .om-board { box-shadow: inset 0 0 0 2px rgba(90, 58, 24, .5), 0 0 0 5px rgba(60, 70, 90, .35), 0 14px 30px rgba(20, 30, 50, .5); }
 .om2 .om-room2 .sit-name { text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, .7); }
 .om2 .om-room2 .sit-label { color: #fff3c4; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, .8); }
+/* 장기말: 나무 말판 그림 + 새긴 글씨 */
+.jg-p { clip-path: none; background: url(/img/janggi/piece-cho.webp) center / contain no-repeat; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .55)); }
+.jg-p.h { background-image: url(/img/janggi/piece-han.webp); }
+.jg-p::before { display: none; }
+.jg-p b { font-family: 'Noto Serif KR', 'Nanum Myeongjo', 'Batang', 'SimSun', serif; font-weight: 900; transform: translateY(-2%);
+  text-shadow: 0 1px 0 rgba(255, 246, 220, .85), 0 -1px 0 rgba(0, 0, 0, .35); }
+.jg-p.c b { color: #0b6b38; } .jg-p.h b { color: #b3121f; }
+.jg-c.sel .jg-p { filter: drop-shadow(0 0 6px #ffd84d) drop-shadow(0 3px 3px rgba(0, 0, 0, .55)); }
+.jg-frow .jg-p { width: 28px; }
