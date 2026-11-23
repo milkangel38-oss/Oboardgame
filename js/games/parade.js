@@ -3,7 +3,7 @@
 import { turnAlert, bigFlash } from './turn-alert.js';
 import { faceHtml } from './face.js';
 import { sfxCard } from '../sound.js';
-import { chatFormHtml, bindChat } from './sit.js';
+import { sitHtml, chatFormHtml, bindChat } from './sit.js';
 
 export const COLORS = {
   r: { name: '빨강 북', color: '#e0384a', icon: '🥁' },
@@ -174,61 +174,66 @@ export default {
     const L = state.log;
     const sc = state.phase === 'done' || finished ? scoreAll(state) : null;
 
-    const collHtml = (u, big) => {
+    // 먹은 카드: 색별로 겹쳐서 직접 보여줘요
+    const eatHtml = (u, size) => {
       const cs = state.coll[u];
-      if (!cs.length) return '<span class="pd-none">아직 없음</span>';
+      if (!cs.length) return '<span class="pd-none">아직 없어요</span>';
       return CK.filter((c) => cs.some((x) => col(x) === c)).map((c) => {
         const xs = cs.filter((x) => col(x) === c).sort((a, b) => val(a) - val(b));
-        return big
-          ? `<div class="pd-stack">${xs.map((x) => cardHtml(x, { small: true })).join('')}</div>`
-          : `<span class="pd-chip" style="--pc:${COLORS[c].color}">${COLORS[c].icon}<b>${xs.length}</b><small>${xs.reduce((s, x) => s + val(x), 0)}</small></span>`;
+        return `<div class="pd-stack ${size}">${xs.map((x) => cardHtml(x, { small: true })).join('')}</div>`;
       }).join('');
     };
+    const backs = (n) => Array.from({ length: n }, () => '<i class="pd-back"></i>').join('');
+    const ROBES = ['#c23a4a', '#2f7fe0', '#2fae5f', '#8a4fd8', '#d98a1c', '#3a3a46'];
+    const robe = (u) => ROBES[state.order.indexOf(u) % ROBES.length];
     const others = state.order.filter((u) => u !== me);
-    const seats = others.map((u) => `<div class="pd-op ${u === turnUid && !finished && state.phase !== 'pick' ? 'turn' : ''}">
-        <span class="seat-bubble" data-bub="${esc(u)}"></span>
-        <span class="pd-face">${faceHtml(players[u] || { name: '?' })}</span>
-        <div class="pd-opi"><b>${name(u)}</b><small>손 ${state.hands[u].length}장 · 모은 ${state.coll[u].length}장${state.phase === 'pick' ? (state.picks[u] ? ' · ✓ 골랐어요' : ' · 고르는 중…') : ''}</small>
-          <div class="pd-chips">${collHtml(u, false)}</div></div>
-      </div>`).join('');
+    const opHtml = (u) => `<div class="pd-op2 ${u === turnUid && !finished && state.phase !== 'pick' && state.phase !== 'done' ? 'turn' : ''}">
+        ${sitHtml(players[u], { uid: u, robe: robe(u), turn: u === turnUid && !finished && ['play', 'last'].includes(state.phase),
+          label: state.phase === 'pick' ? (state.picks[u] ? '✓ 골랐어요' : '고르는 중…') : '' })}
+        <div class="pd-lab">보유카드 <b>${state.hands[u].length}</b>장</div>
+        <div class="pd-backs">${backs(state.hands[u].length)}</div>
+        <div class="pd-lab">먹은카드 <b>${state.coll[u].length}</b>장${sc ? ` · <em>${sc[u].pts}점</em>` : ''}</div>
+        <div class="pd-eat">${eatHtml(u, 'xs')}</div>
+      </div>`;
 
     let banner;
     if (finished || state.phase === 'done') banner = '🎪 퍼레이드 끝! 결과를 확인하세요';
-    else if (state.phase === 'pick') banner = state.picks[me] ? '고르기 완료! 다른 사람을 기다리는 중…' : `<b>손에 남은 카드 중 2장</b>을 골라 내 카드에 더해요 <small class="muted">(나머지 2장은 버려요)</small>`;
+    else if (state.phase === 'pick') banner = state.picks[me] ? '고르기 완료! 다른 사람을 기다리는 중…' : `<b>손에 남은 카드 중 2장</b>을 골라 먹은 카드에 더해요 <small class="muted">(나머지 2장은 버려요)</small>`;
     else if (myTurn) banner = ui.sel ? `<b>${COLORS[col(ui.sel)].name} ${val(ui.sel)}</b> → <b class="red">${preview.size}장</b>을 가져가요` : `<b>내 차례!</b> 낼 카드를 고르세요${state.phase === 'last' ? ' <small class="muted">· 마지막 행진 (뽑지 않아요)</small>' : ''}`;
     else banner = `<b>${name(turnUid)}</b>님 차례${state.phase === 'last' ? ' · 마지막 행진' : ''}`;
 
     el.innerHTML = `
-      <div class="pd">
-        <div class="pd-head"><span>🃏 더미 <b>${state.deck.length}</b>장</span>${state.phase === 'last' ? `<span class="pd-last">🎪 마지막 행진 · 남은 차례 ${state.lastLeft}</span>` : ''}<span>🎪 행렬 <b>${state.parade.length}</b>장</span></div>
-        <div class="pd-ops">${seats}</div>
+      <div class="pd pd2">
         <div class="nb-banner"><span>${banner}</span></div>
-        <div class="pd-road">
-          <div class="pd-line">${state.parade.map((x, i) => {
-            const cls = preview ? (preview.has(i) ? 'take' : i >= safeFrom ? 'safe' : 'stay') : (L && i === state.parade.length - 1 && !finished ? 'new' : '');
-            return `<div class="pd-slot ${cls}">${cardHtml(x)}</div>`;
-          }).join('')}${ui.sel ? `<div class="pd-slot ghost">${cardHtml(ui.sel)}</div>` : ''}</div>
-          <div class="pd-flow">← 행렬 앞 · · · 맨 끝 →</div>
-        </div>
-        ${L && !ui.sel ? `<div class="pd-log"><b>${name(L.uid)}</b>님이 ${cardHtml(L.card, { small: true })} 를 내고 ${L.taken.length ? `<span class="pd-took">${L.taken.map((x) => cardHtml(x, { small: true })).join('')}</span> ${L.taken.length}장을 가져갔어요` : '하나도 가져가지 않았어요 👏'}</div>` : ''}
-        ${isPlayer ? `
-          <div class="pd-mine">
-            <span class="seat-bubble" data-bub="${esc(me)}"></span>
-            <span class="pd-face me">${faceHtml(players[me] || { name: '?' })}</span>
-            <div class="ud-mine-title">🎒 내가 모은 카드 ${state.coll[me].length}장 ${sc ? `· <b>${sc[me].pts}점</b>` : ''}</div>
-            <div class="pd-mycoll">${collHtml(me, true)}</div>
+        <div class="pd-ops2 n${others.length}">${others.map(opHtml).join('')}</div>
+        <div class="pd-board">
+          ${state.phase === 'last' ? `<div class="pd-lastbar">🎪 마지막 행진 · 남은 차례 ${state.lastLeft}</div>` : ''}
+          <div class="pd-track">
+            <div class="pd-deck"><span>카드더미 <b>${state.deck.length}</b>장</span><div class="pd-pile ${state.deck.length ? '' : 'empty'}">${state.deck.length ? '<i class="pd-back big"></i><i class="pd-back big"></i><i class="pd-back big"></i>' : '없음'}</div></div>
+            <div class="pd-line">${state.parade.map((x, i) => {
+              const cls = preview ? (preview.has(i) ? 'take' : i >= safeFrom ? 'safe' : 'stay') : (L && i === state.parade.length - 1 && !finished ? 'new' : '');
+              return `<div class="pd-slot ${cls}">${cardHtml(x)}</div>`;
+            }).join('')}${ui.sel ? `<div class="pd-slot ghost">${cardHtml(ui.sel)}</div>` : ''}</div>
           </div>
-          ${myHand.length && state.phase !== 'done' && !finished ? `
-            <div class="ud-mine-title">✋ 내 손 ${myHand.length}장</div>
-            <div class="pd-hand">${myHand.map((x) => {
-              const on = state.phase === 'pick' ? ui.picks.includes(x) || (state.picks[me] || []).includes(x) : ui.sel === x;
-              return `<button class="pd-cardbtn ${on ? 'on' : ''}" data-card="${x}" ${(!myTurn && state.phase !== 'pick') || state.picks[me] ? 'disabled' : ''}>${cardHtml(x)}</button>`;
-            }).join('')}</div>
-            ${myTurn ? `<button class="btn primary block" data-play ${ui.sel ? '' : 'disabled'}>${ui.sel ? `🎪 행렬에 내기 (${preview.size}장 가져감)` : '카드를 먼저 고르세요'}</button>` : ''}
-            ${state.phase === 'pick' && !state.picks[me] ? `<button class="btn primary block" data-pick ${ui.picks.length === 2 ? '' : 'disabled'}>${ui.picks.length === 2 ? '이 2장으로 확정' : `2장을 골라 주세요 (${ui.picks.length}/2)`}</button>` : ''}
-          ` : ''}
-          ${chatFormHtml()}` : ''}
+          ${L && !ui.sel ? `<div class="pd-log"><b>${name(L.uid)}</b>님 ${cardHtml(L.card, { small: true })} → ${L.taken.length ? `<span class="pd-took">${L.taken.map((x) => cardHtml(x, { small: true })).join('')}</span> ${L.taken.length}장 먹음` : '하나도 안 먹었어요 👏'}</div>` : ''}
+        </div>
+        ${isPlayer ? `
+          <div class="pd-me ${myTurn ? 'turn' : ''}">
+            ${sitHtml(players[me], { uid: me, robe: robe(me), me: true, turn: myTurn })}
+            <div class="pd-mebox">
+              <div class="pd-lab">보유카드 <b>${myHand.length}</b>장</div>
+              ${myHand.length && state.phase !== 'done' && !finished ? `<div class="pd-hand">${myHand.map((x) => {
+                const on = state.phase === 'pick' ? ui.picks.includes(x) || (state.picks[me] || []).includes(x) : ui.sel === x;
+                return `<button class="pd-cardbtn ${on ? 'on' : ''}" data-card="${x}" ${(!myTurn && state.phase !== 'pick') || state.picks[me] ? 'disabled' : ''}>${cardHtml(x)}</button>`;
+              }).join('')}</div>` : '<span class="pd-none">없어요</span>'}
+              ${myTurn ? `<button class="btn primary block" data-play ${ui.sel ? '' : 'disabled'}>${ui.sel ? `🎪 행렬에 내기 (${preview.size}장 먹음)` : '카드를 먼저 고르세요'}</button>` : ''}
+              ${state.phase === 'pick' && !state.picks[me] && !finished ? `<button class="btn primary block" data-pick ${ui.picks.length === 2 ? '' : 'disabled'}>${ui.picks.length === 2 ? '이 2장으로 확정' : `2장을 골라 주세요 (${ui.picks.length}/2)`}</button>` : ''}
+              <div class="pd-lab">먹은카드 <b>${state.coll[me].length}</b>장${sc ? ` · <em>${sc[me].pts}점</em>` : ''}</div>
+              <div class="pd-eat">${eatHtml(me, 'sm')}</div>
+            </div>
+          </div>` : ''}
         ${sc ? `<div class="pd-score">${state.order.map((u) => `<div><b>${name(u)}</b> ${sc[u].pts}점 <small>(${sc[u].cards}장${sc[u].major.length ? ` · 다수 ${sc[u].major.map((c) => COLORS[c].icon).join('')}` : ''})</small></div>`).join('')}</div>` : ''}
+        ${isPlayer ? chatFormHtml() : ''}
       </div>`;
 
     el.querySelectorAll('[data-card]').forEach((b) => (b.onclick = () => {
