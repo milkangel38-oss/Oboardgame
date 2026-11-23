@@ -7,6 +7,18 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 퍼레이드: 줄지어 선 색색의 카드
+  parade: (() => {
+    const C = [['#e0384a', '🥁', 7], ['#f2b821', '🎺', 2], ['#2fae5f', '🎈', 9], ['#2f7fe0', '⭐', 4], ['#8a4fd8', '🚩', 0], ['#3a3a46', '🎩', 10]];
+    const cards = C.map(([c, ic, v], i) => `<g transform="translate(${28 + i * 42} ${150 + Math.sin(i) * 14}) rotate(${(i - 2.5) * 6})"><rect width="64" height="96" rx="8" fill="#fffaf0" stroke="${c}" stroke-width="5"/><text x="9" y="22" font-size="17" font-weight="900" fill="${c}">${v}</text><text x="32" y="62" font-size="28" text-anchor="middle">${ic}</text></g>`).join('');
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="pdg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1050"/><stop offset="1" stop-color="#6a1f5c"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#pdg)"/>
+  ${Array.from({ length: 14 }, (_, i) => `<path d="M${i * 24} 40 l12 26 l12 -26 z" fill="${['#e0384a', '#f2b821', '#2fae5f', '#2f7fe0'][i % 4]}"/>`).join('')}
+  <path d="M0 40 Q150 70 300 40" stroke="#fff" stroke-width="2" fill="none" opacity=".5"/>
+  ${cards}
+  <rect y="320" width="300" height="100" fill="#3a1236"/><path d="M0 320 h300" stroke="#f2b821" stroke-width="3" stroke-dasharray="14 10"/></svg>`;
+  })(),
   // 오목: 나무 바둑판 위 흑백 돌
   omok: (() => {
     const g = Array.from({ length: 9 }, (_, k) => `<line x1="30" y1="${70 + k * 34}" x2="270" y2="${70 + k * 34}"/><line x1="${30 + k * 30}" y1="70" x2="${30 + k * 30}" y2="342"/>`).join('');

@@ -16,6 +16,7 @@ import typing from './typing.js';
 import seedpoker from './seedpoker.js';
 import underdog from './underdog.js';
 import skullking from './skullking.js';
+import parade from './parade.js';
 import tichu from './tichu.js';
 import chosung from './chosung.js';
 import lexio from './lexio.js';
@@ -60,6 +61,7 @@ export const GAMES = [
   janggi,
   lexio,
   skullking,
+  parade,
   splendor,
   avalon,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));
