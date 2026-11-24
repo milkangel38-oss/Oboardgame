@@ -252,9 +252,9 @@ export default {
       return `<div class="ms-p ${u === me ? 'me' : ''} ${u === turnUid ? 'turn' : ''} ${buzz?.uid === u ? 'buzzing' : ''} ${state.winner === u && state.phase === 'reveal' ? 'win' : ''}">
         <span class="seat-bubble" data-bub="${esc(u)}"></span>
         <div class="ms-person">${personHtml(COLORS[i % COLORS.length], players[u] || { name: '?' })}</div>
-        <div class="ms-podium"><b>${state.scores[u]}</b><small>점</small>${wrongNow ? '<em class="ms-x">✖ 오답</em>' : ''}</div>
+        <div class="ms-podium"><img src="/img/mystery/podium.webp" alt="" draggable="false"><span class="ms-pscore"><b>${state.scores[u]}</b><small>점</small></span>${wrongNow ? '<em class="ms-x">✖ 오답</em>' : ''}</div>
         <button class="ms-buzzer ${can ? 'can' : ''} ${buzz?.uid === u ? 'on' : ''} ${lock ? 'lock' : ''}" ${mine ? 'data-buzz' : 'disabled tabindex="-1"'} aria-label="버저">
-          <i></i>${lock && mine ? `<small data-lock="${state.locks[u]}">${Math.ceil(lock / 1000)}</small>` : can ? '<small>PUSH</small>' : ''}
+          <img src="/img/mystery/buzzer-${buzz?.uid === u ? 'on' : 'off'}.webp" alt="" draggable="false">${lock && mine ? `<small data-lock="${state.locks[u]}">${Math.ceil(lock / 1000)}</small>` : can ? '<small>PUSH</small>' : ''}
         </button>
         <span class="ms-nm">${name(u)}${u === turnUid ? ' <em>✍</em>' : ''}</span>
       </div>`;
@@ -268,14 +268,14 @@ export default {
         </div>
         <div class="ms-set">
           <div class="ms-top">
-            <div class="ms-screen">
+            <div class="ms-screen"><img class="ms-sframe" src="/img/mystery/screen.webp" alt="" draggable="false"><div class="ms-sin">
               <div class="ms-problem">
                 <span>${state.target[0]}</span>${SIGN}<span>${state.target[1]}</span><span class="ms-eq">=</span>
                 <span class="ms-q ${state.phase === 'reveal' ? 'open' : ''}">${state.phase === 'reveal' ? state.answer : '?'}</span>
               </div>
               ${state.phase === 'reveal' ? `<div class="ms-rule"><span class="ms-level lv${rule?.level}">${LEVELS[rule?.level] || ''}</span> ◆ = ${esc(rule?.desc || '')}</div>` : ''}
               <div class="nb-bar"><i data-bar></i></div>
-            </div>
+            </div></div>
             <div class="ms-hintbox">
               <div class="ms-hints-title">힌트 리스트 <b>${state.hints.length}</b>/${MAX_HINTS}</div>
               <ul class="ms-hints">

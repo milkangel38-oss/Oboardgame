@@ -3479,3 +3479,38 @@ button.dr-seat { cursor: pointer; } button.dr-seat:hover .sit-face { box-shadow:
 .ms-buzzer { right: max(0px, calc(50% - 48px)); bottom: 70px; width: 30px; height: 30px; }
 .ms-buzzer small { font-size: 7.5px; }
 @media (min-width: 601px) { .ms-buzzer { width: 40px; height: 40px; right: max(0px, calc(50% - 60px)); } .ms-buzzer small { font-size: 9px; } }
+/* 미스터리 사인: 고딕 홀 배경 · 그림 전광판 · 단상 · 버저 */
+.ms-set { background: #0b0a10 url(/img/mystery/bg.webp) center 60% / cover no-repeat; box-shadow: inset 0 0 0 2px #8a1f2c, inset 0 0 60px rgba(0, 0, 0, .75), 0 12px 28px rgba(0, 0, 0, .5); }
+.ms-set::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, .05), rgba(0, 0, 0, .55)); pointer-events: none; }
+.ms-set > * { position: relative; }
+.ms-screen { position: relative; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; aspect-ratio: 828 / 363; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .6)); }
+.ms-sframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ms-sin { position: absolute; left: 3.4%; right: 3.4%; top: 8.3%; bottom: 8%; display: grid; align-content: center; gap: 4px; padding: 0 6px;
+  background-image: radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1.2px); background-size: 4px 4px; }
+.ms-sin .nb-bar { margin: 0 4%; }
+.ms-hintbox { background: rgba(6, 14, 4, .78); }
+.ms-status { background: rgba(0, 0, 0, .7); }
+.ms-stage { background: none; }
+.ms-podium { position: relative; height: auto; max-width: 92px; aspect-ratio: 298 / 191; clip-path: none; background: none; box-shadow: none; display: block; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .6)); }
+.ms-podium img { display: block; width: 100%; height: 100%; }
+.ms-pscore { position: absolute; left: 28.7%; top: 33.8%; width: 42.6%; height: 26.2%; display: flex; align-items: baseline; justify-content: center; gap: 1px; color: #ff4f5e; text-shadow: 0 0 6px rgba(255, 60, 80, .9); line-height: 1; padding-top: 2px; }
+.ms-pscore b { font-family: var(--logo); font-size: 17px; } .ms-pscore small { font-size: 8px; }
+.ms-p.me .ms-podium, .ms-p.win .ms-podium { background: none; }
+.ms-p.me .ms-podium img { filter: hue-rotate(-25deg) saturate(1.2) brightness(1.1); }
+.ms-p.win .ms-pscore { color: #ffd84d; text-shadow: 0 0 8px #ffd84d; }
+.ms-p.win .ms-podium img { filter: hue-rotate(40deg) brightness(1.2); }
+.ms-person { margin-bottom: -8px; }
+.ms-buzzer { width: 40px; height: 40px; bottom: 58px; right: max(0px, calc(50% - 54px)); }
+.ms-buzzer img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .55)); transition: transform .08s; }
+.ms-buzzer i { display: none; }
+.ms-buzzer small { margin-top: 18px; font-size: 7.5px; text-shadow: 0 1px 2px #000; }
+.ms-buzzer.can img { animation: msPush2 1s infinite; } @keyframes msPush2 { 50% { filter: drop-shadow(0 0 8px rgba(120, 170, 255, .95)); transform: scale(1.06); } }
+.ms-buzzer.can:active img { transform: translateY(3px) scale(.96); }
+.ms-buzzer.lock img { filter: grayscale(1) brightness(.55); }
+.ms-buzzer:not(.can):not(.on):not(.lock) img { filter: saturate(.6) brightness(.8) drop-shadow(0 3px 3px rgba(0, 0, 0, .55)); }
+.ms-buzzer.on img { filter: drop-shadow(0 0 14px rgba(255, 220, 0, .95)); }
+.ms-buzzer.lock small { margin-top: 0; font-size: 13px; font-weight: 900; }
+@media (min-width: 601px) { .ms-podium { max-width: 120px; } .ms-pscore b { font-size: 22px; } .ms-buzzer { width: 52px; height: 52px; bottom: 74px; right: max(0px, calc(50% - 72px)); } .ms-person { width: 70px; } }
+.ms2 .ms-sin .ms-problem { border: 0; outline: 0; box-shadow: none; background: none; }
+.ms-pscore { align-items: center; padding-top: 0; } .ms-pscore b { font-size: 14px; }
+@media (min-width: 601px) { .ms-pscore b { font-size: 20px; } }
