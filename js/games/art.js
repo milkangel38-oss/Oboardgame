@@ -7,6 +7,19 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 드론 레이스: 하늘 위 드론과 게이트
+  drone: `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="dns" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aa8ff"/><stop offset="1" stop-color="#bfe3ff"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#dns)"/><rect y="300" width="300" height="120" fill="#4f8f3c"/>
+  <path d="M0 300 h300" stroke="#3e7a2e" stroke-width="4"/>
+  <g fill="none" stroke-width="12"><rect x="40" y="170" width="90" height="90" stroke="#ff7a2a"/><rect x="190" y="200" width="60" height="60" stroke="#3ddc84"/></g>
+  <rect x="80" y="260" width="6" height="40" fill="#555"/><rect x="214" y="260" width="5" height="40" fill="#555"/>
+  <g transform="translate(150 120) rotate(-12)">
+    <rect x="-34" y="-6" width="68" height="12" rx="5" fill="#ff4f6e"/><rect x="-14" y="-14" width="28" height="10" rx="4" fill="#222"/>
+    <rect x="-50" y="-3" width="100" height="5" fill="#333"/>
+    <ellipse cx="-50" cy="-6" rx="24" ry="4" fill="rgba(255,255,255,.75)"/><ellipse cx="50" cy="-6" rx="24" ry="4" fill="rgba(255,255,255,.75)"/>
+    <circle cx="0" cy="-2" r="4" fill="#ffd84d"/></g>
+  <path d="M60 110 q40 -30 80 0" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 6" opacity=".7"/></svg>`,
   // 그림 이어그리기: 예능 스튜디오 칸막이와 화이트보드
   drawrelay: (() => {
     const bulbs = Array.from({ length: 13 }, (_, i) => `<circle cx="${12 + i * 23}" cy="22" r="5" fill="${i % 2 ? '#ffd84d' : '#ff5fa2'}"/>`).join('');

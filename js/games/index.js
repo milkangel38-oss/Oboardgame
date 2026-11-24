@@ -30,6 +30,7 @@ import rummikub from './rummikub.js';
 import avalon from './avalon.js';
 import merge from './merge.js';
 import omok from './omok.js';
+import drone from './drone.js';
 import janggi from './janggi.js';
 import { ART, CATEGORY_ART } from './art.js';
 
@@ -60,6 +61,7 @@ export const GAMES = [
   rummikub,
   merge,
   omok,
+  drone,
   janggi,
   lexio,
   skullking,
