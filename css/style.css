@@ -3216,3 +3216,30 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .pd-op2 .sit-name { max-width: 66px; font-size: 10.5px; }
 .pd-op2 .pd-backs { padding-left: 6px; } .pd-op2 .pd-back { width: 14px; margin-left: -5px; }
 .pd-ops2.n1 { grid-template-columns: minmax(0, 300px); }
+/* 퍼레이드: 그림 카드 · 광장 배경 · 무대 판 */
+.pdc { background: #f3ead6; box-shadow: 0 3px 8px rgba(0, 0, 0, .45); border-radius: 7% / 5%; overflow: hidden; aspect-ratio: 687 / 1024; }
+.pdc-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.pdc-ic { display: none; }
+.pdc .pdc-n { z-index: 1; top: 4%; bottom: auto; transform: none; display: grid; place-items: center; min-width: 30%; aspect-ratio: 1; border-radius: 50%;
+  background: #fffaf0; color: var(--pc); box-shadow: 0 0 0 2px var(--pc), 0 1px 3px rgba(0, 0, 0, .6); font-size: 15px; }
+.pdc .pdc-n.l { left: 4%; } .pdc .pdc-n.r { right: 4%; left: auto; }
+.pdc[style*="#3a3a46"] .pdc-n { background: #23232b; color: #fff; box-shadow: 0 0 0 2px #c9a85a, 0 1px 3px rgba(0, 0, 0, .6); }
+.pdc.sm { box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+.pdc.sm .pdc-n { font-size: 9px; min-width: 42%; top: 3%; } .pdc.sm .pdc-n.l { left: 3%; } .pdc.sm .pdc-n.r { display: none; }
+.pd-stack.xs .pdc.sm .pdc-n { font-size: 7.5px; min-width: 50%; }
+.pd2 .pd-line .pdc-n { font-size: 12px; } .pd2 .pd-cardbtn .pdc-n { font-size: 14px; }
+.pd-slot.take .pdc, .pd-slot.ghost .pdc, .pd-cardbtn.on .pdc { overflow: visible; }
+.pd-slot.take .pdc { box-shadow: 0 0 0 3px #ff3b5c, 0 0 14px #ff3b5c; }
+.pd-slot.ghost .pdc, .pd-cardbtn.on .pdc { box-shadow: 0 0 0 3px #ffd84d, 0 0 14px #ffd84d; }
+.pd-slot.take .pdc-img, .pd-slot.ghost .pdc-img, .pd-cardbtn.on .pdc-img { border-radius: 7% / 5%; }
+.pd-back { background: #6a1236 url(/img/parade/back.webp) center / cover; box-shadow: 0 1px 2px rgba(0, 0, 0, .55); border-radius: 3px; }
+.pd-pile .pd-back.big { box-shadow: 0 2px 5px rgba(0, 0, 0, .6); border-radius: 6px; }
+.pd2 { padding: 10px 8px; border-radius: 20px; background: #3a2414 url(/img/parade/bg.webp) center / cover; box-shadow: inset 0 0 60px rgba(0, 0, 0, .55); }
+.pd2 .pd-op2, .pd2 .pd-me { background: rgba(20, 10, 30, .72); backdrop-filter: blur(2px); }
+.pd2 .pd-me { box-shadow: inset 0 0 0 1.5px rgba(255, 79, 154, .45); } .pd2 .pd-me.turn { box-shadow: inset 0 0 0 2px #ffd84d; }
+.pd2 .nb-banner { background: rgba(20, 10, 30, .78); }
+.pd-board { background: url(/img/parade/board.webp) center / 100% 100% no-repeat; box-shadow: 0 12px 28px rgba(0, 0, 0, .55); padding: 22px 22px 18px; border-radius: 14px; }
+.pd-board::before { display: none; }
+.pdc .pdc-n { aspect-ratio: auto; min-width: 26%; padding: 2px 3px; border-radius: 99px; line-height: 1; }
+.pd-board { background-size: 100% 100%; border-radius: 6px; padding: 20px 20px 16px; }
+.pd-deck > span { background: rgba(0, 0, 0, .55); padding: 1px 6px; border-radius: 99px; }

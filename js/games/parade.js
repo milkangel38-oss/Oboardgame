@@ -69,7 +69,7 @@ function finalResult(state, players) {
 export function cardHtml(id, { small = false, cls = '' } = {}) {
   const c = COLORS[col(id)], v = val(id);
   return `<div class="pdc ${small ? 'sm' : ''} ${cls}" style="--pc:${c.color}" title="${c.name} ${v}">
-    <b class="pdc-n l">${v}</b><span class="pdc-ic">${c.icon}</span><b class="pdc-n r">${v}</b></div>`;
+    <img class="pdc-img" src="/img/parade/${col(id)}.webp" alt="" draggable="false"><b class="pdc-n l">${v}</b><b class="pdc-n r">${v}</b></div>`;
 }
 
 const ui = { key: '', sel: null, picks: [] };
