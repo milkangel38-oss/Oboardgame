@@ -551,4 +551,4 @@ export default {
     }));
   },
 };
-window.addEventListener?.('hashchange', () => document.querySelector('.sk-modal')?.remove());
+globalThis.window?.addEventListener?.('hashchange', () => document.querySelector('.sk-modal')?.remove());

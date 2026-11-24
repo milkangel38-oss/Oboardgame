@@ -172,6 +172,7 @@ function schedule() {
 }
 export function startGameBgm(st = 'calm') {
   if (timer && style === st) return;
+  theme = null;
   if (timer) { clearInterval(timer); timer = null; }
   if (!ensure()) return;
   style = st;
@@ -334,4 +335,160 @@ export function sfxPiece(capture = false) {
   };
   const t = ctx.currentTime + 0.01, p = 0.95 + Math.random() * 0.1;
   if (capture) { hit(t, p * 1.1, 0.8); hit(t + 0.075, p, 1); } else hit(t, p, 1);
+}
+
+// ───────── 게임별 테마 BGM (모두 Web Audio로 직접 만든 오리지널) ─────────
+// 각 곡: 4마디 반복, 1마디 = 8칸(8분음표). chords: "근음+종류" 4개, mel: 32칸 (반음, '.' 쉼표), 숫자는 key 기준
+const CT = { M: [0, 4, 7], m: [0, 3, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10], D7: [0, 4, 7, 10], d: [0, 3, 6], s: [0, 5, 7], 5: [0, 7], m9: [0, 3, 7, 14], M9: [0, 4, 7, 14] };
+const parseCh = (s) => s.split(' ').map((t) => { const m = t.match(/^(-?\d+)(.*)$/); return CT[m[2] || 'M'].map((x) => x + Number(m[1])); });
+const parseMel = (s) => s.trim().split(/\s+/).map((t) => (t === '.' ? null : Number(t)));
+export const BGM_THEMES = {
+  // 숫자눈치게임: 살금살금 눈치 보는 피치카토
+  numbers: { bpm: 112, key: 62, ch: '0m 0m 5m 7M', mel: '0 . 3 . 7 . 5 3 | 2 . . 3 2 . 0 . | 5 . 8 . 7 5 3 . | 7 . 6 . 7 . . .', lead: 'pizz', pad: null, bass: 'bounce', drum: 'tick', bassType: 'pizz' },
+  // 미스터리 사인: 안개 낀 수수께끼
+  mystery: { bpm: 68, key: 64, ch: '0m 1M 0m -2d', mel: '12 . . 11 . . 7 . | 8 . . . 7 . . . | 12 . 15 . 14 . 11 . | 10 . . . . . . .', lead: 'bell', pad: 'saw', padCut: 500, bass: 'long', drum: 'heart', echo: 0.45 },
+  // 결합: 퍼즐 맞추는 전자음
+  combo: { bpm: 120, key: 64, ch: '0m 8M 3M 10M', mel: '7 . 12 7 . 12 14 . | 12 . 8 . 7 . 3 . | 7 . 10 7 . 10 12 . | 14 . 12 . 10 . 7 .', lead: 'square', pad: 'organ', arp: 1, bass: 'pulse', drum: 'pop' },
+  // 시드포커: 카지노 재즈 라운지 (스윙)
+  seedpoker: { bpm: 104, key: 60, swing: 0.28, ch: '0M7 9m7 2m7 7D7', mel: '7 . 9 7 4 . . . | 4 . 7 9 12 . 9 . | 5 . 9 5 2 . . . | 11 . 9 . 7 . 5 .', lead: 'vibe', pad: 'organ', padCut: 900, bass: 'walk', drum: 'swing' },
+  // 기억포커: 몽환적인 라운지
+  memorypoker: { bpm: 80, key: 65, swing: 0.2, ch: '0M7 4m7 9m7 7D7', mel: '11 . . 9 7 . . . | 7 . 11 . 14 . . . | 12 . . 9 7 . 4 . | 5 . . 7 . . . .', lead: 'vibe', pad: 'sine', bass: 'long', drum: 'brush', echo: 0.4 },
+  // 폭풍의 증권시장: 긴박하게 달리는 시장
+  stock: { bpm: 132, key: 57, ch: '0m 0m 8M 7M', mel: '12 . 12 15 . 12 10 . | 12 . 7 . 8 . 7 . | 12 . 12 15 . 17 15 . | 14 . 11 . 7 . . .', lead: 'saw', pad: 'saw', padCut: 800, bass: 'pulse', drum: 'drive' },
+  // 타이핑 퀴즈: 경쾌한 퀴즈쇼
+  typing: { bpm: 144, key: 60, ch: '0M 9m 5M 7M', mel: '12 . 16 . 19 . 16 . | 16 . 12 . 9 . 12 . | 17 . 21 . 19 17 16 . | 14 . 11 . 7 . . .', lead: 'square', pad: null, bass: 'bounce', drum: 'pop' },
+  // 자객 마피아: 어둠 속 긴장감
+  assassin: { bpm: 72, key: 57, ch: '0m 0m 1M 0d', mel: '. . . . 12 . 13 . | 12 . . . . . . . | . . 15 . 13 . 12 . | 11 . . . 12 . . .', lead: 'bell', pad: 'saw', padCut: 420, bass: 'long', drum: 'heart', echo: 0.5 },
+  // 동상이몽퀴즈: 몽글몽글 꿈속
+  dongsang: { bpm: 96, key: 65, ch: '0M7 9m7 5M7 7D7', mel: '16 . 14 . 12 . 9 . | 12 . . . 16 . . . | 17 . 16 . 14 . 12 . | 14 . . . . . . .', lead: 'music', pad: 'sine', bass: 'long', drum: 'soft', echo: 0.35 },
+  // 언더독레이스: 두두두 달리는 경주
+  underdog: { bpm: 152, key: 62, ch: '0M 7M 9m 5M', mel: '7 . 7 9 11 . 7 . | 7 . 7 9 14 . 11 . | 12 . 12 11 9 . 7 . | 9 . 11 . 7 . . .', lead: 'brass', pad: null, bass: 'gallop', drum: 'gallop' },
+  // 티츄: 동양풍 오음계
+  tichu: { bpm: 98, key: 62, ch: '0m 3M 5m 0m', mel: '12 . 10 7 . 5 7 . | 3 . 5 . 7 . . . | 10 . 12 . 15 12 10 . | 7 . 5 . 3 . 0 .', lead: 'koto', pad: 'sine', bass: 'long', drum: 'wood', echo: 0.3 },
+  // 초성퀴즈: 통통 튀는 실로폰
+  chosung: { bpm: 126, key: 67, ch: '0M 5M 7M 0M', mel: '0 4 7 . 12 . 7 . | 9 . 5 . 9 12 . . | 11 . 7 . 11 14 12 11 | 12 . 7 . 0 . . .', lead: 'xylo', pad: null, bass: 'bounce', drum: 'pop' },
+  // 루미큐브: 느긋한 로파이
+  rummikub: { bpm: 84, key: 63, swing: 0.22, ch: '0M7 5m7 10D7 3M7', mel: '14 . 12 . 7 . . . | 8 . 10 . 12 . 15 . | 14 . 12 10 . 7 . . | 7 . . . 10 . . .', lead: 'vibe', pad: 'sine', bass: 'long', drum: 'lofi' },
+  // 오목: 정자의 가야금 (느긋한 한국 오음계)
+  omok: { bpm: 70, key: 62, ch: '0s 5s 7s 0s', mel: '12 . . 9 7 . . . | 5 . 7 . 9 . . . | 12 . 14 . 12 9 7 . | 7 . . 5 2 . . .', lead: 'gaya', pad: 'sine', bass: 'long', drum: 'janggu', echo: 0.3 },
+  // 장기: 장수의 북소리
+  janggi: { bpm: 92, key: 60, ch: '0m 0m 5s 7s', mel: '12 . 10 . 7 . 10 12 | 15 . . 12 10 . . . | 17 . 15 . 12 . 10 . | 12 . . . 7 . . .', lead: 'gaya', pad: 'organ', padCut: 600, bass: 'long', drum: 'buk' },
+  // 렉시오: 현대적인 동양 라운지
+  lexio: { bpm: 104, key: 64, ch: '0m7 5m7 8M7 7m7', mel: '7 . 10 . 12 . 15 . | 12 . 10 . . . 7 . | 10 . 12 . 15 . 17 . | 15 . 12 . 10 . . .', lead: 'koto', pad: 'sine', bass: 'walk', drum: 'lofi', echo: 0.3 },
+  // 스컬킹: 바다 해적 뱃노래 (아코디언 + 쿵짝)
+  skullking: { bpm: 120, key: 62, ch: '0m 0m 10M 9M', mel: '7 . 7 . 5 3 2 . | 0 . 2 3 5 . 7 . | 10 . 10 . 8 7 5 . | 4 . 5 . 7 . . .', lead: 'accord', pad: null, bass: 'oom', drum: 'shanty' },
+  // 퍼레이드: 서커스 행진 칼리오페
+  parade: { bpm: 134, key: 60, ch: '0M 7D7 7D7 0M', mel: '12 . 16 19 . 16 12 . | 14 . 17 19 . 17 14 . | 11 . 14 17 . 14 11 . | 12 . 16 . 12 . . .', lead: 'calliope', pad: null, bass: 'oom', drum: 'march' },
+  // 스플렌더: 르네상스 상인의 하프시코드
+  splendor: { bpm: 92, key: 60, ch: '0M 7M 9m 5M', mel: '12 14 16 . 14 12 11 . | 11 12 14 . 12 11 9 . | 9 11 12 . 11 9 7 . | 9 . 11 . 12 . . .', lead: 'harpsi', pad: null, bass: 'walk', drum: 'none' },
+  // 아발론: 웅장한 중세 기사단
+  avalon: { bpm: 78, key: 62, ch: '0m 10M 3M 0m', mel: '7 . . 9 10 . 12 . | 14 . . . 12 . 10 . | 10 . . 12 15 . 14 . | 12 . . . . . . .', lead: 'horn', pad: 'saw', padCut: 650, bass: 'long', drum: 'epic', echo: 0.3 },
+};
+let theme = null, tmel = null, tch = null;
+function nz(time, len, type, fr, q, vol) { // 노이즈 타악기
+  if (!noiseBuf || noiseBuf.duration < 0.3) { noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  s.buffer = noiseBuf; fl.type = type; fl.frequency.value = fr; fl.Q.value = q;
+  g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.0001, time + len);
+  s.connect(fl); fl.connect(g); g.connect(musicBus); s.start(time); s.stop(time + len + 0.02);
+}
+function thump(time, f0, f1, len, vol) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.frequency.setValueAtTime(f0, time); o.frequency.exponentialRampToValueAtTime(f1, time + len * 0.8);
+  g.gain.setValueAtTime(vol, time); g.gain.exponentialRampToValueAtTime(0.0001, time + len);
+  o.connect(g); g.connect(musicBus); o.start(time); o.stop(time + len + 0.02);
+}
+function leadNote(time, midi, d) {
+  const fr = f(midi), T = theme.lead;
+  const L = (type, len, vol, att = 0.005) => tone(time, fr, len, type, vol, musicBus, att);
+  const E = (g) => { if (theme.echo) g.connect(ensureEcho()); };
+  if (T === 'pizz') { L('triangle', 0.22, 0.12); L('sine', 0.12, 0.04); }
+  else if (T === 'bell') { E(L('sine', 2.2, 0.07)); tone(time, fr * 2.76, 0.8, 'sine', 0.018, musicBus, 0.003); }
+  else if (T === 'square') { L('square', d * 0.9, 0.035); L('triangle', d * 1.1, 0.05); }
+  else if (T === 'vibe') { E(L('sine', 1.4, 0.08)); tone(time, fr * 4, 0.3, 'sine', 0.012, musicBus, 0.002); }
+  else if (T === 'saw') { const g = ctx.createGain(); const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600; const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = fr; g.gain.setValueAtTime(0.0001, time); g.gain.exponentialRampToValueAtTime(0.05, time + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, time + d * 1.4); o.connect(lp); lp.connect(g); g.connect(musicBus); o.start(time); o.stop(time + d * 1.5); }
+  else if (T === 'music') { E(L('sine', 1.6, 0.07, 0.004)); tone(time, fr * 2, 0.5, 'sine', 0.02, musicBus, 0.003); }
+  else if (T === 'brass') { L('square', d * 1.2, 0.03, 0.02); L('sawtooth', d * 1.1, 0.018, 0.02); }
+  else if (T === 'koto') { E(L('triangle', 0.9, 0.1, 0.002)); tone(time, fr * 3, 0.15, 'sine', 0.02, musicBus, 0.001); }
+  else if (T === 'xylo') { L('sine', 0.35, 0.12, 0.002); tone(time, fr * 4, 0.08, 'sine', 0.03, musicBus, 0.001); }
+  else if (T === 'gaya') { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(fr, time); o.frequency.setValueAtTime(fr, time + 0.25); o.frequency.linearRampToValueAtTime(fr * 1.03, time + 0.45); o.frequency.linearRampToValueAtTime(fr, time + 0.7); g.gain.setValueAtTime(0.0001, time); g.gain.exponentialRampToValueAtTime(0.12, time + 0.003); g.gain.exponentialRampToValueAtTime(0.0001, time + 1.3); o.connect(g); g.connect(musicBus); E(g); o.start(time); o.stop(time + 1.4); }
+  else if (T === 'accord') { [-6, 6].forEach((c) => { const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200; o.type = 'square'; o.frequency.value = fr; o.detune.value = c; g.gain.setValueAtTime(0.0001, time); g.gain.linearRampToValueAtTime(0.022, time + 0.03); g.gain.setValueAtTime(0.022, time + d * 0.9); g.gain.linearRampToValueAtTime(0.0001, time + d * 1.3); o.connect(lp); lp.connect(g); g.connect(musicBus); o.start(time); o.stop(time + d * 1.4); }); }
+  else if (T === 'calliope') { L('square', d * 0.8, 0.028, 0.004); L('sine', d * 0.9, 0.06, 0.004); tone(time, fr * 2, d * 0.6, 'sine', 0.025, musicBus, 0.004); }
+  else if (T === 'harpsi') { const o = ctx.createOscillator(), g = ctx.createGain(), hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 300; o.type = 'sawtooth'; o.frequency.value = fr; g.gain.setValueAtTime(0.06, time); g.gain.exponentialRampToValueAtTime(0.0001, time + 0.6); o.connect(hp); hp.connect(g); g.connect(musicBus); o.start(time); o.stop(time + 0.65); }
+  else if (T === 'horn') { const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; o.type = 'sawtooth'; o.frequency.value = fr; g.gain.setValueAtTime(0.0001, time); g.gain.linearRampToValueAtTime(0.05, time + 0.09); g.gain.setValueAtTime(0.05, time + d * 1.5); g.gain.linearRampToValueAtTime(0.0001, time + d * 2.2); o.connect(lp); lp.connect(g); g.connect(musicBus); E(g); o.start(time); o.stop(time + d * 2.3); }
+  else L('triangle', d, 0.08);
+}
+function padTheme(time, notes, dur) {
+  const P = theme.pad; if (!P) return;
+  if (P === 'saw') { pad(time, notes, dur); return; }
+  const g = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = theme.padCut || 1200;
+  g.gain.setValueAtTime(0.0001, time); g.gain.linearRampToValueAtTime(P === 'organ' ? 0.018 : 0.03, time + dur * 0.3); g.gain.linearRampToValueAtTime(0.0001, time + dur + 0.4);
+  lp.connect(g); g.connect(musicBus);
+  notes.forEach((n) => { const o = ctx.createOscillator(); o.type = P === 'organ' ? 'square' : 'sine'; o.frequency.value = f(n); o.connect(lp); o.start(time); o.stop(time + dur + 0.5); });
+}
+function drums(t, i, d) {
+  const D = theme.drum;
+  const kick2 = (v = 0.28) => thump(t, 140, 45, 0.16, v);
+  const snare = (v = 0.08) => { nz(t, 0.14, 'bandpass', 1900, 0.8, v); tone(t, 190, 0.08, 'triangle', v * 0.8, musicBus, 0.002); };
+  const hh = (v = 0.04, len = 0.03) => nz(t, len, 'highpass', 7500, 0.7, v);
+  if (D === 'tick') { if (i % 2 === 0) tick(t, i % 4 === 0); if (i === 0) kick2(0.15); }
+  else if (D === 'pop') { if (i % 4 === 0) kick2(); if (i % 4 === 2) snare(); hh(i % 2 ? 0.025 : 0.04); }
+  else if (D === 'drive') { if (i % 2 === 0) kick2(0.24); if (i % 4 === 2) snare(0.07); hh(0.035); nz(t + d / 2, 0.02, 'highpass', 8000, 0.7, 0.02); }
+  else if (D === 'swing') { if (i % 2 === 0) nz(t, 0.25, 'highpass', 6000, 0.5, 0.025); if (i % 4 === 3) nz(t, 0.05, 'highpass', 6000, 0.5, 0.03); if (i === 0) kick2(0.12); if (i % 4 === 2) nz(t, 0.18, 'bandpass', 2500, 0.4, 0.03); }
+  else if (D === 'brush') { if (i % 2 === 0) nz(t, 0.3, 'bandpass', 3000, 0.4, 0.018); if (i === 4) nz(t, 0.2, 'bandpass', 2000, 0.5, 0.03); }
+  else if (D === 'heart') { if (i === 0) thump(t, 70, 40, 0.2, 0.3); if (i === 1) thump(t, 65, 38, 0.2, 0.2); }
+  else if (D === 'soft') { if (i === 0) kick2(0.12); if (i === 4) nz(t, 0.12, 'bandpass', 3500, 0.6, 0.025); if (i % 2 === 1) hh(0.015); }
+  else if (D === 'gallop') { if (i % 2 === 0) kick2(0.2); hh(0.03); if (i % 4 === 2) snare(0.06); if (i % 2 === 1) nz(t + d * 0.5, 0.03, 'bandpass', 1200, 2, 0.04); }
+  else if (D === 'wood') { if ([0, 3, 6].includes(i)) tone(t, 880, 0.05, 'sine', 0.06, musicBus, 0.001); if (i === 4) tone(t, 660, 0.06, 'sine', 0.05, musicBus, 0.001); if (i === 0) thump(t, 90, 50, 0.25, 0.15); }
+  else if (D === 'lofi') { if (i === 0 || i === 5) kick2(0.18); if (i === 2 || i === 6) nz(t, 0.12, 'bandpass', 1600, 0.6, 0.05); if (i % 2 === 0) hh(0.02); }
+  else if (D === 'janggu') { if (i === 0) thump(t, 110, 60, 0.35, 0.22); if (i === 3) tone(t, 520, 0.07, 'triangle', 0.05, musicBus, 0.001); if (i === 4) thump(t, 100, 55, 0.3, 0.14); if (i === 6) tone(t, 520, 0.07, 'triangle', 0.04, musicBus, 0.001); }
+  else if (D === 'buk') { if ([0, 3, 4].includes(i)) thump(t, 85, 42, 0.4, i === 0 ? 0.32 : 0.2); if (i === 6) tone(t, 600, 0.06, 'triangle', 0.05, musicBus, 0.001); }
+  else if (D === 'shanty') { if (i === 0 || i === 4) kick2(0.22); if (i === 2 || i === 6) { nz(t, 0.08, 'bandpass', 1500, 1, 0.05); } if (i === 7) tone(t, 1200, 0.05, 'triangle', 0.03, musicBus, 0.001); }
+  else if (D === 'march') { if (i === 0 || i === 4) kick2(0.26); if (i === 2 || i === 6) snare(0.08); if (i === 7) { snare(0.04); nz(t + d / 2, 0.08, 'bandpass', 1900, 0.8, 0.04); } nz(t, 0.05, 'highpass', 5000, 2, 0.012); }
+  else if (D === 'epic') { if (i === 0) thump(t, 70, 32, 0.6, 0.35); if (i === 4) thump(t, 80, 36, 0.4, 0.2); if (i === 6) thump(t, 90, 40, 0.25, 0.14); }
+}
+function bassLine(t, i, c, d) {
+  const B = theme.bass, root = theme.key - 24 + tch[c][0];
+  const fifth = root + 7, oct = root + 12;
+  const bt = (m, len, v = 0.2) => tone(t, f(m), len, theme.bassType === 'pizz' ? 'triangle' : 'sine', v, musicBus, 0.01);
+  if (B === 'long') { if (i === 0) bt(root, d * 7.5, 0.2); if (i === 4) bt(fifth, d * 3.5, 0.1); }
+  else if (B === 'bounce') { if (i % 4 === 0) bt(root, d * 1.5, 0.22); if (i % 4 === 2) bt(oct, d, 0.14); }
+  else if (B === 'pulse') { bt(i % 4 === 3 ? oct : root, d * 0.8, 0.16); }
+  else if (B === 'walk') { if (i % 2 === 0) { const n = [root, root + tch[c][1] - tch[c][0], fifth, oct - 1][i / 2]; bt(n, d * 1.8, 0.18); } }
+  else if (B === 'gallop') { if (i % 2 === 0) bt(root, d * 0.6, 0.2); else bt(fifth, d * 0.4, 0.12); }
+  else if (B === 'oom') {
+    if (i === 0 || i === 4) bt(i === 0 ? root : fifth, d * 1.2, 0.24);
+    if (i === 2 || i === 6) tch[c].forEach((n) => tone(t, f(theme.key - 12 + n), d * 0.6, theme.lead === 'accord' ? 'square' : 'triangle', theme.lead === 'accord' ? 0.012 : 0.03, musicBus, 0.004));
+  }
+}
+function scheduleTheme() {
+  const d = 60 / theme.bpm / 2; // 8분음표
+  while (nextTime < ctx.currentTime + 0.3) {
+    const i = step % 8, c = Math.floor(step / 8) % 4, loop = Math.floor(step / 32);
+    const t = nextTime + (i % 2 === 1 ? (theme.swing || 0) * d : 0);
+    if (i === 0) padTheme(t, tch[c].map((n) => theme.key - 12 + n), d * 8);
+    bassLine(t, i, c, d);
+    drums(t, i, d);
+    if (theme.arp && i % 2 === 1) tone(t, f(theme.key + tch[c][(i >> 1) % tch[c].length]), d * 0.6, 'square', 0.012, musicBus, 0.003);
+    const m = tmel[(c * 8 + i)];
+    if (m !== null && m !== undefined && (loop % 4 !== 3 || i % 4 === 0)) leadNote(t, theme.key + m, d);
+    nextTime += d; step++;
+  }
+}
+const _startGameBgm = startGameBgm;
+export function startThemeBgm(id) {
+  const th = BGM_THEMES[id];
+  if (!th) return _startGameBgm(id === 'merge' ? 'happy' : 'calm');
+  if (timer && style === 'theme:' + id) return;
+  if (timer) { clearInterval(timer); timer = null; }
+  if (!ensure()) return;
+  theme = th; tch = parseCh(th.ch); tmel = parseMel(th.mel.replace(/\|/g, ' '));
+  if (echo) echo.delayTime.value = (60 / th.bpm / 2) * 3;
+  style = 'theme:' + id;
+  resume(); step = 0; nextTime = ctx.currentTime + 0.1;
+  musicBus.gain.cancelScheduledValues(ctx.currentTime);
+  musicBus.gain.setValueAtTime(0.0001, ctx.currentTime);
+  musicBus.gain.linearRampToValueAtTime(ducked ? 0.3 : 1, ctx.currentTime + 3);
+  timer = setInterval(scheduleTheme, 100);
+  scheduleTheme();
 }

@@ -7,7 +7,7 @@ import { summarize, gameRecord, tierOf, AVATAR_PRESETS, GARNET } from './profile
 import { charSvg, charName } from './avatars.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 import { showAlert } from './alert.js';
-import { primeSounds, startGameBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange, setDuck } from './sound.js';
+import { primeSounds, startThemeBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange, setDuck } from './sound.js';
 import { createVoice } from './voice.js';
 import { bindPreview, hidePreview, justPreviewed } from './preview.js';
 
@@ -1045,7 +1045,7 @@ function renderRoom(code) {
   const vol = mountVolume();
   const unsub = backend.watchRoom(code, (room, err) => {
     latest = room;
-    if (room?.status === 'playing' && room.players?.[user.uid]) startGameBgm(getGame(room.gameId)?.bgm || 'calm'); else stopGameBgm();
+    if (room?.status === 'playing' && room.players?.[user.uid]) startThemeBgm(room.gameId); else stopGameBgm();
     if (err) return message('방을 불러오지 못했어요', err.message);
     if (!room) return message('방을 찾을 수 없어요', '코드가 맞는지, 방이 아직 있는지 확인해 주세요.');
     const game = getGame(room.gameId);
