@@ -377,6 +377,8 @@ export const BGM_THEMES = {
   lexio: { bpm: 104, key: 64, ch: '0m7 5m7 8M7 7m7', mel: '7 . 10 . 12 . 15 . | 12 . 10 . . . 7 . | 10 . 12 . 15 . 17 . | 15 . 12 . 10 . . .', lead: 'koto', pad: 'sine', bass: 'walk', drum: 'lofi', echo: 0.3 },
   // 스컬킹: 바다 해적 뱃노래 (아코디언 + 쿵짝)
   skullking: { bpm: 120, key: 62, ch: '0m 0m 10M 9M', mel: '7 . 7 . 5 3 2 . | 0 . 2 3 5 . 7 . | 10 . 10 . 8 7 5 . | 4 . 5 . 7 . . .', lead: 'accord', pad: null, bass: 'oom', drum: 'shanty' },
+  // 그림 이어그리기: 예능 스튜디오 · 통통 튀는 게임쇼 (똑딱 시계 + 브라스)
+  drawrelay: { bpm: 138, key: 65, swing: 0.12, ch: '0M 9m 2m7 7D7', mel: '12 . 14 16 . 12 9 . | 9 . 12 . 16 . 14 . | 14 . 17 . 16 14 12 . | 11 . 14 . 19 . . .', lead: 'brass', pad: null, bass: 'bounce', drum: 'pop' },
   // 퍼레이드: 서커스 행진 칼리오페
   parade: { bpm: 134, key: 60, ch: '0M 7D7 7D7 0M', mel: '12 . 16 19 . 16 12 . | 14 . 17 19 . 17 14 . | 11 . 14 17 . 14 11 . | 12 . 16 . 12 . . .', lead: 'calliope', pad: null, bass: 'oom', drum: 'march' },
   // 스플렌더: 르네상스 상인의 하프시코드
@@ -476,9 +478,21 @@ function scheduleTheme() {
   }
 }
 const _startGameBgm = startGameBgm;
+// 테마 곡이 아직 없는 새 게임용: 게임 id로 템포·조성·악기를 정해 매번 같은 곡이 나와요
+function autoTheme(id) {
+  let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const pick = (arr) => { const v = arr[h % arr.length]; h = Math.floor(h / arr.length) + 7; return v; };
+  const minor = pick([true, false]);
+  return {
+    bpm: pick([84, 96, 108, 120, 132]), key: pick([57, 60, 62, 64, 65]),
+    ch: minor ? pick(['0m 8M 3M 10M', '0m 5m 7M 0m', '0m 3M 10M 7M']) : pick(['0M 7M 9m 5M', '0M 5M 7D7 0M', '0M 9m 5M 7M']),
+    mel: minor ? '12 . 10 . 7 . 10 12 | 15 . . 12 10 . . . | 12 . 15 . 17 15 12 . | 14 . 11 . 7 . . .' : '12 . 16 . 19 . 16 . | 17 . 16 . 14 . 12 . | 14 . 17 . 21 19 17 . | 16 . 14 . 12 . . .',
+    lead: pick(['vibe', 'xylo', 'music', 'square', 'koto', 'bell']), pad: pick([null, 'sine']), bass: pick(['bounce', 'long', 'walk']), drum: pick(['pop', 'soft', 'lofi', 'tick']),
+  };
+}
 export function startThemeBgm(id) {
-  const th = BGM_THEMES[id];
-  if (!th) return _startGameBgm(id === 'merge' ? 'happy' : 'calm');
+  if (id === 'merge') return _startGameBgm('happy');
+  const th = BGM_THEMES[id] || autoTheme(id);
   if (timer && style === 'theme:' + id) return;
   if (timer) { clearInterval(timer); timer = null; }
   if (!ensure()) return;

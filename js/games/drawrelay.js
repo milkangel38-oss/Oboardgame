@@ -12,7 +12,7 @@ const GUESS_MS = 30000;
 const KNOCK_MS = 1400; // 똑똑 하고 다음 사람에게 넘어가는 여유
 const PTS = 10;
 export const BW = 430, BH = 300; // 화이트보드 안쪽 비율
-const PENS = [3, 7, 14];
+const PENS = [4, 7, 14]; // 지금은 펜 하나(0)만 써요
 const ERASER = 26;
 const ROBES = ['#e8443a', '#2f6fe0', '#2fae5f', '#f2a81d', '#8a4fd8', '#1fb5b0'];
 
@@ -80,13 +80,19 @@ function paintInto($c, strokes) {
   paint(cx, strokes, $c.width / BW);
 }
 
+function silenced(s, me) {
+  if (!['word', 'draw', 'guess'].includes(s?.phase)) return false;
+  const i = s.line?.indexOf(me) ?? -1;
+  return i === 0 || (i >= 0 && i < s.di);
+}
 // 화면 위에 뜨는 창 (출제자 제시어 · 그리기 · 정답 입력)
 let pop = null;
 function closePop() { pop?.el.remove(); clearInterval(pop?.iv); pop = null; }
 
 export default {
-  voiceMute: (s, me) => (['word', 'draw', 'guess'].includes(s?.phase) && s.line?.[0] === me ? '🤫 출제자는 정답이 나올 때까지 말할 수 없어요' : ''),
-  chatBlock: (s, me) => (['word', 'draw', 'guess'].includes(s?.phase) && s.line?.[0] === me ? '출제자는 정답이 나올 때까지 채팅할 수 없어요 🤫' : ''),
+  // 출제자, 그리고 이미 그림을 다 그린 사람은 정답이 나올 때까지 말·채팅 금지 (힌트 방지)
+  voiceMute: (s, me) => (silenced(s, me) ? '🤫 그림을 그린 사람은 정답이 나올 때까지 말할 수 없어요' : ''),
+  chatBlock: (s, me) => (silenced(s, me) ? '그림을 그린 사람은 정답이 나올 때까지 채팅할 수 없어요 🤫' : ''),
   id: 'drawrelay',
   name: '그림 이어그리기',
   emoji: '🎨',
@@ -102,9 +108,9 @@ export default {
   rules: [
     '모두 준비를 누르면, 이야기를 나눠 방장이 이번 라운드의 정답자를 골라요.',
     '정답자는 맨 오른쪽, 나머지는 칸막이를 사이에 두고 한 줄로 앉아요. 맨 왼쪽이 출제자예요.',
-    '출제자만 제시어를 보고 10초 동안 화이트보드에 그림을 그려요. (가는펜 · 중간펜 · 두꺼운펜 · 지우개)',
+    '출제자만 제시어를 보고 10초 동안 화이트보드에 그림을 그려요. (펜 · 지우개)',
     '다 그리면 완성! (10초가 지나면 자동으로 넘어가요) 똑똑 노크하면 다음 사람이 앞사람 그림을 이어받아 10초 동안 더 그려요.',
-    '출제자는 정답이 나올 때까지 말하거나 채팅할 수 없어요. 다른 사람들은 자유롭게 채팅해요.',
+    '출제자와 이미 그림을 그린 사람은 정답이 나올 때까지 말하거나 채팅할 수 없어요. 아직 안 그린 사람들은 자유롭게 채팅해요.',
     '마지막 정답자가 완성된 그림을 보고 30초 안에 정답을 입력해요.',
     `맞히면 모두 +${PTS}점, 틀리면 모두 −${PTS}점 (협동게임이라 점수는 모두 같아요).`,
     '가넷: 최종 팀 점수 10점당 모두 가넷 1개 (예: 30점 → +3). 최종 점수가 마이너스면 그만큼 차감돼요 (예: −20점 → −2)',
@@ -237,7 +243,7 @@ export default {
       ${result}
       ${foot}
       ${hist}
-      ${chatOk ? chatFormHtml() : isPlayer && !finished ? '<div class="dr-mute">🤫 출제자는 정답이 나올 때까지 채팅할 수 없어요</div>' : ''}
+      ${chatOk ? chatFormHtml() : isPlayer && !finished ? '<div class="dr-mute">🤫 그림을 그린 사람은 정답이 나올 때까지 채팅할 수 없어요</div>' : ''}
     </div>`;
     if (showResult) paintInto(el.querySelector('.dr-cv.res'), state.strokes);
 
@@ -309,7 +315,7 @@ export default {
       <div class="dr-wbmain">
         ${boardHtml('w')}
         <div class="dr-tools">
-          ${['가는펜', '중간펜', '두꺼운펜'].map((t, i) => `<button class="dr-tool pen ${i === 1 ? 'on' : ''}" data-tool="${i}" title="${t}"><img src="/img/drawrelay/pen${i + 1}.webp" alt=""><small>${t}</small></button>`).join('')}
+          <button class="dr-tool pen on" data-tool="0" title="펜"><img src="/img/drawrelay/pen1.webp" alt=""><small>펜</small></button>
           <button class="dr-tool eraser" data-tool="e" title="지우개"><img src="/img/drawrelay/eraser.webp" alt=""><small>지우개</small></button>
           <button class="dr-tool undo" data-undo title="되돌리기"><span>↩</span><small>되돌리기</small></button>
         </div>
@@ -320,7 +326,7 @@ export default {
     const $c = $p.querySelector('canvas');
     const cx = $c.getContext('2d');
     const mine = [];
-    let tool = '1', cur = null, sent = false;
+    let tool = '0', cur = null, sent = false;
     const redraw = () => { paintInto($c, [...state.strokes, ...mine, ...(cur ? [cur.k + ':' + cur.p.join(',')] : [])]); };
     redraw();
     const pt = (e) => { const r = $c.getBoundingClientRect(); return [Math.round(((e.clientX - r.left) / r.width) * BW), Math.round(((e.clientY - r.top) / r.height) * BH)]; };
