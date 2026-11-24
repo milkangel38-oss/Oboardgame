@@ -17,6 +17,7 @@ import seedpoker from './seedpoker.js';
 import underdog from './underdog.js';
 import skullking from './skullking.js';
 import parade from './parade.js';
+import kkumtle from './kkumtle.js';
 import tichu from './tichu.js';
 import chosung from './chosung.js';
 import lexio from './lexio.js';
@@ -30,7 +31,6 @@ import rummikub from './rummikub.js';
 import avalon from './avalon.js';
 import merge from './merge.js';
 import omok from './omok.js';
-import drone from './drone.js';
 import janggi from './janggi.js';
 import { ART, CATEGORY_ART } from './art.js';
 
@@ -61,11 +61,11 @@ export const GAMES = [
   rummikub,
   merge,
   omok,
-  drone,
   janggi,
   lexio,
   skullking,
   parade,
+  kkumtle,
   splendor,
   avalon,
 ].map((g) => ({ art: ART[g.id] || '', ...g }));

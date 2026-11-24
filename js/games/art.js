@@ -7,19 +7,18 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
-  // 드론 레이스: 하늘 위 드론과 게이트
-  drone: `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="dns" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aa8ff"/><stop offset="1" stop-color="#bfe3ff"/></linearGradient></defs>
-  <rect width="300" height="420" fill="url(#dns)"/><rect y="300" width="300" height="120" fill="#4f8f3c"/>
-  <path d="M0 300 h300" stroke="#3e7a2e" stroke-width="4"/>
-  <g fill="none" stroke-width="12"><rect x="40" y="170" width="90" height="90" stroke="#ff7a2a"/><rect x="190" y="200" width="60" height="60" stroke="#3ddc84"/></g>
-  <rect x="80" y="260" width="6" height="40" fill="#555"/><rect x="214" y="260" width="5" height="40" fill="#555"/>
-  <g transform="translate(150 120) rotate(-12)">
-    <rect x="-34" y="-6" width="68" height="12" rx="5" fill="#ff4f6e"/><rect x="-14" y="-14" width="28" height="10" rx="4" fill="#222"/>
-    <rect x="-50" y="-3" width="100" height="5" fill="#333"/>
-    <ellipse cx="-50" cy="-6" rx="24" ry="4" fill="rgba(255,255,255,.75)"/><ellipse cx="50" cy="-6" rx="24" ry="4" fill="rgba(255,255,255,.75)"/>
-    <circle cx="0" cy="-2" r="4" fill="#ffd84d"/></g>
-  <path d="M60 110 q40 -30 80 0" stroke="#fff" stroke-width="3" fill="none" stroke-dasharray="6 6" opacity=".7"/></svg>`,
+  // 꿈틀 포격전: 섬 위의 꿈틀이와 포탄
+  kkumtle: `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="kts" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fb6ff"/><stop offset="1" stop-color="#d6ecff"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#kts)"/>
+  <path d="M0 300 Q60 220 120 260 T240 230 T300 260 L300 360 L0 360Z" fill="#9a6a3e"/><path d="M0 300 Q60 220 120 260 T240 230 T300 260" stroke="#5fcf5a" stroke-width="8" fill="none"/>
+  <circle cx="170" cy="262" r="26" fill="url(#kts)"/>
+  <rect y="350" width="300" height="70" fill="#2a74c8"/>
+  <path d="M70 240 q50 -150 140 -40" stroke="#fff" stroke-width="3" stroke-dasharray="6 6" fill="none"/>
+  <circle cx="210" cy="200" r="7" fill="#333"/>
+  <g transform="translate(64 244)"><ellipse cx="0" cy="-10" rx="12" ry="12" fill="#ffb5c5" stroke="#c4607a" stroke-width="2"/><rect x="-12" y="-21" width="24" height="5" fill="#ff4f6e"/><circle cx="5" cy="-12" r="4" fill="#fff"/><circle cx="6" cy="-12" r="2" fill="#222"/></g>
+  <g transform="translate(236 226)"><ellipse cx="0" cy="-10" rx="12" ry="12" fill="#ffb5c5" stroke="#c4607a" stroke-width="2"/><rect x="-12" y="-21" width="24" height="5" fill="#3d7bff"/><circle cx="-5" cy="-12" r="4" fill="#fff"/><circle cx="-6" cy="-12" r="2" fill="#222"/></g>
+  <text x="150" y="120" text-anchor="middle" font-size="44">💥</text></svg>`,
   // 그림 이어그리기: 예능 스튜디오 칸막이와 화이트보드
   drawrelay: (() => {
     const bulbs = Array.from({ length: 13 }, (_, i) => `<circle cx="${12 + i * 23}" cy="22" r="5" fill="${i % 2 ? '#ffd84d' : '#ff5fa2'}"/>`).join('');

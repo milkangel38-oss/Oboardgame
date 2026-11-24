@@ -377,8 +377,8 @@ export const BGM_THEMES = {
   lexio: { bpm: 104, key: 64, ch: '0m7 5m7 8M7 7m7', mel: '7 . 10 . 12 . 15 . | 12 . 10 . . . 7 . | 10 . 12 . 15 . 17 . | 15 . 12 . 10 . . .', lead: 'koto', pad: 'sine', bass: 'walk', drum: 'lofi', echo: 0.3 },
   // 스컬킹: 바다 해적 뱃노래 (아코디언 + 쿵짝)
   skullking: { bpm: 120, key: 62, ch: '0m 0m 10M 9M', mel: '7 . 7 . 5 3 2 . | 0 . 2 3 5 . 7 . | 10 . 10 . 8 7 5 . | 4 . 5 . 7 . . .', lead: 'accord', pad: null, bass: 'oom', drum: 'shanty' },
-  // 드론 레이스: 하늘을 가르는 신스 레이싱
-  drone: { bpm: 140, key: 62, ch: '0m 8M 3M 10M', mel: '12 . 15 . 19 . 15 12 | 20 . 19 . 15 . 12 . | 15 . 19 . 22 . 19 15 | 17 . 15 . 14 . 12 .', lead: 'saw', pad: 'saw', padCut: 1400, arp: 1, bass: 'pulse', drum: 'drive' },
+  // 꿈틀 포격전: 익살스러운 군악 행진
+  kkumtle: { bpm: 126, key: 62, ch: '0M 5M 7D7 0M', mel: '7 . 7 9 11 . 12 . | 14 . 12 . 9 . 5 . | 7 . 11 . 14 . 11 7 | 12 . . 11 12 . . .', lead: 'brass', pad: null, bass: 'oom', drum: 'march' },
   // 그림 이어그리기: 예능 스튜디오 · 통통 튀는 게임쇼 (똑딱 시계 + 브라스)
   drawrelay: { bpm: 138, key: 65, swing: 0.12, ch: '0M 9m 2m7 7D7', mel: '12 . 14 16 . 12 9 . | 9 . 12 . 16 . 14 . | 14 . 17 . 16 14 12 . | 11 . 14 . 19 . . .', lead: 'brass', pad: null, bass: 'bounce', drum: 'pop' },
   // 퍼레이드: 서커스 행진 칼리오페
