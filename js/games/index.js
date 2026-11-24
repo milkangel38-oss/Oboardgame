@@ -24,6 +24,7 @@ import splendor from './splendor.js';
 import memorypoker from './memorypoker.js';
 import assassin from './assassin.js';
 import dongsang from './dongsang.js';
+import drawrelay from './drawrelay.js';
 import stock from './stock.js';
 import rummikub from './rummikub.js';
 import avalon from './avalon.js';
@@ -52,6 +53,7 @@ export const GAMES = [
   typing,
   assassin,
   dongsang,
+  drawrelay,
   underdog,
   tichu,
   chosung,

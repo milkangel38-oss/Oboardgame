@@ -7,6 +7,21 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
+  // 그림 이어그리기: 예능 스튜디오 칸막이와 화이트보드
+  drawrelay: (() => {
+    const bulbs = Array.from({ length: 13 }, (_, i) => `<circle cx="${12 + i * 23}" cy="22" r="5" fill="${i % 2 ? '#ffd84d' : '#ff5fa2'}"/>`).join('');
+    const seat = (x, c) => `<g transform="translate(${x} 250)"><circle cx="0" cy="0" r="17" fill="#ffe0c2"/><path d="M-24 58 Q-22 20 0 20 Q22 20 24 58 Z" fill="${c}"/><circle cx="-6" cy="-3" r="2.2" fill="#333"/><circle cx="6" cy="-3" r="2.2" fill="#333"/><path d="M-6 7 Q0 12 6 7" stroke="#333" stroke-width="2" fill="none"/></g>`;
+    return `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="drg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a0f6a"/><stop offset="1" stop-color="#ff4f9a"/></linearGradient></defs>
+  <rect width="300" height="420" fill="url(#drg)"/>${bulbs}
+  <path d="M60 40 L20 420 M240 40 L280 420" stroke="rgba(255,255,255,.08)" stroke-width="60"/>
+  <rect x="50" y="62" width="200" height="140" rx="10" fill="#fff" stroke="#c9c9d6" stroke-width="6"/>
+  <path d="M90 170 Q110 90 150 120 T210 110" stroke="#1d1d24" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="150" cy="150" r="22" stroke="#1d1d24" stroke-width="5" fill="none"/>
+  <rect x="-10" y="318" width="320" height="110" fill="#2a1a4a"/>
+  ${seat(55, '#e8443a')}${seat(150, '#2f6fe0')}${seat(245, '#2fae5f')}
+  <rect x="98" y="222" width="7" height="110" fill="#ffd84d"/><rect x="195" y="222" width="7" height="110" fill="#ffd84d"/>
+  <rect x="-10" y="318" width="320" height="10" fill="#ffd84d"/></svg>`;
+  })(),
   // 퍼레이드: 줄지어 선 색색의 카드
   parade: (() => {
     const C = [['#e0384a', '🥁', 7], ['#f2b821', '🎺', 2], ['#2fae5f', '🎈', 9], ['#2f7fe0', '⭐', 4], ['#8a4fd8', '🚩', 0], ['#3a3a46', '🎩', 10]];

@@ -254,7 +254,7 @@ export function soundEvent(roomCode, key, kind) {
   if (seen.has(k)) return;
   seen.add(k);
   if (!primed.has(roomCode)) return;
-  if (kind === 'ok') ding(); else buzz();
+  if (kind === 'ok') ding(); else if (kind === 'knock') sfxKnock(); else buzz();
 }
 
 // ── 보드게임 효과음: 토큰 '딸깍' · 카드 '스윽' ──
@@ -491,4 +491,16 @@ export function startThemeBgm(id) {
   musicBus.gain.linearRampToValueAtTime(ducked ? 0.3 : 1, ctx.currentTime + 3);
   timer = setInterval(scheduleTheme, 100);
   scheduleTheme();
+}
+
+// 칸막이를 '똑똑' 두드리는 소리
+export function sfxKnock() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  [0, 0.17].forEach((d, i) => {
+    const p = i ? 0.94 : 1;
+    burst(t + d, 0.05, 'bandpass', 900 * p, 3, 0.55);
+    tone(t + d, 180 * p, 0.12, 'sine', 0.35, sfxBus, 0.002);
+    tone(t + d, 420 * p, 0.05, 'triangle', 0.12, sfxBus, 0.001);
+  });
 }

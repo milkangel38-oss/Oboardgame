@@ -1137,6 +1137,8 @@ function drawRoomChat(room, full = false) {
     e.preventDefault();
     const text = $in.value.trim();
     if (!text) return;
+    const block = room.status === 'playing' && room.game ? getGame(room.gameId)?.chatBlock?.(room.game, user.uid) : '';
+    if (block) return toast(block);
     rchat.draft = ''; $in.value = '';
     backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
   };
@@ -1438,6 +1440,8 @@ function bindGameChat($main, room) {
     e.preventDefault();
     const text = $in.value.trim();
     if (!text) return;
+    const block = room.status === 'playing' && room.game ? getGame(room.gameId)?.chatBlock?.(room.game, user.uid) : '';
+    if (block) return toast(block);
     gchat.draft = ''; $in.value = '';
     backend.mutateRoom(room.code, (r) => R.chat(r, user.uid, text)).catch((err) => toast(err.message));
   };
