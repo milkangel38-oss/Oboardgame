@@ -11,7 +11,7 @@ const WORD_MS = 12000; // 출제자가 제시어를 확인하는 시간 (지나�
 const GUESS_MS = 30000;
 const KNOCK_MS = 1400; // 똑똑 하고 다음 사람에게 넘어가는 여유
 const PTS = 10;
-export const BW = 400, BH = 300;
+export const BW = 430, BH = 300; // 화이트보드 안쪽 비율
 const PENS = [3, 7, 14];
 const ERASER = 26;
 const ROBES = ['#e8443a', '#2f6fe0', '#2fae5f', '#f2a81d', '#8a4fd8', '#1fb5b0'];
@@ -72,6 +72,8 @@ export function paint(cx, strokes, scale = 1) {
   }
 }
 function canvasHtml(cls = '') { return `<canvas class="dr-cv ${cls}" width="${BW * 2}" height="${BH * 2}"></canvas>`; }
+const boardHtml = (cls) => `<div class="dr-board"><img class="dr-frame" src="/img/drawrelay/board.webp" alt="" draggable="false">${canvasHtml(cls)}</div>`;
+const BODY_FY = [26.1, 26.0, 24.5, 26.1, 26.1, 26.1];
 function paintInto($c, strokes) {
   const cx = $c.getContext('2d');
   cx.fillStyle = '#fff'; cx.fillRect(0, 0, $c.width, $c.height);
@@ -100,7 +102,7 @@ export default {
   rules: [
     '모두 준비를 누르면, 이야기를 나눠 방장이 이번 라운드의 정답자를 골라요.',
     '정답자는 맨 오른쪽, 나머지는 칸막이를 사이에 두고 한 줄로 앉아요. 맨 왼쪽이 출제자예요.',
-    '출제자만 제시어를 보고 10초 동안 화이트보드에 그림을 그려요. (펜 3가지 굵기 + 지우개)',
+    '출제자만 제시어를 보고 10초 동안 화이트보드에 그림을 그려요. (가는펜 · 중간펜 · 두꺼운펜 · 지우개)',
     '다 그리면 완성! (10초가 지나면 자동으로 넘어가요) 똑똑 노크하면 다음 사람이 앞사람 그림을 이어받아 10초 동안 더 그려요.',
     '출제자는 정답이 나올 때까지 말하거나 채팅할 수 없어요. 다른 사람들은 자유롭게 채팅해요.',
     '마지막 정답자가 완성된 그림을 보고 30초 안에 정답을 입력해요.',
@@ -187,7 +189,7 @@ export default {
         : u === state.guesser && state.phase === 'guess' ? '<i class="dr-st draw">고민 중…</i>' : '';
       return `${i > 0 ? '<i class="dr-wall"></i>' : ''}<${pickable ? 'button' : 'div'} class="dr-seat ${role} ${draw ? 'drawing' : ''} ${knocking?.uid === u ? 'knock' : ''} ${u === me ? 'me' : ''}" ${pickable ? `data-pick="${esc(u)}"` : ''}>
         ${tag}<b class="dr-nm">${name(u)}</b>
-        ${sitHtml(players[u], { uid: u, robe: ROBES[state.order.indexOf(u) % ROBES.length], me: u === me })}
+        ${sitHtml(players[u], { uid: u, robe: ROBES[state.order.indexOf(u) % ROBES.length], me: u === me, body: { src: `/img/drawrelay/body${(state.order.indexOf(u) % 6) + 1}.webp`, fy: BODY_FY[state.order.indexOf(u) % 6] } })}
         ${draw ? '<span class="dr-pen">✏️</span>' : ''}${knocking?.uid === u ? '<span class="dr-knock">똑똑!<i>✊</i></span>' : ''}
         ${status}
       </${pickable ? 'button' : 'div'}>`;
@@ -205,7 +207,7 @@ export default {
         <div class="dr-shout"><small>${name(state.guesser)}님의 정답!</small><b>“${esc(state.answer || '…시간 초과')}”</b></div>
         <span class="dr-ox">${state.correct ? 'O' : 'X'}</span>
         <div class="dr-resw"><small>제시어</small><b>${esc(entry?.word || '')}</b><em>${state.correct ? `모두 +${PTS}점` : `모두 −${PTS}점`}</em></div>
-        <div class="dr-resboard">${canvasHtml('res')}</div>
+        <div class="dr-resboard">${boardHtml('res')}</div>
       </div>` : '';
 
     const timer = ['word', 'draw', 'guess'].includes(state.phase) ? `<div class="dk-timer"><span>⏱ <b data-left>10</b>초</span><div class="dk-bar2"><i data-bar></i></div></div>` : '';
@@ -287,7 +289,7 @@ export default {
     }
     if (want === 'guess') {
       $p.innerHTML = `<div class="dr-card wide"><small>🙋 완성된 그림을 보고 정답을 맞혀요!</small>
-        <div class="dr-board">${canvasHtml('g')}</div>
+        ${boardHtml('g')}
         <form class="dr-ans"><input maxlength="20" placeholder="정답 입력" autocomplete="off" enterkeyhint="send"><button class="btn primary">확인</button></form>
         <div class="dk-timer"><span>⏱ <b data-pl>30</b>초</span><div class="dk-bar2"><i data-pb></i></div></div></div>`;
       paintInto($p.querySelector('canvas'), state.strokes);
@@ -305,10 +307,10 @@ export default {
         <span class="dr-wbt">⏱ <b data-wl>10</b>초</span></div>
       <div class="dk-bar2 dr-wbbar"><i data-wb></i></div>
       <div class="dr-wbmain">
-        <div class="dr-board">${canvasHtml('w')}</div>
+        ${boardHtml('w')}
         <div class="dr-tools">
-          ${PENS.map((w, i) => `<button class="dr-tool pen ${i === 1 ? 'on' : ''}" data-tool="${i}" title="펜 ${['가늘게', '보통', '굵게'][i]}"><i style="width:${w + 4}px;height:${w + 4}px"></i><small>${['가늘게', '보통', '굵게'][i]}</small></button>`).join('')}
-          <button class="dr-tool eraser" data-tool="e" title="지우개"><span>🧽</span><small>지우개</small></button>
+          ${['가는펜', '중간펜', '두꺼운펜'].map((t, i) => `<button class="dr-tool pen ${i === 1 ? 'on' : ''}" data-tool="${i}" title="${t}"><img src="/img/drawrelay/pen${i + 1}.webp" alt=""><small>${t}</small></button>`).join('')}
+          <button class="dr-tool eraser" data-tool="e" title="지우개"><img src="/img/drawrelay/eraser.webp" alt=""><small>지우개</small></button>
           <button class="dr-tool undo" data-undo title="되돌리기"><span>↩</span><small>되돌리기</small></button>
         </div>
       </div>
