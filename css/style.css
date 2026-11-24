@@ -3243,3 +3243,30 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .pdc .pdc-n { aspect-ratio: auto; min-width: 26%; padding: 2px 3px; border-radius: 99px; line-height: 1; }
 .pd-board { background-size: 100% 100%; border-radius: 6px; padding: 20px 20px 16px; }
 .pd-deck > span { background: rgba(0, 0, 0, .55); padding: 1px 6px; border-radius: 99px; }
+/* 퍼레이드 v3: 큰 메인판(위: 더미+행렬 / 아래: 내 보유카드) + 아래로 플레이어 줄 */
+.pd3 .pd-board { display: grid; grid-template-rows: auto auto; gap: 0; min-height: 520px; padding: 26px 22px 22px; }
+.pd-half { display: grid; gap: 8px; align-content: start; }
+.pd-half.pd-htop { padding-bottom: 12px; min-height: 260px; }
+.pd-half.pd-hbot { padding-top: 12px; border-top: 2px dashed rgba(242, 210, 122, .55); }
+.pd-half .pd-lab { color: #ffe9b0; text-shadow: 0 1px 2px #000; }
+.pd3 .pd-line { gap: 5px; }
+.pd3 .pd-line .pdc { width: 58px; } .pd3 .pd-line .pdc-n { font-size: 13px; }
+.pd3 .pd-pile { width: 58px; }
+.pd3 .pd-hand { justify-content: center; gap: 8px; padding-top: 12px; }
+.pd3 .pd-cardbtn .pdc { width: 66px; } .pd3 .pd-cardbtn .pdc-n { font-size: 15px; }
+.pd-rows { display: grid; gap: 6px; }
+.pd-row { position: relative; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px; border-radius: 14px; background: rgba(20, 10, 30, .74); backdrop-filter: blur(2px); }
+.pd-row.me { box-shadow: inset 0 0 0 1.5px rgba(255, 79, 154, .55); }
+.pd-row.turn { box-shadow: inset 0 0 0 2px #ffd84d, 0 0 12px rgba(255, 216, 77, .3); }
+.pd-row > .sit { width: 76px; } .pd-row .sit-fig { width: 70px; height: 66px; } .pd-row .sit-face { width: 32px; height: 32px; }
+.pd-row .sit-name { max-width: 76px; font-size: 11px; }
+.pd-rowbox { display: grid; gap: 4px; min-width: 0; }
+.pd-row .pd-backs { padding-left: 6px; } .pd-row .pd-back { width: 18px; margin-left: -6px; }
+.pd-row .pd-stack.sm .pdc.sm { width: 32px; } .pd-row .pd-stack.sm .pdc.sm + .pdc.sm { margin-left: -14px; }
+@media (min-width: 700px) { .pd3 .pd-line .pdc { width: 70px; } .pd3 .pd-cardbtn .pdc { width: 80px; } .pd3 .pd-pile { width: 70px; } }
+.pd3 .pd-board { padding: 24px 12px 20px; }
+.pd3 .pd-track { gap: 6px; }
+.pd3 .pd-deck > span { white-space: normal; text-align: center; line-height: 1.25; width: 52px; font-size: 10px; border-radius: 8px; }
+.pd3 .pd-pile { width: 50px; }
+.pd3 .pd-line .pdc { width: 51px; } .pd3 .pd-line { gap: 4px; }
+@media (min-width: 420px) { .pd3 .pd-line .pdc { width: 60px; } .pd3 .pd-pile { width: 60px; } }
