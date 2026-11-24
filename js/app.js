@@ -5,6 +5,7 @@ import * as R from './room-logic.js';
 import { APP_NAME, APP_VERSION } from './config.js';
 import { summarize, gameRecord, tierOf, AVATAR_PRESETS, GARNET } from './profile.js';
 import { charSvg, charName } from './avatars.js';
+import { censor } from './badwords.js';
 import { startBgm, stopBgm, bgmWanted, bgmPlaying } from './bgm.js';
 import { showAlert } from './alert.js';
 import { primeSounds, startThemeBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange, setDuck } from './sound.js';
@@ -1361,7 +1362,7 @@ function drawIntro(room, game) {
           <div class="intro-dots">${rules.map(() => '<i></i>').join('')}</div>
         </div>
       </div>
-      <button class="intro-x" data-ileave title="방 나가기">✕ 나가기</button><div class="intro-btns"><button class="btn ghost" data-ireplay>다시보기</button><button class="btn ghost" data-iskip>Skip</button><button class="btn primary" data-iok>확인</button></div>
+      <button class="intro-x" data-ileave title="방 나가기">✕ 나가기</button><div class="intro-btns"><button class="btn ghost" data-ireplay>다시보기</button><button class="btn primary" data-iok>확인</button></div>
       <div class="intro-wait" hidden></div>
     </div>`;
     document.body.appendChild($o);
@@ -1394,7 +1395,6 @@ function drawIntro(room, game) {
       $o.querySelector('.intro-media').appendChild($u);
     });
     const ok = () => backend.mutateRoom(room.code, (r) => R.ackIntro(r, user.uid)).catch((e) => { if (e.message !== '__noop') toast(e.message); });
-    $o.querySelector('[data-iskip]').onclick = ok;
     $o.querySelector('[data-ileave]').onclick = () => { closeIntro(); document.querySelector('[data-leave]')?.click(); };
     $o.querySelector('[data-ireplay]').onclick = () => {
       if ($v.isConnected) { $v.currentTime = 0; $v.play().catch(() => {}); } else slides();
@@ -1577,7 +1577,7 @@ function drawRoom($main, room, game) {
           ${room.status === 'waiting' && players.length >= game.minPlayers && players.length < game.maxPlayers
             ? '<li class="seat add" data-invite-seat role="button" tabindex="0"><span class="seat-av"><span class="avatar">+</span></span><span class="seat-name">초대하기</span></li>' : ''}
         </ul>
-        ${gameChat && mine ? '<form class="gchat"><input maxlength="60" placeholder="채팅 입력 (말풍선으로 떠요)" autocomplete="off"><button class="btn sm primary">💬</button></form>' : ''}
+        ${gameChat && mine ? '<form class="gchat"><input maxlength="60" placeholder="💬 채팅" title="채팅 입력 (말풍선으로 떠요)" autocomplete="off"><button class="btn sm primary">💬</button></form>' : ''}
       </section>
       ${playing ? '' : '<section class="panel rchat" id="rchat"></section>'}
       <section class="stage panel">${stage}</section>
@@ -1627,9 +1627,9 @@ function drawRoom($main, room, game) {
       finished: room.status === 'finished',
       room,
       secret: roomSecret && roomSecret.match === room.matchId && roomSecret.nonce && roomSecret.nonce === room.game?.nonce ? roomSecret : null,
-      sendMove: game.serverMoves
+      sendMove: ((send) => (move, opts) => send(move && typeof move.text === 'string' && /chat|say/.test(move.type || '') ? { ...move, text: censor(move.text) } : move, opts))(game.serverMoves
         ? (move, opts) => backend.serverMove(room.code, move).catch((e) => { if (e.message === '__noop') return; opts?.onError?.(e); if (opts?.silent) return; showAlert(e.message); })
-        : (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent),
+        : (move, opts) => act((r) => R.applyMove(r, game, user.uid, move), opts?.silent)),
     });
   }
 }

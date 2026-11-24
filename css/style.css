@@ -3289,3 +3289,8 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 @media (min-width: 700px) { .pd3 .pd-line .pdc { width: 86px; } .pd3 .pd-pile { width: 78px; } }
 .pd3 .pd-board { grid-template-rows: 1fr auto; }
 .pd3 .pd-half.pd-htop { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+/* 퍼레이드: 다른 사람 먹은카드 크게 */
+.pd-row .pd-stack.sm .pdc.sm { width: 42px; } .pd-row .pd-stack.sm .pdc.sm + .pdc.sm { margin-left: -20px; }
+.pd-row .pd-stack.sm .pdc.sm .pdc-n { font-size: 11px; min-width: 38%; }
+.pd-row .pd-eat { gap: 6px 8px; }
+@media (orientation: landscape) and (max-height: 560px) { .gchat input { font-size: 12px; padding-left: 8px; padding-right: 6px; min-width: 0; } }

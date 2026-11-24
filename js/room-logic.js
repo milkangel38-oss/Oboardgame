@@ -1,3 +1,4 @@
+import { censor } from './badwords.js';
 // 방(Room) 규칙 — 테스트 모드와 Firebase 모드가 똑같이 이 함수들을 사용합니다.
 // 모든 함수는 room 객체를 받아 수정된 room을 돌려줍니다 (null = 방 삭제).
 //
@@ -236,7 +237,7 @@ export function applyMove(room, game, uid, move) {
 export function chat(room, uid, text) {
   const p = room.players[uid];
   if (!p) throw new Error('방에 있는 사람만 채팅할 수 있어요');
-  const t = String(text || '').trim().slice(0, 120);
+  const t = censor(String(text || '').trim().slice(0, 120));
   if (!t) return room;
   room.chat = [...(room.chat || []), { uid, name: p.name, text: t, t: Date.now() }].slice(-50);
   return room;
