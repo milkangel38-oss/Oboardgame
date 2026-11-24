@@ -89,3 +89,14 @@ html,body{margin:0;width:1280px;height:720px;overflow:hidden;background:#140c2c}
 .skv-arr{font-size:46px;color:#ffd84d;text-shadow:0 2px 6px #000}
 .skv-pts{font-size:60px;font-weight:900;text-shadow:0 3px 8px #000}.skv-pts.up{color:#4ee07a}.skv-pts.dn{color:#ff5c7a}
 .skv-king{font-size:70px;transform:translateY(-90px)}
+/* 퍼레이드 */
+.scene.parade{background:url(/img/parade/bg.webp) center/cover}
+.scene.parade::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,.05),rgba(0,0,0,.55))}
+.pdv .pdc{width:var(--w);box-shadow:0 8px 18px rgba(0,0,0,.6)}.pdv .pdc-n{font-size:calc(var(--w)*.2)}
+.pdv.safe{opacity:.65}.pdv.safe::after{content:'🛡';position:absolute;top:-16px;right:-10px;font-size:26px}
+.pdv.take .pdc{box-shadow:0 0 0 5px #ff3b5c,0 0 22px #ff3b5c;transform:translateY(-10px)}
+.pdv.pick .pdc{box-shadow:0 0 0 5px #3ddc84,0 0 20px #3ddc84}.pdv.drop{opacity:.45;filter:grayscale(.6)}
+.pdv{position:relative}
+.pdv-back{width:92px;aspect-ratio:687/1024;border-radius:8px;background:url(/img/parade/back.webp) center/cover;box-shadow:4px 4px 0 #3a0a20,8px 8px 0 #2a0716,0 10px 20px rgba(0,0,0,.6)}
+.pdv-bracket{width:330px;padding:6px 0;border-radius:12px;border:3px dashed #3ddc84;text-align:center;font-size:24px;color:#fff;background:rgba(0,0,0,.45)}
+.pdv-fan{display:flex;gap:6px}
