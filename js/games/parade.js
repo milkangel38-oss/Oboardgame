@@ -186,9 +186,11 @@ export default {
     const backs = (n) => Array.from({ length: n }, () => '<i class="pd-back"></i>').join('');
     const ROBES = ['#c23a4a', '#2f7fe0', '#2fae5f', '#8a4fd8', '#d98a1c', '#3a3a46'];
     const robe = (u) => ROBES[state.order.indexOf(u) % ROBES.length];
+    const BODY_FY = [26.2, 26.1, 27.8, 26.2, 26.2, 27.0];
+    const body = (u) => { const k = state.order.indexOf(u) % 6; return { src: `/img/parade/body${k + 1}.webp`, fy: BODY_FY[k] }; };
     const others = state.order.filter((u) => u !== me);
     const opHtml = (u) => `<div class="pd-op2 ${u === turnUid && !finished && state.phase !== 'pick' && state.phase !== 'done' ? 'turn' : ''}">
-        ${sitHtml(players[u], { uid: u, robe: robe(u), turn: u === turnUid && !finished && ['play', 'last'].includes(state.phase),
+        ${sitHtml(players[u], { uid: u, robe: robe(u), body: body(u), turn: u === turnUid && !finished && ['play', 'last'].includes(state.phase),
           label: state.phase === 'pick' ? (state.picks[u] ? '✓ 골랐어요' : '고르는 중…') : '' })}
         <div class="pd-lab">보유카드 <b>${state.hands[u].length}</b>장</div>
         <div class="pd-backs">${backs(state.hands[u].length)}</div>
@@ -206,7 +208,7 @@ export default {
       const mine = u === me;
       const t = u === turnUid && !finished && ['play', 'last'].includes(state.phase);
       return `<div class="pd-row ${mine ? 'me' : ''} ${t ? 'turn' : ''}">
-        ${sitHtml(players[u], { uid: u, robe: robe(u), me: mine, turn: t,
+        ${sitHtml(players[u], { uid: u, robe: robe(u), body: body(u), me: mine, turn: t,
           label: state.phase === 'pick' ? (state.picks[u] ? '✓ 골랐어요' : '고르는 중…') : mine ? '나' : '' })}
         <div class="pd-rowbox">
           ${mine ? '' : `<div class="pd-lab">보유카드 <b>${state.hands[u].length}</b>장</div><div class="pd-backs">${backs(state.hands[u].length)}</div>`}

@@ -4,7 +4,17 @@ import { faceHtml } from './face.js';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // robe: 두루마기 색, trim: 깃·고름 색
-export function sitHtml(player, { robe = '#3d4f7a', trim = '#f2ead8', uid = '', label = '', badge = '', turn = false, me = false, up = false } = {}) {
+// body: { src, fy } 를 주면 그림 몸통(목 위치 fy% )에 얼굴을 올려요
+export function sitHtml(player, { robe = '#3d4f7a', trim = '#f2ead8', uid = '', label = '', badge = '', turn = false, me = false, up = false, body = null } = {}) {
+  if (body) {
+    return `<div class="sit sit-img ${turn ? 'turn' : ''} ${me ? 'me' : ''} ${up ? 'up' : ''}">
+    <span class="seat-bubble" data-bub="${esc(uid)}"></span>
+    <div class="sit-fig"><img class="sit-body" src="${body.src}" alt="" draggable="false">
+      <span class="sit-face" style="top:${body.fy - 24}%">${faceHtml(player || { name: '?' })}${badge}</span></div>
+    <b class="sit-name">${esc(player?.name || '나간 사람')}</b>
+    ${label ? `<small class="sit-label">${label}</small>` : ''}
+  </div>`;
+  }
   return `<div class="sit ${turn ? 'turn' : ''} ${me ? 'me' : ''} ${up ? 'up' : ''}">
     <span class="seat-bubble" data-bub="${esc(uid)}"></span>
     <div class="sit-fig">

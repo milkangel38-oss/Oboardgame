@@ -3270,3 +3270,12 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .pd3 .pd-pile { width: 50px; }
 .pd3 .pd-line .pdc { width: 51px; } .pd3 .pd-line { gap: 4px; }
 @media (min-width: 420px) { .pd3 .pd-line .pdc { width: 60px; } .pd3 .pd-pile { width: 60px; } }
+/* 그림 몸통 + 프로필 얼굴 */
+.sit.sit-img .sit-fig { height: auto; }
+.sit-img .sit-body { display: block; width: 100%; height: auto; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
+.sit-img .sit-face { top: 0; width: 27%; height: auto; aspect-ratio: 1; z-index: 1; }
+.pd-row > .sit.sit-img { width: 84px; } .pd-row .sit-img .sit-fig { width: 84px; height: auto; }
+.pd-row { grid-template-columns: 84px minmax(0, 1fr); }
+.pd-row .sit-img .sit-face { width: 30%; }
+.pd-row .sit-img { padding-top: 8px; }
+.pd-row > .sit.sit-img, .pd-row .sit-img .sit-fig { width: 96px; } .pd-row { grid-template-columns: 96px minmax(0, 1fr); } .pd-row .sit-name { max-width: 96px; }
