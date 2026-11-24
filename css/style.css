@@ -3514,3 +3514,12 @@ button.dr-seat { cursor: pointer; } button.dr-seat:hover .sit-face { box-shadow:
 .ms2 .ms-sin .ms-problem { border: 0; outline: 0; box-shadow: none; background: none; }
 .ms-pscore { align-items: center; padding-top: 0; } .ms-pscore b { font-size: 14px; }
 @media (min-width: 601px) { .ms-pscore b { font-size: 20px; } }
+/* 미스터리 사인: 나무 직사각형 단상 (임시 CSS) */
+.ms-podium img { display: none; }
+.ms-podium { aspect-ratio: 1.45 / 1; border-radius: 3px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .18), transparent 18%), repeating-linear-gradient(90deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 13px), repeating-linear-gradient(0deg, rgba(255, 220, 170, .08) 0 1px, transparent 1px 6px), linear-gradient(180deg, #9a5f32, #6e3f1d);
+  box-shadow: inset 0 0 0 2px #4a2810, inset 0 4px 0 #b97a45, 0 4px 8px rgba(0, 0, 0, .6); }
+.ms-podium::before { content: ''; position: absolute; left: -4%; right: -4%; top: -6px; height: 8px; border-radius: 2px; background: linear-gradient(180deg, #c48a52, #7a4520); box-shadow: 0 2px 3px rgba(0, 0, 0, .5); }
+.ms-pscore { left: 22%; top: 30%; width: 56%; height: 36%; border-radius: 3px; background: #0c0805; box-shadow: inset 0 0 0 2px #2a170a, inset 0 0 8px rgba(0, 0, 0, .8); }
+.ms-p.me .ms-podium { background: linear-gradient(180deg, rgba(255, 140, 200, .25), transparent 40%), repeating-linear-gradient(90deg, rgba(0, 0, 0, .12) 0 2px, transparent 2px 13px), linear-gradient(180deg, #9a5f32, #6e3f1d); }
+.ms-p.win .ms-podium { box-shadow: inset 0 0 0 2px #ffd84d, 0 0 16px rgba(255, 216, 77, .7); }
