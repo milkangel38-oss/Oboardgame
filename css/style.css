@@ -3279,3 +3279,13 @@ html.rk-on .vdock .vbtn { height: 34px; font-size: 13px; padding: 0 10px; }
 .pd-row .sit-img .sit-face { width: 30%; }
 .pd-row .sit-img { padding-top: 8px; }
 .pd-row > .sit.sit-img, .pd-row .sit-img .sit-fig { width: 96px; } .pd-row { grid-template-columns: 96px minmax(0, 1fr); } .pd-row .sit-name { max-width: 96px; }
+/* 퍼레이드: 위쪽 절반 가운데 정렬 · 깔린 카드 크게 */
+.pd3 .pd-half.pd-htop { min-height: 300px; align-content: center; }
+.pd3 .pd-track { align-items: center; }
+.pd3 .pd-line { align-content: center; justify-content: center; }
+.pd3 .pd-line .pdc { width: 64px; } .pd3 .pd-line .pdc-n { font-size: 14px; }
+.pd3 .pd-pile { width: 56px; }
+@media (min-width: 420px) { .pd3 .pd-line .pdc { width: 74px; } .pd3 .pd-pile { width: 66px; } }
+@media (min-width: 700px) { .pd3 .pd-line .pdc { width: 86px; } .pd3 .pd-pile { width: 78px; } }
+.pd3 .pd-board { grid-template-rows: 1fr auto; }
+.pd3 .pd-half.pd-htop { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
