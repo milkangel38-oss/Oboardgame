@@ -3405,3 +3405,77 @@ button.dr-seat { cursor: pointer; } button.dr-seat:hover .sit-face { box-shadow:
   .dr-resboard .dr-board { height: 62dvh; width: auto; max-width: none; }
   .dr-tool { height: 50px; } .dr-tool img { width: 30px; height: 30px; }
 }
+
+/* ───────── 미스터리 사인 v2: 서바이벌 세트장 ───────── */
+.ms2 { gap: 10px; }
+.ms-set { position: relative; display: grid; gap: 10px; padding: 14px 10px 0; border-radius: 20px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, rgba(46, 230, 214, .25), transparent 55%), radial-gradient(ellipse at 50% 120%, rgba(255, 79, 110, .25), transparent 60%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 2px, transparent 2px 40px), linear-gradient(180deg, #0a0d1c, #141a33 60%, #0b0e1d);
+  box-shadow: inset 0 0 0 2px #2ee6d6, inset 0 0 40px rgba(0, 0, 0, .7), 0 12px 28px rgba(0, 0, 0, .5); }
+.ms-top { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 8px; align-items: stretch; }
+.ms-screen { display: grid; gap: 6px; align-content: center; padding: 10px 8px; border-radius: 10px; background: #050608; border: 4px solid #2b2f3c;
+  box-shadow: inset 0 0 0 2px #000, inset 0 0 22px rgba(46, 230, 214, .18), 0 0 0 2px #5a6070, 0 6px 14px rgba(0, 0, 0, .6);
+  background-image: radial-gradient(rgba(255, 255, 255, .06) 1px, transparent 1.2px); background-size: 4px 4px; }
+.ms2 .ms-problem { margin: 0; padding: 0; background: none; box-shadow: none; font-size: clamp(24px, 8vw, 46px); color: #ffe26a; text-shadow: 0 0 10px rgba(255, 210, 60, .8); justify-content: center; flex-wrap: wrap; }
+.ms2 .ms-problem .ms-sign { color: #ff4f6e; text-shadow: 0 0 10px #ff4f6e; }
+.ms2 .ms-rule { font-size: 12px; text-align: center; color: #cfe; }
+.ms-hintbox { display: grid; grid-template-rows: auto 1fr; min-height: 0; max-height: 190px; padding: 8px; border-radius: 10px; background: rgba(10, 30, 8, .6); border: 3px solid #b6e51d; box-shadow: 0 0 12px rgba(182, 229, 29, .35); }
+.ms-hintbox .ms-hints-title { margin: 0 0 4px; font-size: 12px; color: #c8f04a; font-weight: 800; }
+.ms-hintbox .ms-hints-title b { color: #fff; }
+.ms-hintbox .ms-hints { overflow: auto; margin: 0; gap: 4px; }
+.ms-hintbox .ms-hints li { padding: 4px 6px; font-size: 12px; flex-wrap: wrap; gap: 2px 6px; }
+.ms-hintbox .ms-hints li small { font-size: 10px; }
+.ms-status { justify-self: center; padding: 5px 14px; border-radius: 99px; background: rgba(0, 0, 0, .5); font-size: 13px; color: #9fb8ff; text-align: center; }
+.ms-status b { color: #fff; }
+.ms-stage { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; align-items: end; padding: 8px 0 0; background: linear-gradient(180deg, transparent 70%, rgba(46, 230, 214, .15)); }
+.ms-p { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'man bz' 'pod bz' 'nm nm'; align-items: end; justify-items: center; min-width: 0; }
+.ms-person { grid-area: man; width: 64px; margin-bottom: -12px; position: relative; z-index: 1; }
+.ms-person .pc { width: 100%; }
+.ms-podium { grid-area: pod; position: relative; z-index: 2; width: 100%; max-width: 78px; height: 58px; display: grid; place-content: center; justify-items: center; clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, #e8394f, #a0172c); box-shadow: inset 0 3px 0 rgba(255, 255, 255, .35); color: #fff; }
+.ms-p.me .ms-podium { background: linear-gradient(180deg, #ff6fae, #b3246a); }
+.ms-p.win .ms-podium { background: linear-gradient(180deg, #ffd84d, #d18b0a); color: #3a2400; }
+.ms-podium b { font-family: var(--logo); font-size: 22px; line-height: 1; } .ms-podium small { font-size: 9px; opacity: .8; }
+.ms-x { position: absolute; top: -18px; font-style: normal; font-size: 11px; font-weight: 900; color: #ff4f6e; text-shadow: 0 0 6px #000; animation: skxPop .3s; }
+.ms-buzzer { grid-area: bz; appearance: none; border: 0; padding: 0; background: none; position: relative; width: 38px; height: 38px; margin: 0 0 10px 2px; display: grid; place-items: center; cursor: default; }
+.ms-buzzer i { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #8fb2ff, #2f5fe0 60%, #183a9a); box-shadow: 0 5px 0 #0f245e, 0 7px 10px rgba(0, 0, 0, .5); transition: transform .08s, box-shadow .08s; }
+.ms-buzzer small { position: relative; z-index: 1; font-size: 8.5px; font-weight: 900; color: #fff; letter-spacing: .5px; }
+.ms-buzzer.can { cursor: pointer; } .ms-buzzer.can i { animation: msPush 1s infinite; }
+@keyframes msPush { 50% { box-shadow: 0 5px 0 #0f245e, 0 0 16px 4px rgba(120, 170, 255, .9); } }
+.ms-buzzer.can:active i { transform: translateY(4px); box-shadow: 0 1px 0 #0f245e; }
+.ms-buzzer.on i { background: radial-gradient(circle at 40% 30%, #fff3a0, #ffcc00 55%, #d18b0a); box-shadow: 0 1px 0 #7a5200, 0 0 24px 8px rgba(255, 210, 0, .9); transform: translateY(4px); }
+.ms-buzzer.lock i { filter: grayscale(1) brightness(.6); }
+.ms-buzzer:not(.can):not(.on):not(.lock) i { filter: saturate(.6) brightness(.85); }
+.ms-nm { grid-area: nm; max-width: 100%; margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-nm em { font-style: normal; }
+.ms-p.turn .ms-nm { color: #ffd84d; }
+.ms-p.buzzing .ms-person { animation: skxHop .4s ease-in-out 3; }
+.ms-p .seat-bubble { bottom: calc(100% - 6px); }
+.ms2 .ms-hint { display: grid; gap: 4px; padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, .05); }
+.ms2 .ms-hint.off { opacity: .55; }
+.ms2 .ms-hint-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 6px; align-items: center; }
+.ms2 .ms-hint-row input { min-width: 0; }
+.ms2 .ms-hint small { font-size: 11.5px; color: var(--muted); text-align: center; }
+.ms-wrongs { font-size: 12px; color: #ff8a9e; text-align: center; }
+.ms-pop { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 14px; background: rgba(5, 3, 14, .7); backdrop-filter: blur(3px); }
+.ms-popbox { width: min(360px, 100%); display: grid; gap: 10px; padding: 18px; border-radius: 18px; background: linear-gradient(180deg, #1b2350, #0d1230); box-shadow: 0 0 0 3px #ffcc00, 0 0 40px rgba(255, 204, 0, .4); animation: skxPop .25s ease-out; }
+.ms-poph { text-align: center; font-size: 20px; font-weight: 900; color: #ffcc00; }
+.ms-popt { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; } .ms-popt b { font-family: var(--logo); font-size: 28px; color: #fff; }
+.ms-popbox input { padding: 14px; border-radius: 12px; border: 0; font-size: 22px; text-align: center; }
+@media (orientation: landscape) and (max-height: 560px) { .ms-person { width: 54px; } .ms-hintbox { max-height: 150px; } }
+/* 미스터리 사인 v2: 세로 화면 정리 */
+.ms-p { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'man' 'pod' 'nm'; width: 100%; }
+.ms-podium { max-width: 84px; }
+.ms-buzzer { position: absolute; right: max(0px, calc(50% - 56px)); bottom: 26px; z-index: 3; width: 34px; height: 34px; margin: 0; }
+.ms-nm { width: 100%; text-align: center; font-size: 11px; }
+.ms-person { width: 58px; }
+.ms2 .ms-problem { flex-wrap: nowrap; white-space: nowrap; }
+@media (max-width: 600px) {
+  .ms-top { grid-template-columns: 1fr; }
+  .ms-hintbox { max-height: 130px; }
+  .ms-hintbox .ms-hints { display: grid; grid-template-columns: 1fr 1fr; align-content: start; }
+  .ms2 .ms-problem { font-size: clamp(26px, 10vw, 44px); }
+}
+.ms-buzzer { right: max(0px, calc(50% - 48px)); bottom: 70px; width: 30px; height: 30px; }
+.ms-buzzer small { font-size: 7.5px; }
+@media (min-width: 601px) { .ms-buzzer { width: 40px; height: 40px; right: max(0px, calc(50% - 60px)); } .ms-buzzer small { font-size: 9px; } }

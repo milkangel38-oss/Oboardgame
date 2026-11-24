@@ -254,7 +254,7 @@ export function soundEvent(roomCode, key, kind) {
   if (seen.has(k)) return;
   seen.add(k);
   if (!primed.has(roomCode)) return;
-  if (kind === 'ok') ding(); else if (kind === 'knock') sfxKnock(); else buzz();
+  if (kind === 'ok') ding(); else if (kind === 'knock') sfxKnock(); else if (kind === 'buzzer') sfxBuzzer(); else buzz();
 }
 
 // ── 보드게임 효과음: 토큰 '딸깍' · 카드 '스윽' ──
@@ -517,4 +517,13 @@ export function sfxKnock() {
     tone(t + d, 180 * p, 0.12, 'sine', 0.35, sfxBus, 0.002);
     tone(t + d, 420 * p, 0.05, 'triangle', 0.12, sfxBus, 0.001);
   });
+}
+
+// 퀴즈쇼 버저 '삐빅!'
+export function sfxBuzzer() {
+  if (!ensure()) return; resume();
+  const t = ctx.currentTime + 0.01;
+  tone(t, 880, 0.12, 'square', 0.09, sfxBus, 0.002);
+  tone(t + 0.13, 1175, 0.22, 'square', 0.09, sfxBus, 0.002);
+  tone(t, 440, 0.35, 'triangle', 0.08, sfxBus, 0.002);
 }
