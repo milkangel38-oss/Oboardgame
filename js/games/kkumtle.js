@@ -276,7 +276,7 @@ function build(code, ctx) {
   ctl = c;
   if (typeof location !== 'undefined' && location.search.includes('test')) window.__kw = c;
   bindInput(c);
-  for (const src of [...Object.values(ICONS), ...Array.from({ length: 12 }, (_, i) => `img/kkumtle/d${i}.webp`), 'img/kkumtle/g-dial.webp', 'img/kkumtle/heli.webp', 'img/kkumtle/crate-air.webp', 'img/kkumtle/pot.webp']) pic(src);
+  for (const src of [...Object.values(ICONS), ...Array.from({ length: 12 }, (_, i) => `img/kkumtle/d${i}.webp`), 'img/kkumtle/g-dial.webp', 'img/kkumtle/heli.webp', 'img/kkumtle/crate-air.webp', 'img/kkumtle/pot.webp', 'img/kkumtle/ufo.webp', ...Array.from({ length: 11 }, (_, i) => sigImg(i + 1))]) pic(src);
   import('../backend/index.js').then(async ({ backend }) => {
     if (ctl !== c) return;
     const live = backend.live ? await backend.live(ctx.room?.code || 'local') : null;
@@ -913,8 +913,10 @@ function draw(c, dt, now) {
   for (const d of V.dr || []) { x.fillStyle = 'rgba(90,180,255,.9)'; x.beginPath(); x.arc(d[0], d[1], 3, 0, 7); x.fill(); }
   if (V.ufo) { const [ux, uty, ut] = V.ufo, uy = ufoY(ut, uty);
     if (ut >= 0.9 && ut < 1.7) { const k = Math.sin(((ut - 0.9) / 0.8) * Math.PI); x.fillStyle = `rgba(120,255,240,${0.35 * k})`; x.fillRect(ux - 16, uy + 8, 32, uty - uy + 4); x.fillStyle = `rgba(255,255,255,${0.9 * k})`; x.fillRect(ux - 4, uy + 8, 8, uty - uy + 4); }
+    const ui = pic('img/kkumtle/ufo.webp');
+    if (ui) { const w2 = 72, h2 = w2 * ui.naturalHeight / ui.naturalWidth; x.drawImage(ui, ux - w2 / 2, uy - h2 * 0.6, w2, h2); } else {
     x.save(); x.translate(ux, uy); x.fillStyle = '#9fe3ff'; x.beginPath(); x.ellipse(0, -6, 12, 10, 0, Math.PI, 0); x.fill(); x.fillStyle = '#b8c0cc'; x.beginPath(); x.ellipse(0, 0, 30, 8, 0, 0, 7); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 1.5; x.stroke();
-    for (let i = -2; i <= 2; i++) { x.fillStyle = (Math.floor(now / 150) + i) % 2 ? '#ffd84d' : '#ff4f4f'; x.beginPath(); x.arc(i * 10, 2, 2, 0, 7); x.fill(); } x.restore(); }
+    for (let i = -2; i <= 2; i++) { x.fillStyle = (Math.floor(now / 150) + i) % 2 ? '#ffd84d' : '#ff4f4f'; x.beginPath(); x.arc(i * 10, 2, 2, 0, 7); x.fill(); } x.restore(); } }
   for (const l of V.lad || []) { x.strokeStyle = '#8a5a2b'; x.lineWidth = 3; x.beginPath(); x.moveTo(l.x - 7, l.y1); x.lineTo(l.x - 7, l.y2); x.moveTo(l.x + 7, l.y1); x.lineTo(l.x + 7, l.y2); x.stroke(); x.strokeStyle = '#c08a4a'; x.lineWidth = 2.5; x.beginPath(); for (let y = l.y2 - 6; y > l.y1; y -= 12) { x.moveTo(l.x - 7, y); x.lineTo(l.x + 7, y); } x.stroke(); }
   for (const t of V.tors || []) { // 하늘부터 바닥까지 긴 토네이도
     x.save(); x.globalAlpha = 0.55; const g = x.createLinearGradient(t.x - 30, 0, t.x + 30, 0); g.addColorStop(0, 'rgba(160,200,240,0)'); g.addColorStop(0.5, 'rgba(200,230,255,.55)'); g.addColorStop(1, 'rgba(160,200,240,0)'); x.fillStyle = g; x.fillRect(t.x - 30, -400, 60, WATER + 400); x.globalAlpha = 1;
@@ -961,7 +963,13 @@ function draw(c, dt, now) {
   for (const p of V.p || []) {
     const [k, px, py, a, face, psk = 0] = p;
     x.save(); x.translate(px, py);
-    if (k === 'sig' || k === 'flw' || k === 'bea') { const im = k === 'sig' && pic(sigImg(psk)); x.rotate(k === 'flw' ? performance.now() / 150 : psk === 6 || psk === 10 || psk === 0 ? a : performance.now() / 110); if (im) { const s2 = 22 / Math.max(im.naturalWidth, im.naturalHeight); x.drawImage(im, -im.naturalWidth * s2 / 2, -im.naturalHeight * s2 / 2, im.naturalWidth * s2, im.naturalHeight * s2); } else { x.font = k === 'flw' ? '13px sans-serif' : '20px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(k === 'flw' ? '🌸' : k === 'bea' ? '✨' : SIG[psk].icon, 0, 0); x.textBaseline = 'alphabetic'; } }
+    if (k === 'sig' || k === 'flw' || k === 'bea') {
+      const isk = k === 'bea' ? 9 : psk, im = k === 'flw' ? null : isk === 0 ? pic(ICONS.shell) : pic(sigImg(isk));
+      const base = isk === 0 ? -Math.PI / 2 : SIGPOINT[isk];
+      x.rotate(k === 'flw' ? performance.now() / 150 : base != null ? a - base : isk === 9 ? Math.sin(performance.now() / 120) * 0.4 : performance.now() / 90);
+      if (im) { const s2 = (isk === 0 ? 20 : 24) / Math.max(im.naturalWidth, im.naturalHeight); x.drawImage(im, -im.naturalWidth * s2 / 2, -im.naturalHeight * s2 / 2, im.naturalWidth * s2, im.naturalHeight * s2); }
+      else { x.font = k === 'flw' ? '13px sans-serif' : '20px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(k === 'flw' ? '🌸' : k === 'bea' ? '✨' : SIG[psk].icon, 0, 0); x.textBaseline = 'alphabetic'; }
+    }
     else if (k === 'chick') { const im = pic(ICONS.chicken); if (im) { x.scale(face || 1, 1); x.drawImage(im, -13, -30, 26, 28); } else { x.scale(-(face || 1), 1); x.font = '22px sans-serif'; x.textAlign = 'center'; x.fillText('🐔', 0, -2); } }
     else if (k === 'gren' && pic(ICONS.grenade)) { x.rotate(performance.now() / 120); x.drawImage(pic(ICONS.grenade), -7, -8, 14, 17); }
     else if (k === 'gren') { x.fillStyle = '#2d3a2a'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.fillStyle = '#ffd84d'; x.fillRect(-1, -8, 2, 4); }
@@ -1243,6 +1251,7 @@ function openPanel(c) {
 // ───────────────── 손에 든 무기 ─────────────────
 // 그림 속 무기 앞쪽이 가리키는 방향 (라디안, 오른쪽 0 · 아래 +)
 const POINT = { shell: -Math.PI / 2, homing: 2.7, pistol: Math.PI, mg: 0, flame: -0.42, drill: 0 };
+const SIGPOINT = { 6: 0.5, 7: 0 }; // 오리 무기 그림 앞쪽 방향 (독침 · 물대포)
 const THROW = new Set(['grenade', 'mine', 'tele', 'tornado', 'chicken']);
 function drawHeld(x, wx, wy, id, ang, f, rc, ch, sk = 0) {
   let im = ICONS[id] && pic(ICONS[id]), emo = null, sigT = false;
@@ -1251,12 +1260,13 @@ function drawHeld(x, wx, wy, id, ang, f, rc, ch, sk = 0) {
   const dx = Math.cos(ang) * f, dy = -Math.sin(ang), a = Math.atan2(dy, dx);
   const hx = wx + f * 7, hy = wy - 15;
   x.save(); x.translate(hx, hy);
-  if (id in POINT && !sigT) { // 총·포: 앞쪽이 조준 방향을 향하게. 왼쪽을 볼 땐 좌우로 뒤집어서 손잡이가 아래로 오게
-    const b = POINT[id];
+  const pb = sigT ? SIGPOINT[sk] : POINT[id];
+  if (pb != null) { // 총·포: 앞쪽이 조준 방향을 향하게. 왼쪽을 볼 땐 좌우로 뒤집어서 손잡이가 아래로 오게
+    const b = pb;
     x.translate(Math.cos(a) * (6 - rc * 6), Math.sin(a) * (6 - rc * 6));
     const nf = Math.cos(b) < -0.1 ? -1 : Math.cos(b) > 0.1 ? 1 : 0; // 그림이 원래 보고 있는 쪽
     if (nf && nf !== f) { x.rotate(a - Math.PI + b); x.scale(-1, 1); } else x.rotate(a - b);
-    const L = id === 'shell' ? 20 : id === 'mg' ? 26 : 22, sc = L / Math.max(im.naturalWidth, im.naturalHeight);
+    const L = sigT ? 24 : id === 'shell' ? 20 : id === 'mg' ? 26 : 22, sc = L / Math.max(im.naturalWidth, im.naturalHeight);
     x.drawImage(im, -im.naturalWidth * sc / 2, -im.naturalHeight * sc / 2, im.naturalWidth * sc, im.naturalHeight * sc);
   } else { // 던지는 것 · 아이템: 손에 들고, 모으는 동안 뒤로 젖혔다가 던질 때 앞으로
     const thr = THROW.has(id) || sigT, back = thr && ch >= 0 ? ch : 0;
