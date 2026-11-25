@@ -8,7 +8,8 @@ import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkSt
 import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
 
 const TURN_MS = 30000;
-const HB = 32; // 오리 몸 높이 (맞는 범위)
+const HB = 32;
+const MOVE_PX = 360; // 이동 게이지 1칸으로 걸을 수 있는 거리 // 오리 몸 높이 (맞는 범위)
 const ICONS = Object.fromEntries(['shell', 'homing', 'grenade', 'flame', 'mine', 'pistol', 'mg', 'radio', 'chicken', 'tele', 'drill', 'rope', 'jet', 'chute', 'ladder', 'pill', 'medkit', 'tornado', 'fog'].map((k) => [k, `img/kkumtle/w-${k}.webp`])); // 그림이 있는 무기 아이콘
 const imgs = {};
 function pic(src) { if (typeof Image === 'undefined') return null; let im = imgs[src]; if (!im) { im = imgs[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
@@ -233,12 +234,20 @@ function build(code, ctx) {
   root.innerHTML = `
     <canvas class="kw-cv"></canvas>
     <div class="kw-tl" data-teams></div>
-    <div class="kw-tc"><div class="kw-round" data-round></div><div class="kw-timer" data-timer></div><div class="kw-wind" data-wind></div></div>
+    <div class="kw-tc"><div class="kw-round" data-round></div><div class="kw-timer" data-timer></div></div>
+    <div class="kw-gauge">
+      <div class="kw-dialbox"><canvas class="kw-dial" width="128" height="128"></canvas><div class="kw-windg" title="바람"><i class="l"><s></s></i><i class="r"><s></s></i></div></div>
+      <div class="kw-bars">
+        <div class="kw-bar hp"><b>체력</b><u><s></s></u><em data-hpv></em></div>
+        <div class="kw-bar pow" data-powbar title="눌러서 표시목을 놓아요"><b>파워</b><u><s></s><i class="mark" hidden></i></u><em data-powv></em></div>
+        <div class="kw-bar mv"><b>이동</b><u><s></s></u><em data-mvv></em></div>
+      </div>
+    </div>
     <canvas class="kw-mini" width="200" height="100"></canvas>
     <div class="kw-center" data-center></div>
     <div class="kw-joy"><div class="kw-jpad"><i></i></div></div>
     <button class="kw-wbtn" data-wbtn><span data-wicon><img src="img/kkumtle/w-shell.webp" alt=""></span><small data-wname>일반 포탄</small></button>
-    <div class="kw-rb"><button class="kw-jump" data-jump>⤴<small>점프</small></button><button class="kw-fire" data-fire><span>발사</span><i data-pow></i></button></div>
+    <div class="kw-rb"><button class="kw-jump" data-jump>⤴<small>점프</small></button><button class="kw-fire" data-fire><span>발사</span></button></div>
     <div class="kw-panel" data-panel hidden></div>
     <div class="kw-rmodal" data-rmodal hidden></div>`;
   document.body.appendChild(root);
@@ -330,7 +339,7 @@ function startTurn(c) {
     n: state.turn.n, mask: T.mask, wid: state.turn.wid, team: state.turn.team,
     worms: state.worms.map((w) => ({ ...w, air: false, vx: 0, vy: 0, flip: 0, ph: 0 })),
     projs: [], fx: [], newCr: [], mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), ladders: (state.ladders || []).map((l) => ({ ...l })), fog: state.fog,
-    invs: { red: { ...state.inv.red }, blue: { ...state.inv.blue } }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
+    mv: 1, invs: { red: { ...state.inv.red }, blue: { ...state.inv.blue } }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
     crates: (state.crates || []).map((k) => ({ ...k, air: false, vy: 0 })), heli: state.turn.drop ? { x: state.turn.drop.dir > 0 ? -160 : MW + 160, y: Math.max(60, Math.min(560, ((surfaceAt(T.mask, state.turn.drop.x) + 1) || WATER) - 210)), xd0: state.turn.drop.x, item: state.turn.drop.item, dir: state.turn.drop.dir, done: false } : null,
     rope: null, jet: null, chute: false, drill: null, chick: null, gren: null, mg: null, flame: null,
   };
@@ -359,6 +368,12 @@ function bindInput(c) {
   const fu = () => fireUp(c);
   $f.addEventListener('pointerup', fu); $f.addEventListener('pointercancel', fu); $f.addEventListener('pointerleave', fu);
   R.querySelector('[data-wbtn]').onclick = () => openPanel(c);
+  // 파워 게이지를 눌러 표시목 놓기 (내 화면에만, 다음 판에도 기억)
+  try { const v = localStorage.getItem('kw-mark'); if (v != null) c.mark = +v; } catch {}
+  const $pb = R.querySelector('[data-powbar] u');
+  const setMark = (e) => { const r = $pb.getBoundingClientRect(); c.mark = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); try { localStorage.setItem('kw-mark', String(c.mark)); } catch {} };
+  $pb.addEventListener('pointerdown', (e) => { e.preventDefault(); $pb.setPointerCapture(e.pointerId); setMark(e); });
+  $pb.addEventListener('pointermove', (e) => { if ($pb.hasPointerCapture(e.pointerId)) setMark(e); });
   // 화면: 끌기 · 확대 · 탭(무전기 목표)
   const cv = c.cv, pts = new Map();
   let pinch = null, tap = null;
@@ -400,7 +415,7 @@ function jump(c) {
   const w = meW(c); if (!w || w.dead || c.W.rope || c.W.jet || c.W.drill) return;
   const now = performance.now();
   if (w.climb) { w.climb = false; w.air = false; }
-  if (!w.air) { w.air = true; w.vx = c.facing * 140; w.vy = -230; c.lastJump = now; }
+  if (!w.air) { if (c.W.mv < 0.08) { flash(c, '이동 게이지가 없어요', 900); return; } c.W.mv = Math.max(0, c.W.mv - 0.08); w.air = true; w.vx = c.facing * 140; w.vy = -230; c.lastJump = now; }
   else if (now - c.lastJump < 380 && !w.flip) { w.vx = -c.facing * 80; w.vy = -400; w.flip = now; } // 두 번 누르면 높이 뒤로 덤블링
 }
 
@@ -547,10 +562,11 @@ function simStep(c, dt) {
       if (W.drill.t > 4) fireUp(c);
     } else if (w.climb && Math.abs(J.x) <= 0.3) {
       w.air = false; w.vx = 0; w.vy = 0; w.x += (L.x - w.x) * Math.min(1, dt * 12);
-      if (Math.abs(J.y) > 0.35) { const ny = Math.max(L.y1, Math.min(L.y2, w.y - J.y * 80 * dt)); if (!solid(M, w.x, ny - WH + 2) || J.y < 0) w.y = ny; w.ph += dt * 10; }
+      if (Math.abs(J.y) > 0.35) { const ny = Math.max(L.y1, Math.min(L.y2, w.y - J.y * 80 * dt)); if (W.mv > 0 && (!solid(M, w.x, ny - WH + 2) || J.y < 0)) { W.mv = Math.max(0, W.mv - Math.abs(ny - w.y) / MOVE_PX); w.y = ny; } w.ph += dt * 10; }
     } else if ((!w.air || w.climb) && c.charge < 0 && Math.abs(J.x) > 0.3) {
       w.climb = false;
-      c.facing = J.x > 0 ? 1 : -1; walkStep(M, w, c.facing * 75 * dt); w.ph += dt * 14;
+      c.facing = J.x > 0 ? 1 : -1;
+      if (W.mv > 0) { const x0 = w.x; walkStep(M, w, c.facing * 75 * dt); W.mv = Math.max(0, W.mv - Math.abs(w.x - x0) / MOVE_PX); w.ph += dt * 14; }
     }
     if (c.charge >= 0) c.charge = Math.min(1, c.charge + dt / 1.5);
   }
@@ -695,6 +711,7 @@ function frame(now) {
 function snap(c) {
   const W = c.W;
   return {
+    mv: Math.round(W.mv * 100) / 100,
     n: W.n, w: W.worms.map((o) => [o.id, Math.round(o.x), Math.round(o.y), o.hp, o.dead ? 1 : 0, o.flip ? 1 : 0, Math.round((o.ph || 0) * 10) / 10]),
     p: W.projs.filter((p) => p.t >= 0).map((p) => [p.k, Math.round(p.x), Math.round(p.y), Math.round(Math.atan2(p.vy, p.vx) * 10) / 10, p.face || 0]),
     fx: W.fx.filter((f) => f.k !== 'fire' && f.k !== 'puff').map((f) => [f.k, Math.round(f.x), Math.round(f.y), f.r || 0, Math.round(f.t * 100) / 100, f.s || '', f.col || '', Math.round(f.x2 || 0), Math.round(f.y2 || 0), f.blue ? 1 : 0]),
@@ -918,7 +935,6 @@ function hud(c) {
     const left = Math.max(0, Math.ceil((state.turn.deadline - Date.now()) / 1000));
     set('[data-timer]', `<b class="${left <= 5 ? 'hurry' : ''}">${left}</b>`);
     const w = state.turn.wind, n = Math.round(Math.abs(w) * 5);
-    set('[data-wind]', `<span>${w < 0 ? '◀'.repeat(n) : ''}</span> 바람 ${Math.abs(w).toFixed(1)} <span>${w > 0 ? '▶'.repeat(n) : ''}</span>`);
   }
   const who = state.phase === 'play' && state.turn.uid !== me ? `<span class="kw-who" style="--c:${TEAMS[state.turn.team].col}">${esc(players[state.turn.uid]?.name || '?')}님 차례</span>` : '';
   set('[data-center]', performance.now() < c.msgUntil ? `<b class="kw-msg">${c.msg}</b>` : who);
@@ -926,13 +942,53 @@ function hud(c) {
   set('[data-wicon]', iconHtml(c.sel));
   const cnt = mine ? c.W.inv[c.sel] : state.inv?.[myTeam]?.[c.sel];
   set('[data-wname]', `${def.name}${cnt > 0 ? ` ×${cnt}` : ''}`);
-  R.querySelector('[data-pow]').style.width = `${Math.max(0, c.charge) * 100}%`;
+  gauges(c, mine, L);
   const special = c.W?.rope || c.W?.jet || c.W?.chick;
   R.classList.toggle('kw-wait', !canAct(c) && !(mine && c.W.chick && !c.W.sent));
   R.classList.toggle('kw-mine', !!mine);
   const fl = c.W?.rope ? '로프 놓기' : c.W?.jet ? '제트 끄기' : c.W?.chick ? '🐔 폭파!' : c.sel === 'chute' ? '낙하산' : c.sel === 'drill' ? '꾹 눌러<br>드릴' : def.charge ? '꾹 눌러<br>발사' : '발사';
   set('.kw-fire span', fl);
   void special;
+}
+
+// ── 아래 가운데 게이지: 각도 원 · 바람 · 체력/파워/이동 ──
+function gauges(c, mine, L) {
+  const { state } = c.ctx, R = c.root;
+  const live = mine ? null : L?.n === state.turn.n ? L : null;
+  const wid = state.turn?.wid;
+  const hpNow = mine ? meW(c)?.hp : live ? live.w?.find((o) => o[0] === wid)?.[3] : state.worms?.find((o) => o.id === wid)?.hp;
+  const pow = mine ? c.charge : live ? live.ch : -1;
+  const mv = mine ? c.W.mv : live?.mv ?? 1;
+  const ang = mine ? c.angle : live ? live.a : 0.6, face = mine ? c.facing : live?.f || 1;
+  const hp = Math.max(0, hpNow ?? 0);
+  const bar = (cls, v) => { const e = R.querySelector(`.kw-bar.${cls} s`); const w = `${Math.max(0, Math.min(1, v)) * 100}%`; if (e.style.width !== w) e.style.width = w; };
+  bar('hp', hp / 100); bar('pow', Math.max(0, pow)); bar('mv', mv);
+  const tx = (sel, t) => { const e = R.querySelector(sel); if (e.textContent !== t) e.textContent = t; };
+  tx('[data-hpv]', String(hp)); tx('[data-powv]', pow >= 0 ? String(Math.round(pow * 100)) : ''); tx('[data-mvv]', `${Math.round(mv * 100)}%`);
+  R.querySelector('.kw-bar.hp').classList.toggle('low', hp <= 30);
+  const $m = R.querySelector('.kw-bar.pow .mark');
+  if (c.mark != null) { $m.hidden = false; $m.style.left = `${c.mark * 100}%`; }
+  // 바람: 왼쪽으로 세게 불면 왼쪽 칸이 많이 차요
+  const wind = state.turn?.wind || 0;
+  R.querySelector('.kw-windg .l s').style.width = `${Math.max(0, -wind) * 100}%`;
+  R.querySelector('.kw-windg .r s').style.width = `${Math.max(0, wind) * 100}%`;
+  // 각도 원
+  const key = `${Math.round(ang * 100)}:${face}`;
+  if (c.dialKey === key) return;
+  c.dialKey = key;
+  const cv = R.querySelector('.kw-dial'), x = cv.getContext('2d'), S = cv.width, m = S / 2;
+  x.clearRect(0, 0, S, S);
+  x.lineWidth = 7; x.strokeStyle = 'rgba(255,255,255,.15)'; x.beginPath(); x.arc(m, m, m - 10, 0, 7); x.stroke();
+  // 조준 가능한 범위
+  const a0 = -1.45, a1 = 1.35, toC = (a) => (face > 0 ? -a : Math.PI + a);
+  x.strokeStyle = 'rgba(255,210,80,.35)'; x.beginPath(); if (face > 0) x.arc(m, m, m - 10, toC(1.45), toC(-1.35)); else x.arc(m, m, m - 10, toC(-1.35), toC(1.45)); x.stroke();
+  for (let d = -90; d <= 90; d += 30) { const a = toC((d * Math.PI) / 180); x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 2; x.beginPath(); x.moveTo(m + Math.cos(a) * (m - 20), m + Math.sin(a) * (m - 20)); x.lineTo(m + Math.cos(a) * (m - 4), m + Math.sin(a) * (m - 4)); x.stroke(); }
+  const a = toC(ang);
+  x.strokeStyle = '#ff4f4f'; x.lineWidth = 5; x.lineCap = 'round'; x.beginPath(); x.moveTo(m, m); x.lineTo(m + Math.cos(a) * (m - 14), m + Math.sin(a) * (m - 14)); x.stroke();
+  x.fillStyle = '#ffd84d'; x.beginPath(); x.arc(m, m, 7, 0, 7); x.fill();
+  x.fillStyle = '#fff'; x.font = `bold ${S * 0.2}px sans-serif`; x.textAlign = 'center'; x.lineWidth = 4; x.strokeStyle = 'rgba(0,0,0,.6)';
+  const deg = `${Math.round((ang * 180) / Math.PI)}°`; x.strokeText(deg, m, m + S * 0.33); x.fillText(deg, m, m + S * 0.33);
+  void a0; void a1;
 }
 
 function roundModal(c) {

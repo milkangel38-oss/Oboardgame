@@ -3603,7 +3603,7 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 .kw-joy { position: absolute; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); }
 .kw-jpad { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, .12), rgba(255, 255, 255, .05)); border: 2px solid rgba(255, 255, 255, .35); display: grid; place-items: center; touch-action: none; }
 .kw-jpad i { width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #b8c4d8); box-shadow: 0 3px 8px rgba(0, 0, 0, .5); pointer-events: none; }
-.kw-wbtn { position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: 84px; height: 72px; border-radius: 16px; border: 2px solid var(--gold); background: rgba(20, 24, 40, .75); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
+.kw-wbtn { position: absolute; right: calc(max(16px, env(safe-area-inset-right)) + 182px); bottom: max(16px, env(safe-area-inset-bottom)); width: 84px; height: 72px; border-radius: 16px; border: 2px solid var(--gold); background: rgba(20, 24, 40, .75); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
 .kw-wbtn span { font-size: 28px; line-height: 1; height: 34px; display: grid; place-items: center; } .kw-wbtn span img { height: 34px; width: auto; max-width: 70px; object-fit: contain; } .kw-it span img { height: 28px; width: auto; max-width: 56px; object-fit: contain; } .kw-wbtn small { font-size: 10px; white-space: nowrap; }
 .kw-rb { position: absolute; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; gap: 12px; }
 .kw-jump, .kw-fire { border-radius: 50%; border: 3px solid rgba(255, 255, 255, .6); color: #fff; font-weight: 800; cursor: pointer; touch-action: none; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
@@ -3635,7 +3635,8 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 @media (max-height: 460px) {
   .kw-jpad { width: 96px; height: 96px; } .kw-jpad i { width: 40px; height: 40px; }
   .kw-fire { width: 76px; height: 76px; } .kw-jump { width: 56px; height: 56px; margin-bottom: 24px; }
-  .kw-wbtn { width: 72px; height: 60px; } .kw-mini { width: 140px; height: 70px; }
+  .kw-wbtn { width: 72px; height: 60px; right: calc(max(16px, env(safe-area-inset-right)) + 156px); } .kw-mini { width: 140px; height: 70px; }
+  .kw-gauge { left: 124px; right: 252px; } .kw-dialbox { width: 56px; } .kw-bar { height: 15px; }
 }
 @media (max-width: 520px) {
   .kw-tb { min-width: 0; } .kw-tb div span { max-width: 52px; }
@@ -3645,5 +3646,33 @@ html.kw-on, html.kw-on body { overflow: hidden; }
   .kw-timer b { width: 38px; height: 38px; font-size: 17px; }
   .kw-maps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kw-rb { flex-direction: column-reverse; align-items: center; gap: 10px; } .kw-jump { margin-bottom: 0; }
-  .kw-wbtn { left: auto; right: calc(max(16px, env(safe-area-inset-right)) + 104px); transform: none; }
+  .kw-wbtn { right: calc(max(16px, env(safe-area-inset-right)) + 104px); }
+  .kw-gauge { left: 10px; right: 112px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 136px); max-width: none; }
 }
+
+/* 꿈틀 포격전: 게이지 */
+.kw-gauge { position: absolute; left: 156px; right: 292px; bottom: max(14px, env(safe-area-inset-bottom)); max-width: 460px; margin: 0 auto; display: flex; gap: 8px; align-items: center; padding: 6px 10px 6px 6px; border-radius: 16px; background: linear-gradient(180deg, rgba(40, 46, 70, .9), rgba(18, 22, 36, .9)); border: 2px solid rgba(255, 210, 80, .7); box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+.kw-dialbox { width: 64px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.kw-dial { width: 100%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #2a3150, #12162a); border: 2px solid rgba(255, 255, 255, .35); }
+.kw-windg { display: flex; width: 100%; height: 8px; gap: 2px; }
+.kw-windg i { flex: 1; height: 100%; background: rgba(255, 255, 255, .15); border-radius: 4px; overflow: hidden; display: flex; }
+.kw-windg .l { justify-content: flex-end; }
+.kw-windg s { display: block; height: 100%; background: linear-gradient(90deg, #9fd3ff, #3d9bff); text-decoration: none; transition: width .3s; }
+.kw-windg .l s { background: linear-gradient(270deg, #9fd3ff, #3d9bff); }
+.kw-bars { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.kw-bar { display: grid; grid-template-columns: 30px 1fr 34px; align-items: center; gap: 5px; height: 17px; font-size: 10px; }
+.kw-bar b { font-weight: 800; opacity: .85; white-space: nowrap; }
+.kw-bar em { font-style: normal; font-weight: 700; text-align: right; font-size: 11px; }
+.kw-bar u { position: relative; display: block; height: 100%; border-radius: 6px; background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 255, 255, .25); text-decoration: none; overflow: visible; }
+.kw-bar s { display: block; height: 100%; width: 0; border-radius: 5px; text-decoration: none; }
+.kw-bar.hp s { background: linear-gradient(180deg, #6ff59a, #22b35a); }
+.kw-bar.hp.low s { background: linear-gradient(180deg, #ff8a7a, #d63a3a); }
+.kw-bar.pow s { background: linear-gradient(90deg, #ffe066, #ff9f1a 60%, #ff3b3b); }
+.kw-bar.mv s { background: linear-gradient(180deg, #8fd3ff, #2f7fd8); }
+.kw-bar.pow u { cursor: pointer; touch-action: none; }
+.kw-bar .mark { position: absolute; top: -5px; bottom: -5px; width: 4px; margin-left: -2px; background: #fff; border-radius: 2px; box-shadow: 0 0 0 1px #000, 0 0 6px rgba(255, 255, 255, .8); pointer-events: none; }
+.kw-bar .mark::before { content: ''; position: absolute; left: 50%; top: -6px; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #ff4f4f; }
+.kw-bar .mark[hidden] { display: none; }
+.kw.kw-wait .kw-gauge { opacity: .85; }
+@media (max-height: 460px) { .kw-gauge { left: 124px; right: 252px; padding: 4px 8px 4px 4px; } .kw-dialbox { width: 52px; } .kw-bar { height: 14px; } }
+@media (max-width: 520px) { .kw-gauge { left: 10px; right: 112px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 136px); max-width: none; } }
