@@ -1,13 +1,13 @@
 // 꿈틀 포격전 무기 · 아이템 목록 (cat: atk 공격 / move 이동 / util 유틸, n: 라운드당 개수, -1 = 무제한, sp: 특수무기 = 보급 상자로만 획득)
 export const WEAPONS = [
-  { id: 'shell', cat: 'atk', icon: '🚀', name: '일반 포탄', n: -1, charge: true, desc: '꾹 눌러 힘을 모아 쏘는 기본 포탄. 바람의 영향을 받고, 닿는 즉시 폭발해요. (정타 20)' },
+  { id: 'shell', cat: 'atk', icon: '🚀', name: '기본 무기', n: -1, charge: true, desc: '꾹 눌러 힘을 모아 쏘는 기본 포탄. 바람의 영향을 받고, 닿는 즉시 폭발해요. (정타 20)' },
   { id: 'homing', cat: 'atk', icon: '🎯', name: '유도탄', n: 1, charge: true, desc: '포탄처럼 날아가다가 상대 오리에게 가까워지면 갑자기 방향을 틀어 쫓아가요. (정타 35)' },
-  { id: 'grenade', cat: 'atk', icon: '💣', name: '수류탄', n: 3, charge: true, desc: '고르는 순간 5초 카운트다운 시작! 땅에 닿아도 튕기기만 하고, 시간이 되면 폭발해요. 손에 들고 있으면 내가 터져요! (정타 30)' },
+  { id: 'grenade', cat: 'atk', icon: '💣', name: '수류탄', n: 3, charge: true, desc: '발사 버튼을 누르는 순간 5초 카운트다운! 땅에 닿아도 튕기기만 하고, 시간이 되면 폭발해요. 손에 들고 있으면 내가 터져요! (정타 40)' },
   { id: 'flame', cat: 'atk', icon: '🔥', name: '화염방사기', n: 2, desc: '앞쪽 일직선으로 불을 내뿜어 맞은 적을 밀어내요. (가까이서 맞으면 50)' },
   { id: 'mine', cat: 'atk', icon: '🧨', name: '지뢰', n: 2, charge: true, desc: '던져서 설치해요. 상대 팀에게는 보이지 않고, 상대가 가까이 오면 폭발해요. (정타 40)' },
   { id: 'pistol', cat: 'atk', icon: '🔫', name: '권총', n: -1, desc: '조준한 방향 일직선으로 한 발을 쏴요. (30)' },
   { id: 'mg', cat: 'atk', icon: '🪖', name: '기관총', n: 2, desc: '조준한 방향으로 여러 발을 연속으로 쏴요. 조금씩 퍼져요. (10발 모두 맞으면 50)' },
-  { id: 'radio', cat: 'atk', icon: '📻', name: '무전기', n: 0, sp: true, target: true, desc: '화면을 눌러 목표를 찍고 발사! 전투기가 날아와 미사일 3발을 가로로 떨어뜨려요. (1발당 정타 60)' },
+  { id: 'radio', cat: 'atk', icon: '📻', name: '무전기', n: 0, sp: true, target: true, desc: '화면을 눌러 목표를 정하면 전투기가 날아와 미사일 5발을 가로로 떨어뜨려요. (1발당 정타 60)' },
   { id: 'chicken', cat: 'atk', icon: '🐔', name: '닭', n: 0, sp: true, desc: '닭 한 마리가 보는 방향으로 달려가요. 발사 버튼을 한 번 더 누르면 꼬끼오! 하고 크게 폭발해요. (정타 80)' },
   { id: 'tele', cat: 'move', icon: '🌀', name: '이동탄', n: 2, charge: true, desc: '쏜 탄이 떨어진 곳으로 순간이동해요. (차례가 끝나지 않아요)' },
   { id: 'drill', cat: 'move', icon: '🪛', name: '드릴', n: 2, desc: '발사 버튼을 누르고 있는 동안 조준한 방향으로 땅굴을 파며 나아가요.' },
