@@ -8,6 +8,11 @@ import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkSt
 import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
 
 const TURN_MS = 30000;
+const HB = 32; // 오리 몸 높이 (맞는 범위)
+const ICONS = { shell: 'img/kkumtle/w-shell.webp', homing: 'img/kkumtle/w-homing.webp' }; // 그림이 있는 무기 아이콘
+const imgs = {};
+function pic(src) { if (typeof Image === 'undefined') return null; let im = imgs[src]; if (!im) { im = imgs[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
+const iconHtml = (id) => (ICONS[id] ? `<img src="${ICONS[id]}" alt="">` : WMAP[id].icon);
 const TEAMS = { red: { name: '레드팀', col: '#ff4f5e' }, blue: { name: '블루팀', col: '#3d7bff' } };
 const SKINS = [ // 12마리 (그림이 오기 전 임시 색)
   ['#ffb5c5', '#c4607a'], ['#ffd27a', '#c28a20'], ['#a8e6a1', '#4f9a48'], ['#9fd3ff', '#3a7fc0'], ['#d6b3ff', '#7a4fc0'], ['#ffb08a', '#c0603a'],
@@ -182,7 +187,7 @@ function lobby(el, { state, me, players, sendMove, room }) {
   el.innerHTML = `<div class="kw-lobby">
     <div class="kw-teams">${col('red')}<div class="kw-vs">VS</div>${col('blue')}</div>
     <div class="kw-sec">🗺️ 맵 선택 ${isHost ? '' : '<small>(방장이 골라요)</small>'}</div>
-    <div class="kw-maps">${Object.entries(MAPS).map(([k, m]) => `<button class="kw-map ${state.map === k ? 'on' : ''}" data-map="${k}" ${isHost ? '' : 'disabled'} style="--s1:${m.sky[0]};--s2:${m.sky[1]};--d:${m.dirt[0]};--t:${m.top}"><i></i><b>${m.emoji} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
+    <div class="kw-maps">${Object.entries(MAPS).map(([k, m]) => `<button class="kw-map ${state.map === k ? 'on' : ''}" data-map="${k}" ${isHost ? '' : 'disabled'} style="--s1:${m.sky[0]};--s2:${m.sky[1]};--d:${m.dirt[0]};--t:${m.top};--bg:url(img/kkumtle/bg-${k}.webp)"><i></i><b>${m.emoji} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
     <div class="kw-opts">라운드 <b>${state.rounds}</b> · 팀당 꿈틀이 <b>${state.per}</b>마리 <small>(먼저 ${Math.floor(state.rounds / 2) + 1}라운드 이기면 승리)</small></div>
     ${state.order.includes(me) ? (isHost
       ? `<button class="btn primary block" data-start ${allReady && two ? '' : 'disabled'}>${!two ? '두 팀에 모두 사람이 있어야 해요' : allReady ? '🚀 게임 시작!' : '모두 준비하면 시작할 수 있어요'}</button>`
@@ -232,7 +237,7 @@ function build(code, ctx) {
     <canvas class="kw-mini" width="200" height="100"></canvas>
     <div class="kw-center" data-center></div>
     <div class="kw-joy"><div class="kw-jpad"><i></i></div></div>
-    <button class="kw-wbtn" data-wbtn><span data-wicon>🚀</span><small data-wname>일반 포탄</small></button>
+    <button class="kw-wbtn" data-wbtn><span data-wicon><img src="img/kkumtle/w-shell.webp" alt=""></span><small data-wname>일반 포탄</small></button>
     <div class="kw-rb"><button class="kw-jump" data-jump>⤴<small>점프</small></button><button class="kw-fire" data-fire><span>발사</span><i data-pow></i></button></div>
     <div class="kw-panel" data-panel hidden></div>
     <div class="kw-rmodal" data-rmodal hidden></div>`;
@@ -457,7 +462,7 @@ function shoot(c, x, y, dir, dmg, push, cr) {
   const W = c.W;
   for (let d = 0; d < 760; d += 2) {
     const px = x + dir[0] * d, py = y + dir[1] * d;
-    const hit = W.worms.find((w) => !w.dead && w.id !== W.wid && Math.hypot(w.x - px, w.y - WH / 2 - py) < 10);
+    const hit = W.worms.find((w) => !w.dead && w.id !== W.wid && Math.abs(w.x - px) < 12 && py > w.y - HB && py < w.y + 2);
     if (hit) { W.fx.push({ k: 'tracer', x, y, x2: px, y2: py, t: 0 }); hurt(c, hit, dmg, dir[0] * push, dir[1] * push - 120); return; }
     if (solid(W.mask, px, py) || py > MH) { W.fx.push({ k: 'tracer', x, y, x2: px, y2: py, t: 0 }); crater(c, px, py, cr); return; }
   }
@@ -480,7 +485,7 @@ function explode(c, x, y, r, dmg) {
   boomSfx(r);
   for (const w of W.worms) {
     if (w.dead) continue;
-    const dx = w.x - x, dy = w.y - WH / 2 - y, d = Math.hypot(dx, dy);
+    const dx = w.x - x, dy = w.y - HB / 2 - y, d = Math.max(0, Math.hypot(dx, dy) - 6);
     if (d > r + 12) continue;
     const dm = Math.max(4, Math.round(dmg * (1 - d / (r + 12))));
     const l = d || 1, k = dm * 7.5;
@@ -623,7 +628,7 @@ function simStep(c, dt) {
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
     if (ny > WATER) { remove(W, p); W.fx.push({ k: 'splash', x: nx, y: WATER, t: 0 }); continue; }
     if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 6)) { remove(W, p); continue; }
-    const hitWorm = ['shell', 'mini', 'air'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team) && Math.abs(o.x - nx) < 9 && ny > o.y - WH && ny < o.y + 2);
+    const hitWorm = ['shell', 'mini', 'air'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team) && Math.abs(o.x - nx) < 12 && ny > o.y - HB && ny < o.y + 2);
     if (solid(M, nx, ny) || hitWorm) {
       if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 20); }
       else if (p.k === 'mini') { remove(W, p); explode(c, nx, ny, 18, 15); }
@@ -716,12 +721,17 @@ function draw(c, dt, now) {
   x.setTransform(dpr, 0, 0, dpr, 0, 0);
   const sky = x.createLinearGradient(0, 0, 0, Hd); sky.addColorStop(0, M.sky[0]); sky.addColorStop(1, M.sky[1]);
   x.fillStyle = sky; x.fillRect(0, 0, Wd, Hd);
+  const bg = pic(`img/kkumtle/bg-${state.map}.webp`);
+  if (bg) { // 먼 배경: 화면보다 조금 크게, 카메라를 따라 천천히 (패럴랙스)
+    const ih = Math.max(Hd * 1.2, Wd / 2 * 1.15), iw = ih * (bg.naturalWidth / bg.naturalHeight);
+    const ox = -(Math.max(0, Math.min(1, c.cam.x / MW))) * (iw - Wd), oy = -(Math.max(0, Math.min(1, c.cam.y / MH))) * (ih - Hd);
+    x.drawImage(bg, ox, oy, iw, ih);
+  }
   x.setTransform(dpr * z, 0, 0, dpr * z, dpr * (Wd / 2 - c.cam.x * z), dpr * (Hd / 2 - c.cam.y * z));
-  x.fillStyle = 'rgba(255,255,255,.25)';
-  x.beginPath(); x.moveTo(-300, MH); for (let i = -300; i <= MW + 300; i += 50) x.lineTo(i, 420 + Math.sin(i * 0.004) * 70 + Math.sin(i * 0.013) * 25); x.lineTo(MW + 300, MH); x.fill();
+  if (!bg) { x.fillStyle = 'rgba(255,255,255,.25)'; x.beginPath(); x.moveTo(-300, MH); for (let i = -300; i <= MW + 300; i += 50) x.lineTo(i, 420 + Math.sin(i * 0.004) * 70 + Math.sin(i * 0.013) * 25); x.lineTo(MW + 300, MH); x.fill(); }
   const wind = state.turn?.wind || 0;
   x.fillStyle = 'rgba(255,255,255,.85)';
-  for (let i = 0; i < 7; i++) { const cx = (((i * 330 + now * 0.03 * wind) % (MW + 400)) + MW + 400) % (MW + 400) - 200; x.beginPath(); x.ellipse(cx, 80 + (i % 3) * 45, 70, 20, 0, 0, 7); x.ellipse(cx + 34, 68 + (i % 3) * 45, 44, 22, 0, 0, 7); x.fill(); }
+  if (!bg) for (let i = 0; i < 7; i++) { const cx = (((i * 330 + now * 0.03 * wind) % (MW + 400)) + MW + 400) % (MW + 400) - 200; x.beginPath(); x.ellipse(cx, 80 + (i % 3) * 45, 70, 20, 0, 0, 7); x.ellipse(cx + 34, 68 + (i % 3) * 45, 44, 22, 0, 0, 7); x.fill(); }
   x.drawImage(T.cv, 0, 0);
   const wy = WATER + Math.sin(now / 500) * 3;
   x.fillStyle = M.water; x.globalAlpha = 0.88; x.fillRect(-900, wy, MW + 1800, MH); x.globalAlpha = 1;
@@ -743,15 +753,15 @@ function draw(c, dt, now) {
     drawWorm(x, wx, wy2, info.skin, f, active ? ph : 0, flip ? now : 0, TEAMS[info.team].col, esc(players[info.owner]?.name || '?').slice(0, 7), hp, active);
     if (!active) continue;
     if (V.rope) { x.strokeStyle = '#d9b46a'; x.lineWidth = 2; x.beginPath(); x.moveTo(wx, wy2 - 9); x.lineTo(V.rope[0], V.rope[1]); x.stroke(); }
-    if (V.chute) { x.fillStyle = '#ff6a8a'; x.beginPath(); x.arc(wx, wy2 - 46, 22, Math.PI, 0); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(wx - 22, wy2 - 46); x.lineTo(wx, wy2 - 12); x.lineTo(wx + 22, wy2 - 46); x.stroke(); }
+    if (V.chute) { x.fillStyle = '#ff6a8a'; x.beginPath(); x.arc(wx, wy2 - 62, 24, Math.PI, 0); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(wx - 24, wy2 - 62); x.lineTo(wx, wy2 - 26); x.lineTo(wx + 24, wy2 - 62); x.stroke(); }
     if (V.jet) { x.font = '14px sans-serif'; x.textAlign = 'center'; x.fillText('🎒', wx - f * 8, wy2 - 6); }
     if (!V.rope && !V.jet) {
       const dx = Math.cos(V.a) * f, dy = -Math.sin(V.a), ox = wx, oy = wy2 - 9;
       x.strokeStyle = 'rgba(255,255,255,.9)'; x.setLineDash([5, 5]); x.lineWidth = 2; x.beginPath(); x.moveTo(ox + dx * 16, oy + dy * 16); x.lineTo(ox + dx * 80, oy + dy * 80); x.stroke(); x.setLineDash([]);
       x.strokeStyle = '#ff3b3b'; x.lineWidth = 2; x.beginPath(); x.arc(ox + dx * 86, oy + dy * 86, 7, 0, 7); x.stroke();
-      x.font = '16px sans-serif'; x.textAlign = 'center'; x.fillText(WMAP[V.wp]?.icon || '', ox + dx * 16, oy + 6 + dy * 16);
+      const ic = ICONS[V.wp] && pic(ICONS[V.wp]); if (ic) { const ih = 18, iw = ih * ic.naturalWidth / ic.naturalHeight; x.save(); x.translate(ox + dx * 20, oy + dy * 20); x.rotate(Math.atan2(dy, dx) + Math.PI / 2); x.drawImage(ic, -iw / 2, -ih / 2, iw, ih); x.restore(); } else { x.font = '16px sans-serif'; x.textAlign = 'center'; x.fillText(WMAP[V.wp]?.icon || '', ox + dx * 18, oy + 6 + dy * 18); }
       if (V.ch >= 0) { x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(wx - 24, wy2 + 6, 48, 7); x.fillStyle = `hsl(${120 - V.ch * 120},90%,55%)`; x.fillRect(wx - 24, wy2 + 6, 48 * V.ch, 7); }
-      if (V.gr) { x.font = 'bold 18px sans-serif'; x.lineWidth = 4; x.strokeStyle = '#000'; x.fillStyle = '#ff4f4f'; x.strokeText(`💣 ${V.gr}`, wx, wy2 - 62); x.fillText(`💣 ${V.gr}`, wx, wy2 - 62); }
+      if (V.gr) { x.font = 'bold 18px sans-serif'; x.lineWidth = 4; x.strokeStyle = '#000'; x.fillStyle = '#ff4f4f'; x.strokeText(`💣 ${V.gr}`, wx, wy2 - 84); x.fillText(`💣 ${V.gr}`, wx, wy2 - 84); }
     }
   }
   if (V.tg) { x.strokeStyle = '#ff3b3b'; x.lineWidth = 3; const [tx, ty] = V.tg; x.beginPath(); x.arc(tx, ty, 16, 0, 7); x.moveTo(tx - 24, ty); x.lineTo(tx + 24, ty); x.moveTo(tx, ty - 24); x.lineTo(tx, ty + 24); x.stroke(); }
@@ -806,6 +816,15 @@ function drawHeli(x, X, Y, dir, done, now) {
 
 // 꿈틀이 (몸과 얼굴이 하나 · 걸을 때 앞뒤로 꿈틀꿈틀)
 function drawWorm(x, X, Y, skin, face, ph, flipT, col, name, hp, active) {
+  const duck = pic(`img/kkumtle/d${skin % 12}.webp`);
+  if (duck) {
+    const h = 38, w = h * duck.naturalWidth / duck.naturalHeight, step = Math.sin(ph);
+    x.save(); x.translate(X, Y);
+    if (flipT) { x.translate(0, -h / 2); x.rotate(((flipT / 90) % (Math.PI * 2)) * -face); x.translate(0, h / 2); }
+    x.rotate(step * 0.13 * face); x.translate(0, -Math.abs(step) * 2.5); // 뒤뚱뒤뚱
+    x.scale(face, 1); x.drawImage(duck, -w / 2, -h + 2, w, h);
+    x.restore();
+  } else {
   const [c1, c2] = SKINS[skin % 12], acc = ACC[skin % 12];
   x.save(); x.translate(X, Y - 9);
   if (flipT) x.rotate(((flipT / 90) % (Math.PI * 2)) * -face);
@@ -833,10 +852,11 @@ function drawWorm(x, X, Y, skin, face, ph, flipT, col, name, hp, active) {
   else if (acc === 'flower') { x.fillStyle = '#ff8fb8'; for (let i = 0; i < 5; i++) { x.beginPath(); x.arc(2 + Math.cos(i * 1.26) * 3, -21 + Math.sin(i * 1.26) * 3, 2, 0, 7); x.fill(); } x.fillStyle = '#ffd84d'; x.beginPath(); x.arc(2, -21, 1.6, 0, 7); x.fill(); x.fillStyle = col; x.fillRect(4, -20, 8, 2); }
   else x.fillRect(-2, -19, 13, 2.5);
   x.restore();
+  }
   x.save(); x.textAlign = 'center'; x.font = 'bold 11px sans-serif'; x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,.75)';
-  x.fillStyle = col; x.strokeText(name, X, Y - 40); x.fillText(name, X, Y - 40);
-  x.fillStyle = '#fff'; x.strokeText(String(hp), X, Y - 28); x.fillText(String(hp), X, Y - 28);
-  if (active) { const b = Math.sin(performance.now() / 150) * 3; x.fillStyle = '#ffd84d'; x.beginPath(); x.moveTo(X - 6, Y - 60 + b); x.lineTo(X + 6, Y - 60 + b); x.lineTo(X, Y - 51 + b); x.fill(); }
+  x.fillStyle = col; x.strokeText(name, X, Y - 52); x.fillText(name, X, Y - 52);
+  x.fillStyle = '#fff'; x.strokeText(String(hp), X, Y - 40); x.fillText(String(hp), X, Y - 40);
+  if (active) { const b = Math.sin(performance.now() / 150) * 3; x.fillStyle = '#ffd84d'; x.beginPath(); x.moveTo(X - 6, Y - 74 + b); x.lineTo(X + 6, Y - 74 + b); x.lineTo(X, Y - 65 + b); x.fill(); }
   x.restore();
 }
 
@@ -873,7 +893,7 @@ function hud(c) {
   const who = state.phase === 'play' && state.turn.uid !== me ? `<span class="kw-who" style="--c:${TEAMS[state.turn.team].col}">${esc(players[state.turn.uid]?.name || '?')}님 차례</span>` : '';
   set('[data-center]', performance.now() < c.msgUntil ? `<b class="kw-msg">${c.msg}</b>` : who);
   const def = WMAP[c.sel];
-  set('[data-wicon]', def.icon);
+  set('[data-wicon]', iconHtml(c.sel));
   const cnt = mine ? c.W.inv[c.sel] : state.inv?.[myTeam]?.[c.sel];
   set('[data-wname]', `${def.name}${cnt > 0 ? ` ×${cnt}` : ''}`);
   R.querySelector('[data-pow]').style.width = `${Math.max(0, c.charge) * 100}%`;
@@ -905,7 +925,7 @@ function openPanel(c) {
   const draw = () => {
     $p.innerHTML = `<div class="kw-pbox">
       <div class="kw-ph"><b>🎒 무기 · 아이템</b><button data-x>✕</button></div>
-      ${Object.entries(CATS).map(([k, n]) => `<div class="kw-cat"><h6>${n}</h6><div class="kw-grid">${WEAPONS.filter((w) => w.cat === k).map((w) => `<button class="kw-it ${pick === w.id ? 'on' : ''} ${!(inv[w.id] !== 0 && (inv[w.id] != null || !w.sp)) ? 'none' : ''} ${w.sp ? 'sp' : ''}" data-it="${w.id}"><span>${w.icon}</span><small>${w.name}</small><em>${w.sp && !inv[w.id] ? '🔒' : inv[w.id] == null || inv[w.id] < 0 ? '∞' : '×' + inv[w.id]}</em>${w.sp ? '<b>특수</b>' : ''}</button>`).join('')}</div></div>`).join('')}
+      ${Object.entries(CATS).map(([k, n]) => `<div class="kw-cat"><h6>${n}</h6><div class="kw-grid">${WEAPONS.filter((w) => w.cat === k).map((w) => `<button class="kw-it ${pick === w.id ? 'on' : ''} ${!(inv[w.id] !== 0 && (inv[w.id] != null || !w.sp)) ? 'none' : ''} ${w.sp ? 'sp' : ''}" data-it="${w.id}"><span>${iconHtml(w.id)}</span><small>${w.name}</small><em>${w.sp && !inv[w.id] ? '🔒' : inv[w.id] == null || inv[w.id] < 0 ? '∞' : '×' + inv[w.id]}</em>${w.sp ? '<b>특수</b>' : ''}</button>`).join('')}</div></div>`).join('')}
       <div class="kw-desc">${descHtml(WMAP[pick])}</div>
       <button class="btn primary block" data-ok ${!inv[pick] && (inv[pick] === 0 || WMAP[pick].sp) ? 'disabled' : ''}>선택</button></div>`;
     $p.querySelector('[data-x]').onclick = () => ($p.hidden = true);
