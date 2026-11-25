@@ -4,7 +4,7 @@ export const G = 520;
 export const WH = 18; // 꿈틀이 키 (발 기준)
 
 export const MAPS = {
-  city: { name: '도시', emoji: '🏙️', sky: ['#7fb2e6', '#e3f0ff'], dirt: ['#7c7f8c', '#4c4f5a'], top: '#b4bccb', water: '#2f5f99', desc: '빌딩 사이를 넘나드는 도심 전투' },
+  city: { bed: 800, name: '도시', emoji: '🏙️', sky: ['#7fb2e6', '#e3f0ff'], dirt: ['#7c7f8c', '#4c4f5a'], top: '#b4bccb', water: '#2f5f99', desc: '빌딩 사이를 넘나드는 도심 전투' },
   mountain: { name: '산', emoji: '⛰️', sky: ['#6fb6ff', '#d6ecff'], dirt: ['#9a6a3e', '#5a3a20'], top: '#5fcf5a', water: '#2a74c8', desc: '높은 봉우리와 깊은 골짜기' },
   sky: { name: '하늘', emoji: '☁️', sky: ['#9ccfff', '#fff1d6'], dirt: ['#b08a5a', '#7a5a38'], top: '#8de07a', water: '#4a8fd8', desc: '구름 위에 떠 있는 섬들 — 떨어지면 끝!' },
   sea: { name: '바다', emoji: '🌊', sky: ['#5fc0ff', '#e0f6ff'], dirt: ['#d8b878', '#a8864a'], top: '#f2dc9c', water: '#1c8fcf', desc: '바다 위 작은 모래섬들' },
@@ -19,7 +19,8 @@ export function rng(seed) {
 
 // 지형 만들기: 1 = 땅
 export function makeMask(map, seed) {
-  const m = new Uint8Array(MW * MH), r = rng(seed);
+  const m = new Uint8Array(MW * MH), r = rng(seed), plats = [];
+  m.plats = plats;
   const col = (x, top, bot = MH) => { for (let y = Math.max(0, top | 0); y < Math.min(MH, bot); y++) m[y * MW + x] = 1; };
   const hm = (base, amps) => { const ws = amps.map((a, i) => ({ a: a * (0.6 + r() * 0.8), f: (0.002 + r() * 0.002) * (i + 1), p: r() * 6.28 })); return (x) => ws.reduce((s, w) => s + Math.sin(x * w.f + w.p) * w.a, base); };
   const edge = (x) => Math.min(x, MW - 1 - x);
@@ -29,7 +30,7 @@ export function makeMask(map, seed) {
     if (map === 'snow') for (let i = 0; i < 4; i++) { const cx = 250 + r() * 1300, cy = 420 + r() * 120; blob(m, cx, cy, 70 + r() * 50, 22 + r() * 14, r); }
   } else if (map === 'city') {
     const g = 700;
-    for (let x = 0; x < MW; x++) if (edge(x) > 90) col(x, g);
+    for (let x = 0; x < MW; x++) col(x, g); // 바다 대신 끝까지 바닥
     let x = 120;
     while (x < MW - 200) {
       const w = 90 + r() * 110, top = g - (120 + r() * 300);
@@ -43,9 +44,11 @@ export function makeMask(map, seed) {
     for (let tries = 0; made < 18 && tries < 600; tries++) {
       const w = Math.round(70 + r() * 90), x0 = Math.round(60 + r() * (MW - 120 - w)), y0 = Math.round(150 + r() * 430);
       if (!empty(x0 - 26, y0 - 40, w + 52, 40 + 10 + 30)) continue;
-      for (let i = 0; i < w; i++) col(x0 + i, y0, y0 + 10);
+      for (let i = 0; i < w; i++) for (let y = y0; y < y0 + 10; y++) m[y * MW + x0 + i] = 3; // 3 = 내구도 있는 발판
+      plats.push({ x: x0, y: y0, w, h: 10 });
       made++;
     }
+    for (let y = MAPS.city.bed; y < MH; y++) for (let x = 0; x < MW; x++) m[y * MW + x] = 2; // 2 = 부서지지 않는 맨 밑 바닥
   } else if (map === 'sky') {
     const n = 7;
     for (let i = 0; i < n; i++) {
@@ -93,12 +96,12 @@ export function movers(map, seed, m) {
   return out;
 }
 export const moverX = (o, ms) => Math.round(o.x0 + Math.sin((ms / 1000 / o.per) * Math.PI * 2 + o.ph) * o.amp);
-export const solid = (m, x, y) => { x |= 0; y |= 0; return x >= 0 && x < MW && y >= 0 && y < MH && m[y * MW + x] === 1; };
+export const solid = (m, x, y) => { x |= 0; y |= 0; return x >= 0 && x < MW && y >= 0 && y < MH && m[y * MW + x] !== 0; };
 export function carve(m, cx, cy, r) {
   const r2 = r * r;
   for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(MH - 1, cy + r); y++)
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(MW - 1, cx + r); x++)
-      if ((x - cx) ** 2 + (y - cy) ** 2 <= r2) m[y * MW + x] = 0;
+      if (m[y * MW + x] === 1 && (x - cx) ** 2 + (y - cy) ** 2 <= r2) m[y * MW + x] = 0; // 2 · 3은 폭발로 안 깎여요
 }
 // 시작 자리: 땅 위, 물 위
 export function surfaceAt(m, x, fromY = 0) {

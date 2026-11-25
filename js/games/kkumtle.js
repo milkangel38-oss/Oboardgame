@@ -32,18 +32,18 @@ function newRound(state, now) {
   const byTeam = { red: state.order.filter((u) => state.teams[u] === 'red'), blue: state.order.filter((u) => state.teams[u] === 'blue') };
   const counts = { red: Math.max(state.per, byTeam.red.length), blue: Math.max(state.per, byTeam.blue.length) };
   const pts = spawnPoints(mask, counts.red + counts.blue, seed);
-  const worms = [];
+  const worms = [], picks = normPicks(state);
   let k = 0, skin = 0;
   for (const t of ['red', 'blue']) for (let i = 0; i < counts[t]; i++) {
     const p = pts[k++];
-    const owner = byTeam[t][i % byTeam[t].length], used = new Set(byTeam[t].map((u) => state.picks?.[u]));
-    let sk = i < byTeam[t].length && state.picks?.[owner] != null ? state.picks[owner] : -1;
-    if (sk < 0) { sk = [...Array(12).keys()].find((q) => !used.has(q) && !worms.some((o) => o.team === t && o.skin === q)) ?? (skin % 12); skin++; }
+    const owner = byTeam[t][i % byTeam[t].length];
+    let sk = picks[owner]?.[Math.floor(i / byTeam[t].length)] ?? -1;
+    if (sk < 0 || worms.some((o) => o.team === t && o.skin === sk)) { sk = [...Array(12).keys()].find((q) => !worms.some((o) => o.team === t && o.skin === q)) ?? (skin % 12); skin++; }
     worms.push({ id: `${t[0]}${i}`, team: t, owner, x: p.x, y: p.y, hp: 100, dead: false, skin: sk });
   }
   const first = Math.random() < 0.5 ? 'red' : 'blue';
   const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10].sort(() => Math.random() - 0.5), drops = pool.slice(0, Math.random() < 0.5 ? 2 : 3).sort((a, b) => a - b);
-  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], ladders: [], puddles: [], fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
+  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], ladders: [], puddles: [], plat: {}, fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
   return nextTurn(s, now);
 }
 function nextTurn(state, now) {
@@ -72,10 +72,21 @@ function cleanStatus(n) {
   return { cuff: num(n.cuff), tube: num(n.tube), big: num(n.big), mark: n.mark ? String(n.mark) : null, poison: dot(n.poison), bleed: dot(n.bleed) };
 }
 const stStr = (o) => (o.cuff != null ? 'c' : '') + (o.tube != null ? 't' : '') + (o.big != null ? 'b' : '') + (o.poison ? 'p' : '') + (o.bleed ? 'l' : '') + (o.mark ? 'm' : '');
-function freePick(teams, picks, uid, team) {
-  const taken = new Set(Object.keys(teams).filter((u) => u !== uid && teams[u] === team && picks[u] != null).map((u) => picks[u]));
-  const pref = team === 'red' ? [0, 2, 8, 6, 4, 10, 1, 3, 5, 7, 9, 11] : [9, 7, 3, 11, 5, 1, 0, 2, 4, 6, 8, 10];
-  return pref.find((k) => !taken.has(k)) ?? 0;
+// 오리 고르기: 사람마다 조종할 오리 수만큼 (팀당 오리 수 ÷ 팀 인원), 같은 팀끼리는 겹치지 않게
+export function needOf(state, uid) {
+  const mem = state.order.filter((u) => state.teams[u] === state.teams[uid]), i = mem.indexOf(uid), n = Math.max(state.per, mem.length);
+  return i < 0 ? 0 : Math.ceil((n - i) / mem.length);
+}
+function normPicks(state, last = null) {
+  const out = {};
+  for (const team of ['red', 'blue']) {
+    const mem = state.order.filter((u) => state.teams[u] === team).sort((a, b) => (a === last) - (b === last));
+    const used = new Set(), pref = team === 'red' ? [0, 2, 8, 6, 4, 10, 1, 3, 5, 7, 9, 11] : [9, 7, 3, 11, 5, 1, 0, 2, 4, 6, 8, 10];
+    const cur = (u) => { const v = state.picks?.[u]; return Array.isArray(v) ? v : v != null ? [v] : []; };
+    for (const u of mem) { out[u] = []; for (const k of cur(u)) if (out[u].length < needOf(state, u) && k >= 0 && k < 12 && !used.has(k)) { out[u].push(k); used.add(k); } }
+    for (const u of mem) while (out[u].length < needOf(state, u)) { const k = pref.find((q) => !used.has(q)) ?? 0; out[u].push(k); used.add(k); }
+  }
+  return out;
 }
 function cleanInv(v, old) { if (!v) return old; return Object.fromEntries(WEAPONS.map((w) => [w.id, Number.isFinite(+v[w.id]) ? Math.max(-1, Math.min(9, Math.round(+v[w.id]))) : old[w.id]])); }
 function matchOver(s) { const need = Math.floor(s.rounds / 2) + 1; return s.wins.red >= need || s.wins.blue >= need || s.round >= s.rounds; }
@@ -126,8 +137,7 @@ export default {
   setup(players, room) {
     const order = players.map((p) => p.uid);
     const teams = Object.fromEntries(order.map((u, i) => [u, i % 2 ? 'blue' : 'red']));
-    const picks = {};
-    for (const u of order) picks[u] = freePick(teams, picks, u, teams[u]);
+    const per = Math.min(3, Math.max(1, Number(room?.options?.worms) || 2)), picks = normPicks({ order, teams, per, picks: {} });
     return {
       phase: 'lobby', order, host: room?.hostId || order[0], teams, picks, ready: {}, map: 'mountain',
       rounds: Math.min(5, Math.max(1, Number(room?.options?.rounds) || 3)), per: Math.min(3, Math.max(1, Number(room?.options?.worms) || 2)),
@@ -142,14 +152,16 @@ export default {
     if (state.phase === 'lobby') {
       if (t === 'team') {
         if (!TEAMS[move.team]) throw new Error('__noop');
-        const teams = { ...state.teams, [uid]: move.team }, picks = { ...(state.picks || {}) };
-        if (state.order.some((u) => u !== uid && teams[u] === move.team && picks[u] === picks[uid]) || picks[uid] == null) picks[uid] = freePick(teams, picks, uid, move.team);
-        return { state: { ...state, teams, picks, ready: { ...state.ready, [uid]: false } } };
+        const s2 = { ...state, teams: { ...state.teams, [uid]: move.team }, ready: { ...state.ready, [uid]: false } };
+        return { state: { ...s2, picks: normPicks(s2, uid) } };
       }
       if (t === 'pick') {
-        const sk = move.skin | 0; if (sk < 0 || sk > 11) throw new Error('__noop');
-        if (state.order.some((u) => u !== uid && state.teams[u] === state.teams[uid] && state.picks?.[u] === sk)) throw new Error('같은 팀에서 이미 고른 오리예요');
-        return { state: { ...state, picks: { ...(state.picks || {}), [uid]: sk } } };
+        const sk = move.skin | 0, picks = normPicks(state); if (sk < 0 || sk > 11) throw new Error('__noop');
+        if (state.order.some((u) => u !== uid && state.teams[u] === state.teams[uid] && picks[u]?.includes(sk))) throw new Error('같은 팀에서 이미 고른 오리예요');
+        const arr = [...(picks[uid] || [])], slot = Math.max(0, Math.min(arr.length - 1, move.slot | 0)), j = arr.indexOf(sk);
+        if (j >= 0) arr[j] = arr[slot];
+        arr[slot] = sk;
+        return { state: { ...state, picks: { ...picks, [uid]: arr } } };
       }
       if (t === 'map') { if (!isHost) throw new Error('방장만 맵을 고를 수 있어요'); if (!MAPS[move.map]) throw new Error('__noop'); return { state: { ...state, map: move.map } }; }
       if (t === 'ready') return { state: { ...state, ready: { ...state.ready, [uid]: !state.ready[uid] } } };
@@ -179,7 +191,7 @@ export default {
       for (const [u, d] of Object.entries(r.stats || {})) { if (!stats[u]) continue; stats[u] = { dmg: stats[u].dmg + Math.max(0, d.dmg | 0), kills: stats[u].kills + Math.max(0, d.kills | 0) }; }
       const s = { ...state, worms, stats,
         craters: [...state.craters, ...(r.craters || []).map((c) => c.map((v) => Math.round(+v)))].slice(-400),
-        mines: (r.mines || state.mines).slice(0, 30), tors: (r.tors || state.tors).slice(0, 6), puddles: Array.isArray(r.puddles) ? r.puddles.slice(0, 40).map((q) => ({ x: Math.round(+q.x), y: Math.round(+q.y), w: Math.max(8, Math.min(200, Math.round(+q.w))), until: q.until | 0 })) : state.puddles || [], ladders: Array.isArray(r.ladders) ? r.ladders.slice(0, 20).map((l) => ({ x: Math.round(+l.x), y1: Math.round(+l.y1), y2: Math.round(+l.y2) })) : state.ladders || [], fog: r.fog === undefined ? state.fog : r.fog,
+        mines: (r.mines || state.mines).slice(0, 30), tors: (r.tors || state.tors).slice(0, 6), plat: r.plat && typeof r.plat === 'object' ? Object.fromEntries(Object.entries(r.plat).filter(([k]) => +k >= 0 && +k < 40).map(([k, v]) => [k, Math.max(0, Math.min(3, v | 0))])) : state.plat || {}, puddles: Array.isArray(r.puddles) ? r.puddles.slice(0, 40).map((q) => ({ x: Math.round(+q.x), y: Math.round(+q.y), w: Math.max(8, Math.min(200, Math.round(+q.w))), until: q.until | 0 })) : state.puddles || [], ladders: Array.isArray(r.ladders) ? r.ladders.slice(0, 20).map((l) => ({ x: Math.round(+l.x), y1: Math.round(+l.y1), y2: Math.round(+l.y2) })) : state.ladders || [], fog: r.fog === undefined ? state.fog : r.fog,
         crates: Array.isArray(r.crates) ? r.crates.slice(0, 12).map((k) => ({ id: String(k.id), x: Math.round(+k.x), y: Math.round(+k.y), item: SPECIALS.includes(k.item) ? k.item : 'radio' })) : state.crates || [],
         inv: r.invs ? { red: cleanInv(r.invs.red, state.inv.red), blue: cleanInv(r.invs.blue, state.inv.blue) } : r.inv ? { ...state.inv, [state.turn.team]: cleanInv(r.inv, state.inv[state.turn.team]) } : state.inv };
       const re = checkRound(s, now);
@@ -206,12 +218,15 @@ export default {
 };
 
 // ───────────────── 대기방 ─────────────────
+let lobbySlot = 0;
 function lobby(el, { state, me, players, sendMove, room }) {
   const isHost = room?.hostId === me || state.host === me;
+  const picks = normPicks(state), mine = picks[me] || [], need = mine.length;
+  if (lobbySlot >= need) lobbySlot = 0;
   const col = (t) => {
     const us = state.order.filter((u) => state.teams[u] === t);
     return `<div class="kw-team ${t}"><h4>${TEAMS[t].name} <small>${us.length}명</small></h4>
-      ${us.map((u) => `<div class="kw-pl ${u === me ? 'me' : ''}"><span class="kw-face">${state.picks?.[u] != null ? `<img src="img/kkumtle/d${state.picks[u]}.webp" alt="">` : faceHtml(players[u] || { name: '?' })}</span><b>${esc(players[u]?.name || '?')}</b>${u === state.host ? '<em>방장</em>' : state.ready[u] ? '<i>준비 ✔</i>' : '<i class="no">대기</i>'}</div>`).join('') || '<p class="kw-empty">아무도 없어요</p>'}
+      ${us.map((u) => `<div class="kw-pl ${u === me ? 'me' : ''}"><span class="kw-face">${faceHtml(players[u] || { name: '?' })}</span><b>${esc(players[u]?.name || '?')}</b><span class="kw-myducks">${(picks[u] || []).map((k) => `<img src="img/kkumtle/d${k}.webp" alt="" title="${DUCKS[k]}">`).join('')}</span>${u === state.host ? '<em>방장</em>' : state.ready[u] ? '<i>준비 ✔</i>' : '<i class="no">대기</i>'}</div>`).join('') || '<p class="kw-empty">아무도 없어요</p>'}
       ${state.teams[me] !== t && state.order.includes(me) ? `<button class="btn sm" data-team="${t}">${TEAMS[t].name}으로 이동</button>` : ''}</div>`;
   };
   const allReady = state.order.every((u) => u === state.host || state.ready[u] || !players[u]);
@@ -219,9 +234,10 @@ function lobby(el, { state, me, players, sendMove, room }) {
   el.innerHTML = `<div class="kw-lobby">
     <div class="kw-teams">${col('red')}<div class="kw-vs">VS</div>${col('blue')}</div>
     <div class="kw-sec">🦆 오리 선택 <small>(같은 팀끼리는 겹칠 수 없어요)</small></div>
-    <div class="kw-ducks">${DUCKS.map((n, k) => { const mates = state.order.filter((u) => u !== me && state.teams[u] === state.teams[me] && state.picks?.[u] === k), foes = state.order.filter((u) => state.teams[u] !== state.teams[me] && state.picks?.[u] === k);
-      return `<button class="kw-duck ${state.picks?.[me] === k ? 'on' : ''} ${mates.length ? 'taken' : ''}" data-pick="${k}" ${mates.length || !state.order.includes(me) ? 'disabled' : ''}><img src="img/kkumtle/d${k}.webp" alt=""><b>${n}</b><small>${SIG[k].icon} ${SIG[k].name}</small>${mates.length ? `<em class="mate">${esc(players[mates[0]]?.name || '?')}</em>` : ''}${foes.length ? `<em class="foe">${foes.map((u) => esc(players[u]?.name || '?')).join(', ')}</em>` : ''}</button>`; }).join('')}</div>
-    <div class="kw-duckdesc">${state.picks?.[me] != null ? `<b>${DUCKS[state.picks[me]]}</b> · ${SIG[state.picks[me]].icon} ${SIG[state.picks[me]].name}: ${esc(SIG[state.picks[me]].desc)}` : ''}</div>
+    ${need > 1 ? `<div class="kw-slots">${mine.map((k, i) => `<button class="kw-slot ${i === lobbySlot ? 'on' : ''}" data-slot="${i}"><i>${i + 1}</i><img src="img/kkumtle/d${k}.webp" alt=""><b>${DUCKS[k]}</b></button>`).join('')}<small>칸을 누르고 아래에서 오리를 골라요</small></div>` : ''}
+    <div class="kw-ducks">${DUCKS.map((n, k) => { const mates = state.order.filter((u) => u !== me && state.teams[u] === state.teams[me] && picks[u]?.includes(k)), foes = state.order.filter((u) => state.teams[u] !== state.teams[me] && picks[u]?.includes(k)), mi = mine.indexOf(k);
+      return `<button class="kw-duck ${mi >= 0 ? 'on' : ''} ${mates.length ? 'taken' : ''}" data-pick="${k}" ${mates.length || !state.order.includes(me) ? 'disabled' : ''}><img src="img/kkumtle/d${k}.webp" alt=""><b>${n}</b><small>${SIG[k].icon} ${SIG[k].name}</small>${mi >= 0 && need > 1 ? `<i class="num">${mi + 1}</i>` : ''}${mates.length ? `<em class="mate">${esc(players[mates[0]]?.name || '?')}</em>` : ''}${foes.length ? `<em class="foe">${foes.map((u) => esc(players[u]?.name || '?')).join(', ')}</em>` : ''}</button>`; }).join('')}</div>
+    <div class="kw-duckdesc">${mine[lobbySlot] != null ? `<b>${DUCKS[mine[lobbySlot]]}</b> · ${SIG[mine[lobbySlot]].icon} ${SIG[mine[lobbySlot]].name}: ${esc(SIG[mine[lobbySlot]].desc)}` : ''}</div>
     <div class="kw-sec">🗺️ 맵 선택 ${isHost ? '' : '<small>(방장이 골라요)</small>'}</div>
     <div class="kw-maps">${Object.entries(MAPS).map(([k, m]) => `<button class="kw-map ${state.map === k ? 'on' : ''}" data-map="${k}" ${isHost ? '' : 'disabled'} style="--s1:${m.sky[0]};--s2:${m.sky[1]};--d:${m.dirt[0]};--t:${m.top};--bg:url(img/kkumtle/bg-${k}.webp)"><i></i><b>${m.emoji} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
     <div class="kw-opts">라운드 <b>${state.rounds}</b> · 팀당 오리 <b>${state.per}</b>마리 <small>(먼저 ${Math.floor(state.rounds / 2) + 1}라운드 이기면 승리)</small></div>
@@ -231,7 +247,8 @@ function lobby(el, { state, me, players, sendMove, room }) {
   </div>`;
   el.querySelectorAll('[data-team]').forEach((b) => (b.onclick = () => sendMove({ type: 'team', team: b.dataset.team })));
   el.querySelectorAll('[data-map]').forEach((b) => (b.onclick = () => sendMove({ type: 'map', map: b.dataset.map })));
-  el.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => sendMove({ type: 'pick', skin: +b.dataset.pick })));
+  el.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => { const slot = lobbySlot; if (need > 1 && !mine.includes(+b.dataset.pick)) lobbySlot = (lobbySlot + 1) % need; sendMove({ type: 'pick', skin: +b.dataset.pick, slot }); }));
+  el.querySelectorAll('[data-slot]').forEach((b) => (b.onclick = () => { lobbySlot = +b.dataset.slot; lobby(el, { state, me, players, sendMove, room }); }));
   el.querySelector('[data-ready]')?.addEventListener('click', () => sendMove({ type: 'ready' }));
   el.querySelector('[data-start]')?.addEventListener('click', () => sendMove({ type: 'start' }));
 }
@@ -325,7 +342,7 @@ function terrain(c, craters) {
     const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
     const d1 = hex(M.dirt[0]), d2 = hex(M.dirt[1]), tp = hex(M.top);
     for (let y = 0; y < MH; y++) for (let xx = 0; xx < MW; xx++) {
-      const i = y * MW + xx; if (!mask[i]) continue;
+      const i = y * MW + xx; if (!mask[i] || mask[i] > 1) continue; // 2 맨 밑 바닥 · 3 발판은 따로 그려요
       let top = false; for (let k = 1; k <= 6; k++) if (y - k < 0 || !mask[i - k * MW]) { top = true; break; }
       const n = ((xx * 73856093) ^ (y * 19349663)) >>> 0, nz = ((n % 23) - 11) * 1.4, blot = Math.sin(xx * 0.07 + Math.sin(y * 0.05) * 2) * Math.sin(y * 0.06 + xx * 0.01) * 9;
       const t = Math.min(1, (y / MH) * 1.3);
@@ -336,12 +353,12 @@ function terrain(c, craters) {
     if (tex) { // 땅 질감 그림: 땅 모양 그대로 질감을 입히고, 맨 위 표면 색만 얇게 남겨요
       const top = document.createElement('canvas'); top.width = MW; top.height = MH;
       const tx = top.getContext('2d'), ti = tx.createImageData(MW, MH), td = ti.data;
-      for (let i = 0; i < MW * MH; i++) if (mask[i]) { const y = (i / MW) | 0; let k = 1; while (k <= 4 && y - k >= 0 && mask[i - k * MW]) k++; if (k <= 4) { td[i * 4] = tp[0]; td[i * 4 + 1] = tp[1]; td[i * 4 + 2] = tp[2]; td[i * 4 + 3] = 230; } }
+      for (let i = 0; i < MW * MH; i++) if (mask[i] === 1) { const y = (i / MW) | 0; let k = 1; while (k <= 4 && y - k >= 0 && mask[i - k * MW]) k++; if (k <= 4) { td[i * 4] = tp[0]; td[i * 4 + 1] = tp[1]; td[i * 4 + 2] = tp[2]; td[i * 4 + 3] = 230; } }
       tx.putImageData(ti, 0, 0);
       x.globalCompositeOperation = 'source-in'; x.fillStyle = x.createPattern(tex, 'repeat'); x.fillRect(0, 0, MW, MH);
       x.globalCompositeOperation = 'source-over'; x.drawImage(top, 0, 0);
     }
-    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null, tex: !!tex, movers: movers(state.map, state.seed, mask) };
+    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null, tex: !!tex, movers: movers(state.map, state.seed, mask), plats: mask.plats || [], broken: {} };
   }
   if (craters.length > T.n) {
     const x = T.cv.getContext('2d');
@@ -379,7 +396,7 @@ function startTurn(c) {
   c.W = {
     n: state.turn.n, mask: T.mask, wid: state.turn.wid, team: state.turn.team,
     worms: state.worms.map((w) => ({ ...w, air: false, vx: 0, vy: 0, flip: 0, ph: 0 })),
-    projs: [], fx: [], newCr: [], drops: [], ufo: null, hose: null, puddles: (state.puddles || []).map((q) => ({ ...q })), mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), ladders: (state.ladders || []).map((l) => ({ ...l })), fog: state.fog,
+    plat: { ...(state.plat || {}) }, projs: [], fx: [], newCr: [], drops: [], ufo: null, hose: null, puddles: (state.puddles || []).map((q) => ({ ...q })), mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), ladders: (state.ladders || []).map((l) => ({ ...l })), fog: state.fog,
     snd: [], sq: 0, mv: 1, invs: { red: { ...state.inv.red }, blue: { ...state.inv.blue } }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
     crates: (state.crates || []).map((k) => ({ ...k, air: false, vy: 0 })), heli: state.turn.drop ? { x: state.turn.drop.dir > 0 ? -160 : MW + 160, y: Math.max(60, Math.min(560, ((surfaceAt(T.mask, state.turn.drop.x) + 1) || WATER) - 210)), xd0: state.turn.drop.x, item: state.turn.drop.item, dir: state.turn.drop.dir, done: false } : null,
     rope: null, jet: null, chute: false, drill: null, chick: null, gren: null, mg: null, flame: null,
@@ -554,7 +571,23 @@ function shoot(c, x, y, dir, dmg, push, cr) {
   }
   W.fx.push({ k: 'tracer', x, y, x2: x + dir[0] * 760, y2: y + dir[1] * 760, t: 0 });
 }
-function crater(c, x, y, r) { const W = c.W; W.newCr.push([Math.round(x), Math.round(y), r]); terrain(c, [...c.ctx.state.craters, ...W.newCr]); }
+function crater(c, x, y, r) { const W = c.W; W.newCr.push([Math.round(x), Math.round(y), r]); terrain(c, [...c.ctx.state.craters, ...W.newCr]); platHits(c, x, y, r); }
+// 하늘 발판: 3번 맞으면 부서져요 (회색 → 노랑 → 빨강 → 부서짐)
+function platHits(c, x, y, r) {
+  const T = c.ter, W = c.W; if (!T?.plats?.length || !W) return;
+  T.plats.forEach((q, i) => {
+    if ((W.plat[i] || 0) >= 3) return;
+    const nx = Math.max(q.x, Math.min(x, q.x + q.w)), ny = Math.max(q.y, Math.min(y, q.y + q.h));
+    if (Math.hypot(x - nx, y - ny) > r + 2) return;
+    W.plat[i] = (W.plat[i] || 0) + 1;
+    if (W.plat[i] >= 3) { applyPlat(T, W.plat); for (let k = 0; k < 8; k++) W.fx.push({ k: 'deb', x: q.x + (k + 0.5) * (q.w / 8), y: q.y + 4, t: 0 }); snd(c, 'crack'); }
+    else snd(c, 'clink');
+  });
+}
+function applyPlat(T, hits) {
+  if (!T?.plats?.length || !hits) return;
+  T.plats.forEach((q, i) => { if ((hits[i] || 0) >= 3 && !T.broken[i]) { T.broken[i] = 1; for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) if (T.mask[y * MW + x] === 3) T.mask[y * MW + x] = 0; T.mini = null; } });
+}
 function hurt(c, w, dmg, vx, vy, dot = null) {
   const W = c.W;
   if (w.dead) return;
@@ -687,7 +720,7 @@ function stampMovers(c, place = false) {
       for (const q of W.mines) if (on(q)) q.x += dx;
       for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx; x < o.cx + o.w; x++) if (x >= 0 && x < MW) M[y * MW + x] = 0;
     }
-    for (let y = o.y; y < o.y + o.h; y++) for (let x = nx; x < nx + o.w; x++) if (x >= 0 && x < MW) M[y * MW + x] = 1;
+    for (let y = o.y; y < o.y + o.h; y++) for (let x = nx; x < nx + o.w; x++) if (x >= 0 && x < MW) M[y * MW + x] = 2;
     o.cx = nx;
   });
 }
@@ -868,7 +901,7 @@ function simStep(c, dt) {
   }
   // 효과
   for (const f of W.fx) { f.t += dt; if (f.k === 'fire' || f.k === 'puff') { f.x += (f.vx || 0) * dt; f.y += (f.vy || 0) * dt; } }
-  W.fx = W.fx.filter((f) => f.t < (f.k === 'cot' ? 1.1 : f.k === 'txt' ? 1.4 : f.k === 'boom' ? 0.6 : f.k === 'fire' ? 0.45 : f.k === 'puff' ? 0.4 : 0.35));
+  W.fx = W.fx.filter((f) => f.t < (f.k === 'deb' ? 0.8 : f.k === 'cot' ? 1.1 : f.k === 'txt' ? 1.4 : f.k === 'boom' ? 0.6 : f.k === 'fire' ? 0.45 : f.k === 'puff' ? 0.4 : 0.35));
   // 차례 끝내기
   const tl = c.ctx.state.turn.deadline - Date.now();
   if (tl <= 0 && !W.ending) { W.ending = true; W.rope = null; W.jet = null; W.drill = null; W.gren = null; c.charge = -1; const me0 = meW(c); if (me0 && !solid(M, me0.x, me0.y + 1)) me0.air = true; }
@@ -911,6 +944,7 @@ function snap(c) {
   return {
     mv: Math.round(W.mv * 100) / 100,
     n: W.n, w: W.worms.map((o) => [o.id, Math.round(o.x), Math.round(o.y), o.hp, o.dead ? 1 : 0, o.flip ? 1 : 0, Math.round((o.ph || 0) * 10) / 10, stStr(o)]),
+    ph: W.plat,
     ufo: W.ufo ? [Math.round(W.ufo.x), Math.round(W.ufo.y), Math.round(W.ufo.t * 100) / 100] : 0, dr: W.drops.slice(-50).map((d) => [Math.round(d.x), Math.round(d.y)]), pud: W.puddles, hose: W.hose ? 1 : 0,
     p: W.projs.filter((p) => p.t >= 0).map((p) => [p.k, Math.round(p.x), Math.round(p.y), Math.round(Math.atan2(p.vy, p.vx) * 10) / 10, p.face || 0, p.sk || 0]),
     sk: meW(c)?.skin % 12 || 0,
@@ -961,10 +995,15 @@ function draw(c, dt, now) {
   x.fillStyle = 'rgba(255,255,255,.85)';
   if (!bg) for (let i = 0; i < 7; i++) { const cx = (((i * 330 + now * 0.03 * wind) % (MW + 400)) + MW + 400) % (MW + 400) - 200; x.beginPath(); x.ellipse(cx, 80 + (i % 3) * 45, 70, 20, 0, 0, 7); x.ellipse(cx + 34, 68 + (i % 3) * 45, 44, 22, 0, 0, 7); x.fill(); }
   x.drawImage(T.cv, 0, 0);
+  const hits = V.ph || state.plat || {}; applyPlat(T, hits);
+  if (M.bed) { const g2 = x.createLinearGradient(0, M.bed, 0, MH); g2.addColorStop(0, '#5b606d'); g2.addColorStop(1, '#2b2e36'); x.fillStyle = g2; x.fillRect(-900, M.bed, MW + 1800, MH - M.bed + 200); x.fillStyle = '#8a909e'; x.fillRect(-900, M.bed, MW + 1800, 5); x.fillStyle = 'rgba(0,0,0,.25)'; for (let i = -900; i < MW + 900; i += 60) x.fillRect(i, M.bed + 5, 3, MH - M.bed); }
+  (T.plats || []).forEach((q, i) => { const h = hits[i] || 0; if (h >= 3) return; x.fillStyle = ['#a3abb9', '#f2c94c', '#ff5a5a'][h]; x.fillRect(q.x, q.y, q.w, q.h); x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(q.x, q.y, q.w, 2); x.strokeStyle = '#2b2f38'; x.lineWidth = 1.5; x.strokeRect(q.x, q.y, q.w, q.h); if (h) { x.strokeStyle = 'rgba(0,0,0,.55)'; x.lineWidth = 1; x.beginPath(); for (let k = 1; k <= h * 2; k++) { const cx = q.x + (k / (h * 2 + 1)) * q.w; x.moveTo(cx, q.y); x.lineTo(cx + 4, q.y + q.h / 2); x.lineTo(cx - 2, q.y + q.h); } x.stroke(); } });
   for (const o of T.movers || []) { const mx = moverX(o, Date.now()); const g = x.createLinearGradient(0, o.y, 0, o.y + o.h); g.addColorStop(0, '#d9dee8'); g.addColorStop(1, '#6b7280'); x.fillStyle = g; x.fillRect(mx, o.y, o.w, o.h); x.fillStyle = '#ffd84d'; for (let i = 4; i < o.w - 8; i += 16) { x.beginPath(); x.moveTo(mx + i, o.y + o.h); x.lineTo(mx + i + 6, o.y); x.lineTo(mx + i + 10, o.y); x.lineTo(mx + i + 4, o.y + o.h); x.fill(); } x.strokeStyle = '#2b2f38'; x.lineWidth = 1.5; x.strokeRect(mx, o.y, o.w, o.h); }
+  if (!M.bed) {
   const wy = WATER + Math.sin(now / 500) * 3;
   x.fillStyle = M.water; x.globalAlpha = 0.88; x.fillRect(-900, wy, MW + 1800, MH); x.globalAlpha = 1;
   x.strokeStyle = 'rgba(255,255,255,.6)'; x.lineWidth = 3; x.beginPath(); for (let i = -900; i < MW + 900; i += 20) x.lineTo(i, wy + Math.sin(i * 0.05 + now / 300) * 4); x.stroke();
+  }
   for (const q of V.pud || []) { x.fillStyle = 'rgba(80,170,255,.55)'; x.beginPath(); x.ellipse(q.x, q.y + 1, q.w / 2 + 3, 4, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.5)'; x.fillRect(q.x - q.w / 4, q.y - 1, q.w / 6, 1.5); }
   for (const d of V.dr || []) { x.fillStyle = 'rgba(90,180,255,.9)'; x.beginPath(); x.arc(d[0], d[1], 3, 0, 7); x.fill(); }
   if (V.ufo) { const [ux, uty, ut] = V.ufo, uy = ufoY(ut, uty);
@@ -1043,6 +1082,7 @@ function draw(c, dt, now) {
   for (const f of V.fx || []) {
     const F = Array.isArray(f) ? { k: f[0], x: f[1], y: f[2], r: f[3], t: f[4], s: f[5], col: f[6], x2: f[7], y2: f[8], blue: f[9] } : f;
     if (F.k === 'boom') { const k = Math.min(1, F.t / 0.6); x.fillStyle = F.blue ? `rgba(120,200,255,${1 - k})` : `rgba(255,${200 - k * 140},40,${1 - k})`; x.beginPath(); x.arc(F.x, F.y, F.r * (0.6 + k * 0.8), 0, 7); x.fill(); x.fillStyle = `rgba(255,255,210,${Math.max(0, 0.9 - k)})`; x.beginPath(); x.arc(F.x, F.y, F.r * 0.5 * (1 - k), 0, 7); x.fill(); }
+    else if (F.k === 'deb') { const k2 = Math.min(1, F.t / 0.8); x.fillStyle = `rgba(120,125,140,${1 - k2})`; x.fillRect(F.x - 3, F.y + k2 * 60, 6, 4); }
     else if (F.k === 'cot') { const k2 = Math.min(1, F.t / 1.1); x.fillStyle = `rgba(255,255,255,${1 - k2})`; x.beginPath(); x.arc(F.x, F.y - k2 * 20, 5 + k2 * 6, 0, 7); x.fill(); }
     else if (F.k === 'txt') { x.font = 'bold 18px sans-serif'; x.textAlign = 'center'; x.lineWidth = 4; x.strokeStyle = '#000'; x.fillStyle = F.col || '#fff'; x.strokeText(F.s, F.x, F.y - F.t * 30); x.fillText(F.s, F.x, F.y - F.t * 30); }
     else if (F.k === 'tracer' || F.k === 'line') { x.strokeStyle = F.k === 'line' ? 'rgba(217,180,106,.7)' : `rgba(255,240,150,${Math.max(0, 1 - F.t * 3)})`; x.lineWidth = 2; x.beginPath(); x.moveTo(F.x, F.y); x.lineTo(F.x2, F.y2); x.stroke(); }
@@ -1149,7 +1189,8 @@ function miniMap(c, T, V, fogTeam) {
   if (!T.mini) { const t = document.createElement('canvas'); t.width = m.width; t.height = m.height; t.getContext('2d').drawImage(T.cv, 0, 0, m.width, m.height); T.mini = t; }
   x.fillStyle = M.sky[0]; x.fillRect(0, 0, m.width, m.height);
   x.drawImage(T.mini, 0, 0);
-  x.fillStyle = M.water; x.fillRect(0, (WATER / MH) * m.height, m.width, m.height);
+  if (M.bed) { x.fillStyle = '#4c515c'; x.fillRect(0, (M.bed / MH) * m.height, m.width, m.height); (T.plats || []).forEach((q, i) => { if (!T.broken[i]) { x.fillStyle = '#c8ccd4'; x.fillRect(q.x * m.width / MW, q.y * m.height / MH, Math.max(2, q.w * m.width / MW), 2); } }); }
+  else { x.fillStyle = M.water; x.fillRect(0, (WATER / MH) * m.height, m.width, m.height); }
   const sx = m.width / MW, sy = m.height / MH, meta = Object.fromEntries(state.worms.map((w) => [w.id, w]));
   for (const r of V.w || []) { const info = meta[r[0]]; if (!info || r[4] || (fogTeam && info.team !== fogTeam)) continue; x.fillStyle = TEAMS[info.team].col; x.beginPath(); x.arc(r[1] * sx, (r[2] - 8) * sy, r[0] === V.wid ? 4 : 3, 0, 7); x.fill(); if (r[0] === V.wid) { x.strokeStyle = '#fff'; x.lineWidth = 1.5; x.stroke(); } }
   const z = c.cam.z, w = c.cv.clientWidth / z, h = c.cv.clientHeight / z;
@@ -1430,6 +1471,8 @@ function sfx(k, v) {
       case 'pan': tone('triangle', 900, 860, 0.5, 0.35); tone('square', 1500, 1450, 0.2, 0.1); break;
       case 'cuff': tone('square', 2200, 2000, 0.04, 0.2); tone('square', 1800, 1700, 0.05, 0.2, 0.07); break;
       case 'flower': noise(0.5, 'highpass', 2000, 4000, 0.15); [1047, 1319, 1568].forEach((f, i) => tone('sine', f, f, 0.2, 0.12, i * 0.06)); break;
+      case 'clink': tone('triangle', 1400, 1200, 0.08, 0.25); break;
+      case 'crack': noise(0.4, 'bandpass', 1800, 400, 0.5, 1.5); tone('square', 300, 120, 0.2, 0.15); break;
       case 'lock': tone('square', 1500, 1500, 0.05, 0.2); tone('square', 1900, 1900, 0.07, 0.2, 0.07); break;
       case 'pickup': tone('sine', 880, 880, 0.12, 0.3); tone('sine', 1320, 1320, 0.2, 0.3, 0.1); break;
       case 'heli': noise(0.09, 'lowpass', 260, 120, 0.35); break;
