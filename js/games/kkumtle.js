@@ -9,7 +9,7 @@ import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
 
 const TURN_MS = 30000;
 const HB = 32; // 오리 몸 높이 (맞는 범위)
-const ICONS = { shell: 'img/kkumtle/w-shell.webp', homing: 'img/kkumtle/w-homing.webp' }; // 그림이 있는 무기 아이콘
+const ICONS = Object.fromEntries(['shell', 'homing', 'grenade', 'flame', 'mine', 'pistol', 'mg', 'radio', 'chicken', 'tele', 'drill', 'rope', 'jet', 'chute', 'pill', 'medkit', 'tornado', 'fog'].map((k) => [k, `img/kkumtle/w-${k}.webp`])); // 그림이 있는 무기 아이콘
 const imgs = {};
 function pic(src) { if (typeof Image === 'undefined') return null; let im = imgs[src]; if (!im) { im = imgs[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
 const iconHtml = (id) => (ICONS[id] ? `<img src="${ICONS[id]}" alt="">` : WMAP[id].icon);
@@ -267,7 +267,8 @@ function build(code, ctx) {
 function terrain(c, craters) {
   const { state } = c.ctx;
   let T = c.ter;
-  if (!T || T.seed !== state.seed || T.map !== state.map || craters.length < T.n) {
+  const tex = pic(`img/kkumtle/tex-${state.map}.webp`);
+  if (!T || T.seed !== state.seed || T.map !== state.map || craters.length < T.n || (tex && !T.tex)) {
     const mask = makeMask(state.map, state.seed);
     const cv = T?.cv || document.createElement('canvas'); cv.width = MW; cv.height = MH;
     const x = cv.getContext('2d'), img = x.createImageData(MW, MH), d = img.data, M = MAPS[state.map] || MAPS.mountain;
@@ -282,7 +283,15 @@ function terrain(c, craters) {
       d[i * 4] = c0[0] + nz + blot; d[i * 4 + 1] = c0[1] + nz + blot; d[i * 4 + 2] = c0[2] + nz + blot; d[i * 4 + 3] = 255;
     }
     x.putImageData(img, 0, 0);
-    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null };
+    if (tex) { // 땅 질감 그림: 땅 모양 그대로 질감을 입히고, 맨 위 표면 색만 얇게 남겨요
+      const top = document.createElement('canvas'); top.width = MW; top.height = MH;
+      const tx = top.getContext('2d'), ti = tx.createImageData(MW, MH), td = ti.data;
+      for (let i = 0; i < MW * MH; i++) if (mask[i]) { const y = (i / MW) | 0; let k = 1; while (k <= 4 && y - k >= 0 && mask[i - k * MW]) k++; if (k <= 4) { td[i * 4] = tp[0]; td[i * 4 + 1] = tp[1]; td[i * 4 + 2] = tp[2]; td[i * 4 + 3] = 230; } }
+      tx.putImageData(ti, 0, 0);
+      x.globalCompositeOperation = 'source-in'; x.fillStyle = x.createPattern(tex, 'repeat'); x.fillRect(0, 0, MW, MH);
+      x.globalCompositeOperation = 'source-over'; x.drawImage(top, 0, 0);
+    }
+    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null, tex: !!tex };
   }
   if (craters.length > T.n) {
     const x = T.cv.getContext('2d');
@@ -593,7 +602,7 @@ function simStep(c, dt) {
   // 로켓배송 헬기 · 보급 상자
   if (W.heli) {
     const H = W.heli; H.x += H.dir * 420 * dt;
-    if (!H.done && (H.dir > 0 ? H.x >= H.xd0 : H.x <= H.xd0)) { H.done = true; W.crates.push({ id: `c${W.n}`, x: H.xd0, y: H.y + 26, item: H.item, air: true, vy: 0 }); }
+    if (!H.done && (H.dir > 0 ? H.x >= H.xd0 : H.x <= H.xd0)) { H.done = true; W.crates.push({ id: `c${W.n}`, x: H.xd0, y: H.y + 36, item: H.item, air: true, vy: 0 }); }
     if (H.x < -260 || H.x > MW + 260) W.heli = null;
   }
   for (const k of W.crates) {
@@ -739,7 +748,8 @@ function draw(c, dt, now) {
   for (const l of V.lad || []) { x.strokeStyle = '#8a5a2b'; x.lineWidth = 3; x.beginPath(); x.moveTo(l.x - 7, l.y1); x.lineTo(l.x - 7, l.y2); x.moveTo(l.x + 7, l.y1); x.lineTo(l.x + 7, l.y2); x.stroke(); x.strokeStyle = '#c08a4a'; x.lineWidth = 2.5; x.beginPath(); for (let y = l.y2 - 6; y > l.y1; y -= 12) { x.moveTo(l.x - 7, y); x.lineTo(l.x + 7, y); } x.stroke(); }
   for (const t of V.tors || []) for (let k = 0; k < 6; k++) { x.strokeStyle = `rgba(200,230,255,${0.75 - k * 0.1})`; x.lineWidth = 3; x.beginPath(); x.ellipse(t.x + Math.sin(now / 120 + k) * 5, t.y + 30 - k * 12, 10 + k * 6, 4 + k, 0, 0, 7); x.stroke(); }
   const myTeam = state.teams?.[me];
-  for (const m of V.mines || []) if (!myTeam || m[2] === myTeam) { x.fillStyle = '#333'; x.beginPath(); x.ellipse(m[0], m[1] - 3, 7, 4, 0, 0, 7); x.fill(); x.fillStyle = (now / 300) % 2 < 1 ? '#ff3b3b' : '#600'; x.beginPath(); x.arc(m[0], m[1] - 6, 2, 0, 7); x.fill(); }
+  for (const m of V.mines || []) if ((!myTeam || m[2] === myTeam) && pic(ICONS.mine)) { x.drawImage(pic(ICONS.mine), m[0] - 9, m[1] - 15, 18, 17); x.fillStyle = (now / 300) % 2 < 1 ? 'rgba(255,60,60,.9)' : 'rgba(0,0,0,0)'; x.beginPath(); x.arc(m[0], m[1] - 7, 2.5, 0, 7); x.fill(); }
+  else if (!myTeam || m[2] === myTeam) { x.fillStyle = '#333'; x.beginPath(); x.ellipse(m[0], m[1] - 3, 7, 4, 0, 0, 7); x.fill(); x.fillStyle = (now / 300) % 2 < 1 ? '#ff3b3b' : '#600'; x.beginPath(); x.arc(m[0], m[1] - 6, 2, 0, 7); x.fill(); }
   for (const k of V.crates || []) drawCrate(x, k[0], k[1], k[2], now);
   if (V.heli) drawHeli(x, V.heli[0], V.heli[1], V.heli[2], V.heli[3], now);
   const fogOn = V.fog && myTeam;
@@ -753,8 +763,10 @@ function draw(c, dt, now) {
     drawWorm(x, wx, wy2, info.skin, f, active ? ph : 0, flip ? now : 0, TEAMS[info.team].col, esc(players[info.owner]?.name || '?').slice(0, 7), hp, active);
     if (!active) continue;
     if (V.rope) { x.strokeStyle = '#d9b46a'; x.lineWidth = 2; x.beginPath(); x.moveTo(wx, wy2 - 9); x.lineTo(V.rope[0], V.rope[1]); x.stroke(); }
-    if (V.chute) { x.fillStyle = '#ff6a8a'; x.beginPath(); x.arc(wx, wy2 - 62, 24, Math.PI, 0); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(wx - 24, wy2 - 62); x.lineTo(wx, wy2 - 26); x.lineTo(wx + 24, wy2 - 62); x.stroke(); }
-    if (V.jet) { x.font = '14px sans-serif'; x.textAlign = 'center'; x.fillText('🎒', wx - f * 8, wy2 - 6); }
+    if (V.chute && pic(ICONS.chute)) { const im = pic(ICONS.chute), w = 54, h = w * im.naturalHeight / im.naturalWidth * 0.78; x.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight * 0.78, wx - w / 2, wy2 - 34 - h, w, h); }
+    else if (V.chute) { x.fillStyle = '#ff6a8a'; x.beginPath(); x.arc(wx, wy2 - 62, 24, Math.PI, 0); x.fill(); x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(wx - 24, wy2 - 62); x.lineTo(wx, wy2 - 26); x.lineTo(wx + 24, wy2 - 62); x.stroke(); }
+    if (V.jet && pic(ICONS.jet)) x.drawImage(pic(ICONS.jet), wx - f * 14 - 8, wy2 - 30, 16, 25);
+    else if (V.jet) { x.font = '14px sans-serif'; x.textAlign = 'center'; x.fillText('🎒', wx - f * 8, wy2 - 6); }
     if (!V.rope && !V.jet) {
       const dx = Math.cos(V.a) * f, dy = -Math.sin(V.a), ox = wx, oy = wy2 - 9;
       x.strokeStyle = 'rgba(255,255,255,.9)'; x.setLineDash([5, 5]); x.lineWidth = 2; x.beginPath(); x.moveTo(ox + dx * 16, oy + dy * 16); x.lineTo(ox + dx * 80, oy + dy * 80); x.stroke(); x.setLineDash([]);
@@ -768,8 +780,10 @@ function draw(c, dt, now) {
   for (const p of V.p || []) {
     const [k, px, py, a, face] = p;
     x.save(); x.translate(px, py);
-    if (k === 'chick') { x.scale(-(face || 1), 1); x.font = '22px sans-serif'; x.textAlign = 'center'; x.fillText('🐔', 0, -2); }
+    if (k === 'chick') { const im = pic(ICONS.chicken); if (im) { x.scale(face || 1, 1); x.drawImage(im, -13, -30, 26, 28); } else { x.scale(-(face || 1), 1); x.font = '22px sans-serif'; x.textAlign = 'center'; x.fillText('🐔', 0, -2); } }
+    else if (k === 'gren' && pic(ICONS.grenade)) { x.rotate(performance.now() / 120); x.drawImage(pic(ICONS.grenade), -7, -8, 14, 17); }
     else if (k === 'gren') { x.fillStyle = '#2d3a2a'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.fillStyle = '#ffd84d'; x.fillRect(-1, -8, 2, 4); }
+    else if (k === 'mineT' && pic(ICONS.mine)) x.drawImage(pic(ICONS.mine), -9, -8, 18, 17);
     else if (k === 'mineT') { x.fillStyle = '#333'; x.beginPath(); x.ellipse(0, 0, 7, 4, 0, 0, 7); x.fill(); }
     else if (k === 'tele') { x.fillStyle = '#7fd3ff'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.stroke(); }
     else { x.rotate(a); x.fillStyle = k === 'mini' ? '#ffd84d' : k === 'air' ? '#555' : '#ddd'; const L = k === 'mini' ? 7 : 12; x.fillRect(-L / 2, -2.5, L, 5); x.fillStyle = 'rgba(255,150,40,.85)'; x.beginPath(); x.arc(-L / 2 - 3, 0, 3.5, 0, 7); x.fill(); }
@@ -789,6 +803,14 @@ function draw(c, dt, now) {
 }
 
 function drawCrate(x, X, Y, air, now) {
+  const im = pic('img/kkumtle/crate-air.webp');
+  if (im) {
+    const w = 26, h = w * im.naturalHeight / im.naturalWidth, cut = im.naturalHeight * 0.62;
+    x.save(); x.translate(X, Y);
+    if (air) { x.rotate(Math.sin(now / 300) * 0.1); x.drawImage(im, -w / 2, -h, w, h); }
+    else x.drawImage(im, 0, cut, im.naturalWidth, im.naturalHeight - cut, -w / 2, -(h * (1 - 0.62)), w, h * (1 - 0.62));
+    x.restore(); return;
+  }
   x.save(); x.translate(X, Y);
   if (air) {
     x.rotate(Math.sin(now / 300) * 0.12);
@@ -802,6 +824,14 @@ function drawCrate(x, X, Y, air, now) {
   x.restore();
 }
 function drawHeli(x, X, Y, dir, done, now) {
+  const im = pic('img/kkumtle/heli.webp');
+  if (im) {
+    const w = 110, h = w * im.naturalHeight / im.naturalWidth;
+    x.save(); x.translate(X, Y + Math.sin(now / 250) * 3); x.scale(dir, 1);
+    if (done) x.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight * 0.66, -w / 2, -h * 0.55, w, h * 0.66);
+    else x.drawImage(im, -w / 2, -h * 0.55, w, h);
+    x.restore(); return;
+  }
   x.save(); x.translate(X, Y); x.scale(dir, 1);
   x.fillStyle = '#2f6f4f'; x.beginPath(); x.ellipse(0, 0, 34, 16, 0, 0, 7); x.fill();
   x.fillRect(-70, -5, 44, 8); x.beginPath(); x.moveTo(-70, -5); x.lineTo(-78, -18); x.lineTo(-66, -5); x.fill();
