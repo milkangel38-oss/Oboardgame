@@ -651,15 +651,21 @@ function sigHit(c, p, x, y) {
   if (p.k === 'flw') { explode(c, x, y, 12, 5, { min: 3 }); return; }
   if (p.k === 'bea') { W.ufo = { x: Math.round(x), ty: Math.round(y), t: 0, fired: false }; W.fx.push({ k: 'txt', x, y: y - 30, s: '✨ 신호 발신!', col: '#9fe3ff', t: 0 }); snd(c, 'ufo'); return; }
   switch (p.sk) {
-    case 2: explode(c, x, y, 30, 20, { on: (o) => { o.cuff = W.n; label(o, '⛓️ 수갑!'); snd(c, 'cuff'); } }); break;
-    case 3: explode(c, x, y, 30, 20, { on: (o) => { o.tube = W.n; label(o, '🛟 튜브!'); } }); break;
-    case 4: explode(c, x, y, 30, 20, { on: (o) => { if (o.big == null) { o.big = W.n + alive; label(o, '🔍 커졌다!'); } } }); break;
-    case 5: explode(c, x, y, 32, 20, { push: 2.4 }); snd(c, 'pan'); break;
-    case 6: explode(c, x, y, 18, 15, { on: (o) => { if (!o.poison) { o.poison = { until: now + 120000, next: now + 10000, by: me }; label(o, '☠️ 중독!', '#b06bff'); } } }); break;
-    case 8: explode(c, x, y, 30, 20, { on: (o) => { o.mark = me; label(o, '👑 표식!'); } }); break;
-    case 10: explode(c, x, y, 18, 15, { on: (o) => { if (!o.bleed) { o.bleed = { until: now + 60000, next: now + 10000, by: me }; label(o, '🩸 출혈!', '#ff6b6b'); } } }); break;
-    case 11: { explode(c, x, y, 28, 20); const hit = new Set(); for (const sg of [-1, 1]) for (let i = 0; i < 3; i++) W.projs.push({ k: 'cotp', x, y: y - 6, vx: sg * (70 + i * 45), vy: -150 - i * 40, t: 0, hit, amp: p.amp }); snd(c, 'flower'); break; }
-    default: explode(c, x, y, 42, 20);
+    case 2: explode(c, x, y, 30, 10, { on: (o) => { o.cuff = W.n; label(o, '⛓️ 수갑!'); snd(c, 'cuff'); } }); break;
+    case 3: explode(c, x, y, 30, 10, { on: (o) => { o.tube = W.n; label(o, '🛟 튜브!'); } }); break;
+    case 4: explode(c, x, y, 30, 10, { on: (o) => { if (o.big == null) { o.big = W.n + alive; label(o, '🔍 커졌다!'); } } }); break;
+    case 5: explode(c, x, y, 32, 10, { push: 4.5 }); snd(c, 'pan'); break;
+    case 6: explode(c, x, y, 18, 10, { on: (o) => { if (!o.poison) { o.poison = { until: now + 120000, next: now + 10000, by: me }; label(o, '☠️ 중독!', '#b06bff'); } } }); break;
+    case 8: explode(c, x, y, 30, 10, { on: (o) => { o.mark = me; label(o, '👑 표식!'); } }); break;
+    case 10: explode(c, x, y, 18, 10, { on: (o) => { if (!o.bleed) { o.bleed = { until: now + 60000, next: now + 10000, by: me }; label(o, '🩸 출혈!', '#ff6b6b'); } } }); break;
+    case 11: { // 베개: 폭발 뒤 솜뭉치가 양옆 바닥으로 짧게 튀어 나가 터져요
+      explode(c, x, y, 28, 10); const hit = new Set(), M = W.mask;
+      for (const sg of [-1, 1]) for (const [k, off] of [[0, 30], [1, 58]]) {
+        const tx = Math.max(4, Math.min(MW - 4, x + sg * off)); let ty = y - 40; while (ty < y + 120 && !solid(M, tx, ty + 1)) ty++; while (ty > y - 60 && solid(M, tx, ty)) ty--;
+        W.projs.push({ k: 'cotp', x, y: y - 4, x0: x, y0: y - 4, tx, ty, dur: 0.28 + k * 0.08, t: 0, hit, amp: p.amp });
+      }
+      snd(c, 'flower'); break; }
+    default: explode(c, x, y, 42, 10);
   }
 }
 function onPuddle(W, o) { return W.puddles.some((q) => Math.abs(o.x - q.x) < q.w / 2 + 4 && Math.abs(o.y - q.y) < 7); }
@@ -691,7 +697,7 @@ function simSig(c, dt, w) {
     const o = W.worms.find((u) => !u.dead && u.id !== W.wid && Math.abs(u.x - q.x) < hw(u) && q.y > u.y - hb(u) && q.y < u.y + 2);
     if (o && W.hose) {
       q.gone = true; const h = W.hose.hit, n = (h[o.id] = (h[o.id] || 0) + 1);
-      if (n % 3 === 1 && n <= 30) hurt(c, o, 2, Math.sign(q.vx) * 170, -90);
+      if (n % 3 === 1 && n <= 15) hurt(c, o, 2, Math.sign(q.vx) * 170, -90);
       continue;
     }
     if (solid(M, q.x, q.y)) { let y = q.y; while (y > 0 && solid(M, q.x, y)) y--; addPuddle(W, q.x, y); q.gone = true; }
@@ -705,7 +711,7 @@ function simSig(c, dt, w) {
       U.fired = true; snd(c, 'laser');
       const top = U.ty - 180;
       for (let y = top; y <= U.ty + 10; y += 12) if (solid(M, U.x, y)) crater(c, U.x, y, 12);
-      for (const o of W.worms) if (!o.dead && Math.abs(o.x - U.x) < 24 && o.y > top && o.y < U.ty + 50) hurt(c, o, 30, Math.sign(o.x - U.x || 1) * 120, -160);
+      for (const o of W.worms) if (!o.dead && Math.abs(o.x - U.x) < 24 && o.y > top && o.y < U.ty + 50) hurt(c, o, 10, Math.sign(o.x - U.x || 1) * 120, -160);
     }
     if (U.t > 3.0) W.ufo = null;
   }
@@ -867,12 +873,13 @@ function simStep(c, dt) {
   for (const p of [...W.projs]) {
     p.t += dt;
     if (p.t < 0) continue;
-    if (!p.amp && p.k !== 'tele' && p.k !== 'torP' && p.k !== 'chick') for (const f of c.ctx.state.fires || []) if (Math.abs(p.x - f.x) < 22) { p.amp = true; W.fx.push({ k: 'txt', x: p.x, y: p.y - 20, s: '🔥 x2!', col: '#ff9a2e', t: 0 }); snd(c, 'amp'); }
+    if (!p.amp && p.k !== 'tele' && p.k !== 'torP' && p.k !== 'chick') for (const f of c.ctx.state.fires || []) if (Math.abs(p.x - f.x) < 42) { p.amp = true; W.fx.push({ k: 'txt', x: p.x, y: p.y - 20, s: '🔥 x2!', col: '#ff9a2e', t: 0 }); snd(c, 'amp'); }
     if (p.k === 'bq' && p.t > 0.22) { burstBouquet(c, p); continue; }
     for (const t of W.tors) if (DEFLECT.has(p.k) && Math.abs(p.x - t.x) < 26 && !(p.def ||= []).includes(t)) { p.def.push(t); p.vx = -p.vx * 0.9; p.vy = -Math.abs(p.vy) * 0.4 - 60; W.fx.push({ k: 'txt', x: t.x, y: p.y - 30, s: '튕겼다!', col: '#9fd3ff', t: 0 }); snd(c, 'tornado'); }
-    if (p.k === 'cotp') { // 솜뭉치: 0.4초 날아가다 퐁!
-      p.vy += G * dt * 0.6; p.x += p.vx * dt; p.y += p.vy * dt;
-      if (p.t > 0.4 || solid(M, p.x, p.y)) { remove(W, p); W.mult = p.amp ? 2 : 1; explode(c, p.x, p.y, 22, 10, { soft: true, min: 10, skip: p.hit }); W.mult = 1; for (let i = 0; i < 5; i++) W.fx.push({ k: 'cot', x: p.x + Math.cos(i * 1.26) * 10, y: p.y + Math.sin(i * 1.26) * 8, t: 0 }); snd(c, 'puff'); }
+    if (p.k === 'cotp') { // 솜뭉치: 옆 바닥까지 살짝 곡선으로 날아가 퐁!
+      const u = Math.min(1, p.t / p.dur);
+      p.x = p.x0 + (p.tx - p.x0) * u; p.y = p.y0 + (p.ty - p.y0) * u - 22 * 4 * u * (1 - u);
+      if (u >= 1) { remove(W, p); W.mult = p.amp ? 2 : 1; explode(c, p.tx, p.ty - 6, 24, 10, { soft: true, min: 10, skip: p.hit }); W.mult = 1; for (let i = 0; i < 6; i++) W.fx.push({ k: 'cot', x: p.tx + Math.cos(i * 1.05) * 12, y: p.ty - 6 + Math.sin(i * 1.05) * 6, t: 0 }); snd(c, 'puff'); }
       continue;
     }
     if (p.k === 'chick') {
@@ -1041,13 +1048,7 @@ function draw(c, dt, now) {
     x.save(); x.translate(ux, uy); x.fillStyle = '#9fe3ff'; x.beginPath(); x.ellipse(0, -6, 12, 10, 0, Math.PI, 0); x.fill(); x.fillStyle = '#b8c0cc'; x.beginPath(); x.ellipse(0, 0, 30, 8, 0, 0, 7); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 1.5; x.stroke();
     for (let i = -2; i <= 2; i++) { x.fillStyle = (Math.floor(now / 150) + i) % 2 ? '#ffd84d' : '#ff4f4f'; x.beginPath(); x.arc(i * 10, 2, 2, 0, 7); x.fill(); } x.restore(); } }
   for (const l of V.lad || []) { x.strokeStyle = '#8a5a2b'; x.lineWidth = 3; x.beginPath(); x.moveTo(l.x - 7, l.y1); x.lineTo(l.x - 7, l.y2); x.moveTo(l.x + 7, l.y1); x.lineTo(l.x + 7, l.y2); x.stroke(); x.strokeStyle = '#c08a4a'; x.lineWidth = 2.5; x.beginPath(); for (let y = l.y2 - 6; y > l.y1; y -= 12) { x.moveTo(l.x - 7, y); x.lineTo(l.x + 7, y); } x.stroke(); }
-  for (const f of state.fires || []) { // 증폭 불기둥
-    const g = x.createLinearGradient(f.x - 30, 0, f.x + 30, 0); g.addColorStop(0, 'rgba(255,80,0,0)'); g.addColorStop(0.5, `rgba(255,${120 + Math.sin(now / 80) * 30},20,.55)`); g.addColorStop(1, 'rgba(255,80,0,0)');
-    x.fillStyle = g; x.fillRect(f.x - 30, -400, 60, MH + 400);
-    x.fillStyle = 'rgba(255,230,120,.5)'; x.fillRect(f.x - 4, -400, 8, MH + 400);
-    for (let i = 0; i < 14; i++) { const yy = MH - ((now * 0.25 + i * 70) % (MH + 400)), wob = Math.sin(now / 120 + i) * 10; x.fillStyle = `rgba(255,${140 + (i % 3) * 40},40,.85)`; x.beginPath(); x.moveTo(f.x + wob - 9, yy + 14); x.quadraticCurveTo(f.x + wob, yy - 14, f.x + wob + 9, yy + 14); x.fill(); }
-    x.font = 'bold 14px sans-serif'; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#000'; x.fillStyle = '#ffd84d'; x.strokeText('🔥 x2', f.x, 90); x.fillText('🔥 x2', f.x, 90);
-  }
+  for (const f of state.fires || []) drawFirePillar(x, f.x, now); // 증폭 불기둥
   for (const t of V.tors || []) { // 하늘부터 바닥까지 긴 토네이도
     x.save(); x.globalAlpha = 0.55; const g = x.createLinearGradient(t.x - 30, 0, t.x + 30, 0); g.addColorStop(0, 'rgba(160,200,240,0)'); g.addColorStop(0.5, 'rgba(200,230,255,.55)'); g.addColorStop(1, 'rgba(160,200,240,0)'); x.fillStyle = g; x.fillRect(t.x - 30, -400, 60, WATER + 400); x.globalAlpha = 1;
     for (let yy = -380; yy < WATER; yy += 26) { const k = ((yy + now * 0.25) % 52) / 52; x.strokeStyle = `rgba(230,245,255,${0.35 + 0.35 * Math.sin(k * Math.PI)})`; x.lineWidth = 3; x.beginPath(); x.ellipse(t.x + Math.sin(now / 160 + yy * 0.05) * 6, yy, 18 + 6 * Math.sin(yy * 0.02 + now / 300), 5, 0, 0, 7); x.stroke(); }
@@ -1129,6 +1130,32 @@ function draw(c, dt, now) {
   miniMap(c, T, V, fogOn ? myTeam : null);
 }
 
+// 증폭 불기둥: 두껍게 활활 (겹친 불꽃 혀 + 밝게 더하기)
+function drawFirePillar(x, X, now) {
+  const top = -420, bot = MH + 10, H = bot - top, t = now / 1000;
+  x.save();
+  const glow = x.createLinearGradient(X - 110, 0, X + 110, 0); glow.addColorStop(0, 'rgba(255,60,0,0)'); glow.addColorStop(0.5, 'rgba(255,90,10,.35)'); glow.addColorStop(1, 'rgba(255,60,0,0)');
+  x.fillStyle = glow; x.fillRect(X - 110, top, 220, H);
+  x.globalCompositeOperation = 'lighter';
+  const layer = (w, col, speed, n, seed) => { // 위로 솟구치는 불꽃 혀
+    x.fillStyle = col; x.beginPath(); x.moveTo(X - w, bot);
+    for (let i = 0; i <= n; i++) { const yy = bot - (i / n) * H, wob = Math.sin(t * speed + i * 1.7 + seed) * w * 0.35 + Math.sin(t * speed * 1.9 + i * 0.6 + seed) * w * 0.15; x.lineTo(X - w + wob - (i % 2 ? w * 0.18 : 0), yy); }
+    for (let i = n; i >= 0; i--) { const yy = bot - (i / n) * H, wob = Math.sin(t * speed + i * 1.3 + seed + 2) * w * 0.35 + Math.sin(t * speed * 2.1 + i * 0.8 + seed) * w * 0.15; x.lineTo(X + w + wob + (i % 2 ? w * 0.18 : 0), yy); }
+    x.closePath(); x.fill();
+  };
+  layer(46, 'rgba(255,60,0,.55)', 5, 26, 0);
+  layer(34, 'rgba(255,130,20,.6)', 7, 30, 3);
+  layer(20, 'rgba(255,210,80,.7)', 9, 34, 6);
+  layer(8, 'rgba(255,255,220,.8)', 12, 40, 9);
+  for (let i = 0; i < 26; i++) { // 위로 날리는 불씨와 불꽃 덩어리
+    const ph = (t * (0.35 + (i % 5) * 0.08) + i * 0.137) % 1, yy = bot - ph * H, xx = X + Math.sin(t * 3 + i * 2.3) * (20 + (i % 4) * 10), r = (i % 3 === 0 ? 14 : 6) * (1 - ph * 0.6);
+    const g = x.createRadialGradient(xx, yy, 0, xx, yy, r); g.addColorStop(0, 'rgba(255,240,180,.9)'); g.addColorStop(0.5, 'rgba(255,140,30,.6)'); g.addColorStop(1, 'rgba(255,60,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(xx, yy, r, 0, 7); x.fill();
+  }
+  x.globalCompositeOperation = 'source-over';
+  x.font = 'bold 16px sans-serif'; x.textAlign = 'center'; x.lineWidth = 4; x.strokeStyle = '#000'; x.fillStyle = '#ffd84d'; x.strokeText('🔥 x2', X, 90); x.fillText('🔥 x2', X, 90);
+  x.restore();
+}
 function drawCrate(x, X, Y, air, now) {
   const im = pic('img/kkumtle/crate-air.webp');
   if (im) {

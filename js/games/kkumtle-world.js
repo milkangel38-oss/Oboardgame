@@ -4,7 +4,7 @@ export const G = 520;
 export const WH = 18; // 꿈틀이 키 (발 기준)
 
 export const MAPS = {
-  city: { bed: 800, name: '도시', emoji: '🏙️', sky: ['#7fb2e6', '#e3f0ff'], dirt: ['#7c7f8c', '#4c4f5a'], top: '#b4bccb', water: '#2f5f99', desc: '빌딩 사이를 넘나드는 도심 전투' },
+  city: { bed: 800, name: '도시', emoji: '🏙️', sky: ['#7fb2e6', '#e3f0ff'], dirt: ['#7c7f8c', '#4c4f5a'], top: '#b4bccb', water: '#2f5f99', desc: '공중 발판을 넘나드는 도심 전투' },
   mountain: { name: '산', emoji: '⛰️', sky: ['#6fb6ff', '#d6ecff'], dirt: ['#9a6a3e', '#5a3a20'], top: '#5fcf5a', water: '#2a74c8', desc: '높은 봉우리와 깊은 골짜기' },
   sky: { name: '하늘', emoji: '☁️', sky: ['#9ccfff', '#fff1d6'], dirt: ['#b08a5a', '#7a5a38'], top: '#8de07a', water: '#4a8fd8', desc: '구름 위에 떠 있는 섬들 — 떨어지면 끝!' },
   sea: { name: '바다', emoji: '🌊', sky: ['#5fc0ff', '#e0f6ff'], dirt: ['#d8b878', '#a8864a'], top: '#f2dc9c', water: '#1c8fcf', desc: '바다 위 작은 모래섬들' },
@@ -31,18 +31,11 @@ export function makeMask(map, seed) {
   } else if (map === 'city') {
     const g = 700;
     for (let x = 0; x < MW; x++) col(x, g); // 바다 대신 끝까지 바닥
-    let x = 120;
-    while (x < MW - 200) {
-      const w = 90 + r() * 110, top = g - (120 + r() * 300);
-      for (let i = 0; i < w; i++) col(Math.round(x + i), top, g);
-      if (r() < 0.5) for (let i = 10; i < w - 10; i++) col(Math.round(x + i), top - 30, top); // 옥상 구조물
-      x += w + 30 + r() * 90;
-    }
-    // 하늘에 떠 있는 얇은 바닥 (빌딩 사이 골이 깊어서 건너다닐 발판)
+    // 하늘에 떠 있는 얇은 바닥 (건물 벽 없이 발판으로만)
     const empty = (x0, y0, w, h) => { for (let y = Math.max(0, y0); y < Math.min(MH, y0 + h); y += 3) for (let x = Math.max(0, x0); x < Math.min(MW, x0 + w); x += 3) if (m[y * MW + x]) return false; return true; };
     let made = 0;
-    for (let tries = 0; made < 18 && tries < 600; tries++) {
-      const w = Math.round(70 + r() * 90), x0 = Math.round(60 + r() * (MW - 120 - w)), y0 = Math.round(150 + r() * 430);
+    for (let tries = 0; made < 26 && tries < 900; tries++) {
+      const w = Math.round(70 + r() * 90), x0 = Math.round(40 + r() * (MW - 80 - w)), y0 = Math.round(170 + r() * 470);
       if (!empty(x0 - 26, y0 - 40, w + 52, 40 + 10 + 30)) continue;
       for (let i = 0; i < w; i++) for (let y = y0; y < y0 + 10; y++) m[y * MW + x0 + i] = 3; // 3 = 내구도 있는 발판
       plats.push({ x: x0, y: y0, w, h: 10 });
