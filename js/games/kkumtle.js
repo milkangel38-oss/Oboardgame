@@ -1135,7 +1135,7 @@ function drawPot(x, X, Y, mask, now, name) {
   let y = Y; while (y < WATER - 2 && !solid(mask, X, y + 1)) y++;
   const im = pic('img/kkumtle/pot.webp');
   x.save(); x.translate(X, y);
-  if (im) { const w = 34, h = w * im.naturalHeight / im.naturalWidth; x.drawImage(im, -w / 2, -h, w, h); }
+  if (im) { const w = 42, h = w * im.naturalHeight / im.naturalWidth; x.drawImage(im, -w / 2, -h + 2, w, h); }
   else {
     x.fillStyle = '#2b2b33'; x.beginPath(); x.moveTo(-15, -16); x.lineTo(15, -16); x.quadraticCurveTo(15, 0, 0, 0); x.quadraticCurveTo(-15, 0, -15, -16); x.fill();
     x.fillRect(-19, -15, 5, 3); x.fillRect(14, -15, 5, 3);
