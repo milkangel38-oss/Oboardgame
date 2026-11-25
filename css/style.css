@@ -3699,3 +3699,13 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 .kw-gauge { min-height: 100px; padding-top: 9px; padding-bottom: 9px; }
 .kw-dialbox { width: 62px; gap: 2px; }
 @media (max-height: 460px) { .kw-gauge { min-height: 90px; } .kw-dialbox { width: 54px; } }
+
+/* 꿈틀 포격전: 나가기 */
+.kw-exit { position: absolute; left: max(8px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); z-index: 5; height: 28px; padding: 0 10px; border-radius: 99px; border: 1.5px solid rgba(255, 255, 255, .5); background: rgba(0, 0, 0, .55); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+.kw-exit:hover { background: rgba(214, 58, 58, .8); }
+.kw-tl { top: calc(max(8px, env(safe-area-inset-top)) + 34px); }
+.kw-menu { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(0, 0, 0, .6); padding: 16px; }
+.kw-menu[hidden] { display: none; }
+.kw-mbtns { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 6px; } .kw-mbtns.row { flex-direction: row; }
+.kw-out { background: #d63a3a !important; color: #fff !important; border-color: #d63a3a !important; }
+.kw-warn { background: rgba(255, 79, 79, .15); border: 1px solid rgba(255, 79, 79, .5); border-radius: 10px; padding: 8px 10px; font-size: 13px; }

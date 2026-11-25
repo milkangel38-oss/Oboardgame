@@ -1593,7 +1593,8 @@ function drawRoom($main, room, game) {
   const $seatInvite = $main.querySelector('[data-invite-seat]');
   if ($seatInvite) $seatInvite.onclick = () => invite(room, game);
   $main.querySelector('[data-leave]').onclick = () => {
-    if (room.status === 'playing' && !confirm('게임 중에 나가면 게임이 끝나요. 나갈까요?')) return;
+    const ok = window.__leaveConfirmed; window.__leaveConfirmed = false; // 게임 화면에서 이미 물어봤으면 다시 묻지 않아요
+    if (room.status === 'playing' && !ok && !confirm('게임 중에 나가면 게임이 끝나요. 나갈까요?')) return;
     const uid = user.uid;
     cleanup?.(); // 방 감시를 먼저 끊어야 나가자마자 자동 재입장되지 않아요
     cleanup = null;

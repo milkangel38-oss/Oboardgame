@@ -17,7 +17,7 @@ export const WEAPONS = [
   { id: 'ladder', cat: 'util', icon: '🪜', name: '사다리', n: 2, desc: '내 자리에 사다리를 세워요. 조이스틱 위아래로 오르내리고, 좌우로 내려와요. 폭발에 맞으면 부서져요.' },
   { id: 'pill', cat: 'util', icon: '💊', name: '알약', n: 2, desc: '꿈틀이 체력을 30 회복해요.' },
   { id: 'medkit', cat: 'util', icon: '🧰', name: '구급상자', n: 1, desc: '꿈틀이 체력을 60 회복해요.' },
-  { id: 'tornado', cat: 'util', icon: '🌪️', name: '토네이도', n: 0, sp: true, desc: '내 앞에 회오리바람을 만들어요. 날아오는 탄을 튕겨 되돌려 보내요. (2턴 유지)' },
+  { id: 'tornado', cat: 'util', icon: '🌪️', name: '토네이도', n: 0, sp: true, charge: true, desc: '꾹 눌러 던지면 떨어진 자리에 하늘부터 바닥까지 긴 토네이도가 생겨요. 지나가는 탄을 튕겨내요. (2턴 유지)' },
   { id: 'fog', cat: 'util', icon: '🌫️', name: '안개', n: 0, sp: true, desc: '안개가 깔려서 모두 자기 팀 꿈틀이만 보여요. (2턴 유지)' },
 ];
 export const WMAP = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
