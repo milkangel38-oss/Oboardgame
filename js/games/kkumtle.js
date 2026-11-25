@@ -9,7 +9,7 @@ import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
 
 const TURN_MS = 30000;
 const HB = 32; // 오리 몸 높이 (맞는 범위)
-const ICONS = Object.fromEntries(['shell', 'homing', 'grenade', 'flame', 'mine', 'pistol', 'mg', 'radio', 'chicken', 'tele', 'drill', 'rope', 'jet', 'chute', 'pill', 'medkit', 'tornado', 'fog'].map((k) => [k, `img/kkumtle/w-${k}.webp`])); // 그림이 있는 무기 아이콘
+const ICONS = Object.fromEntries(['shell', 'homing', 'grenade', 'flame', 'mine', 'pistol', 'mg', 'radio', 'chicken', 'tele', 'drill', 'rope', 'jet', 'chute', 'ladder', 'pill', 'medkit', 'tornado', 'fog'].map((k) => [k, `img/kkumtle/w-${k}.webp`])); // 그림이 있는 무기 아이콘
 const imgs = {};
 function pic(src) { if (typeof Image === 'undefined') return null; let im = imgs[src]; if (!im) { im = imgs[src] = new Image(); im.src = src; } return im.complete && im.naturalWidth ? im : null; }
 const iconHtml = (id) => (ICONS[id] ? `<img src="${ICONS[id]}" alt="">` : WMAP[id].icon);
