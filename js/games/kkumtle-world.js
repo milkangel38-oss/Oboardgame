@@ -37,6 +37,15 @@ export function makeMask(map, seed) {
       if (r() < 0.5) for (let i = 10; i < w - 10; i++) col(Math.round(x + i), top - 30, top); // 옥상 구조물
       x += w + 30 + r() * 90;
     }
+    // 하늘에 떠 있는 얇은 바닥 (빌딩 사이 골이 깊어서 건너다닐 발판)
+    const empty = (x0, y0, w, h) => { for (let y = Math.max(0, y0); y < Math.min(MH, y0 + h); y += 3) for (let x = Math.max(0, x0); x < Math.min(MW, x0 + w); x += 3) if (m[y * MW + x]) return false; return true; };
+    let made = 0;
+    for (let tries = 0; made < 18 && tries < 600; tries++) {
+      const w = Math.round(70 + r() * 90), x0 = Math.round(60 + r() * (MW - 120 - w)), y0 = Math.round(150 + r() * 430);
+      if (!empty(x0 - 26, y0 - 40, w + 52, 40 + 10 + 30)) continue;
+      for (let i = 0; i < w; i++) col(x0 + i, y0, y0 + 10);
+      made++;
+    }
   } else if (map === 'sky') {
     const n = 7;
     for (let i = 0; i < n; i++) {
@@ -70,6 +79,20 @@ function blob(m, cx, cy, rx, ry, r) { // 동굴
   void r;
 }
 
+// 도시 맵: 좌우로 움직이는 바닥 (부서지지 않아요). 모두 같은 시계(Date.now)로 움직여서 화면이 같아요.
+export function movers(map, seed, m) {
+  if (map !== 'city') return [];
+  const r = rng(seed ^ 0x5bd1e995), out = [];
+  const empty = (x0, y0, w, h) => { for (let y = Math.max(0, y0); y < Math.min(MH, y0 + h); y += 3) for (let x = Math.max(0, x0); x < Math.min(MW, x0 + w); x += 3) if (m[y * MW + x]) return false; return true; };
+  for (let tries = 0; out.length < 5 && tries < 800; tries++) {
+    const w = Math.round(80 + r() * 50), amp = Math.round(50 + r() * 90), x0 = Math.round(80 + amp + r() * (MW - 160 - 2 * amp - w)), y = Math.round(170 + r() * 400);
+    if (!empty(x0 - amp - 20, y - 46, w + 2 * amp + 40, 46 + 10 + 34)) continue;
+    if (out.some((o) => Math.abs(o.y - y) < 60 && x0 - amp < o.x0 + o.w + o.amp + 20 && x0 + w + amp + 20 > o.x0 - o.amp)) continue;
+    out.push({ x0, y, w, h: 10, amp, per: 6 + r() * 5, ph: r() * 6.28, cx: null });
+  }
+  return out;
+}
+export const moverX = (o, ms) => Math.round(o.x0 + Math.sin((ms / 1000 / o.per) * Math.PI * 2 + o.ph) * o.amp);
 export const solid = (m, x, y) => { x |= 0; y |= 0; return x >= 0 && x < MW && y >= 0 && y < MH && m[y * MW + x] === 1; };
 export function carve(m, cx, cy, r) {
   const r2 = r * r;

@@ -4,9 +4,9 @@
 //   차례가 끝나면 결과(체력·구멍·지뢰 등)를 방 문서에 저장해요.
 import { soundEvent, isMuted, getVolume, setVolume, setMuted, onSoundChange } from '../sound.js';
 import { faceHtml } from './face.js';
-import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkStep, airStep, surfaceAt } from './kkumtle-world.js';
+import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkStep, airStep, surfaceAt, movers, moverX } from './kkumtle-world.js';
 import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
-import { SIG, sigImg, STATUS } from './kkumtle-sig.js';
+import { SIG, sigImg, STATUS, DUCKS } from './kkumtle-sig.js';
 
 const TURN_MS = 30000;
 const HB = 32;
@@ -36,7 +36,10 @@ function newRound(state, now) {
   let k = 0, skin = 0;
   for (const t of ['red', 'blue']) for (let i = 0; i < counts[t]; i++) {
     const p = pts[k++];
-    worms.push({ id: `${t[0]}${i}`, team: t, owner: byTeam[t][i % byTeam[t].length], x: p.x, y: p.y, hp: 100, dead: false, skin: (skin++ + state.round * 5) % 12 });
+    const owner = byTeam[t][i % byTeam[t].length], used = new Set(byTeam[t].map((u) => state.picks?.[u]));
+    let sk = i < byTeam[t].length && state.picks?.[owner] != null ? state.picks[owner] : -1;
+    if (sk < 0) { sk = [...Array(12).keys()].find((q) => !used.has(q) && !worms.some((o) => o.team === t && o.skin === q)) ?? (skin % 12); skin++; }
+    worms.push({ id: `${t[0]}${i}`, team: t, owner, x: p.x, y: p.y, hp: 100, dead: false, skin: sk });
   }
   const first = Math.random() < 0.5 ? 'red' : 'blue';
   const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10].sort(() => Math.random() - 0.5), drops = pool.slice(0, Math.random() < 0.5 ? 2 : 3).sort((a, b) => a - b);
@@ -69,6 +72,11 @@ function cleanStatus(n) {
   return { cuff: num(n.cuff), tube: num(n.tube), big: num(n.big), mark: n.mark ? String(n.mark) : null, poison: dot(n.poison), bleed: dot(n.bleed) };
 }
 const stStr = (o) => (o.cuff != null ? 'c' : '') + (o.tube != null ? 't' : '') + (o.big != null ? 'b' : '') + (o.poison ? 'p' : '') + (o.bleed ? 'l' : '') + (o.mark ? 'm' : '');
+function freePick(teams, picks, uid, team) {
+  const taken = new Set(Object.keys(teams).filter((u) => u !== uid && teams[u] === team && picks[u] != null).map((u) => picks[u]));
+  const pref = team === 'red' ? [0, 2, 8, 6, 4, 10, 1, 3, 5, 7, 9, 11] : [9, 7, 3, 11, 5, 1, 0, 2, 4, 6, 8, 10];
+  return pref.find((k) => !taken.has(k)) ?? 0;
+}
 function cleanInv(v, old) { if (!v) return old; return Object.fromEntries(WEAPONS.map((w) => [w.id, Number.isFinite(+v[w.id]) ? Math.max(-1, Math.min(9, Math.round(+v[w.id]))) : old[w.id]])); }
 function matchOver(s) { const need = Math.floor(s.rounds / 2) + 1; return s.wins.red >= need || s.wins.blue >= need || s.round >= s.rounds; }
 export function finalResult(state, players) {
@@ -118,8 +126,10 @@ export default {
   setup(players, room) {
     const order = players.map((p) => p.uid);
     const teams = Object.fromEntries(order.map((u, i) => [u, i % 2 ? 'blue' : 'red']));
+    const picks = {};
+    for (const u of order) picks[u] = freePick(teams, picks, u, teams[u]);
     return {
-      phase: 'lobby', order, host: room?.hostId || order[0], teams, ready: {}, map: 'mountain',
+      phase: 'lobby', order, host: room?.hostId || order[0], teams, picks, ready: {}, map: 'mountain',
       rounds: Math.min(5, Math.max(1, Number(room?.options?.rounds) || 3)), per: Math.min(3, Math.max(1, Number(room?.options?.worms) || 2)),
       round: 0, wins: { red: 0, blue: 0 }, stats: Object.fromEntries(order.map((u) => [u, { dmg: 0, kills: 0 }])), turn: { team: 'blue', n: 0 },
     };
@@ -130,7 +140,17 @@ export default {
     const t = move?.type;
     const isHost = uid === state.host || !players[state.host];
     if (state.phase === 'lobby') {
-      if (t === 'team') { if (!TEAMS[move.team]) throw new Error('__noop'); return { state: { ...state, teams: { ...state.teams, [uid]: move.team }, ready: { ...state.ready, [uid]: false } } }; }
+      if (t === 'team') {
+        if (!TEAMS[move.team]) throw new Error('__noop');
+        const teams = { ...state.teams, [uid]: move.team }, picks = { ...(state.picks || {}) };
+        if (state.order.some((u) => u !== uid && teams[u] === move.team && picks[u] === picks[uid]) || picks[uid] == null) picks[uid] = freePick(teams, picks, uid, move.team);
+        return { state: { ...state, teams, picks, ready: { ...state.ready, [uid]: false } } };
+      }
+      if (t === 'pick') {
+        const sk = move.skin | 0; if (sk < 0 || sk > 11) throw new Error('__noop');
+        if (state.order.some((u) => u !== uid && state.teams[u] === state.teams[uid] && state.picks?.[u] === sk)) throw new Error('같은 팀에서 이미 고른 오리예요');
+        return { state: { ...state, picks: { ...(state.picks || {}), [uid]: sk } } };
+      }
       if (t === 'map') { if (!isHost) throw new Error('방장만 맵을 고를 수 있어요'); if (!MAPS[move.map]) throw new Error('__noop'); return { state: { ...state, map: move.map } }; }
       if (t === 'ready') return { state: { ...state, ready: { ...state.ready, [uid]: !state.ready[uid] } } };
       if (t === 'start') {
@@ -154,7 +174,7 @@ export default {
       if (state.phase !== 'play' || state.turn.uid !== uid || move.n !== state.turn.n) throw new Error('__noop');
       const r = move.res || {};
       const ws = new Map((r.worms || []).map((w) => [w.id, w]));
-      const worms = state.worms.map((w) => { const n = ws.get(w.id); if (!n) return w; const o = { ...w, x: Math.round(+n.x), y: Math.round(+n.y), hp: Math.max(0, Math.min(200, Math.round(+n.hp))), dead: w.dead || !!n.dead, ...cleanStatus(n) }; if (o.id === state.turn.wid) { if (o.cuff != null && o.cuff < state.turn.n) o.cuff = null; if (o.tube != null && o.tube < state.turn.n) o.tube = null; } return o; });
+      const worms = state.worms.map((w) => { const n = ws.get(w.id); if (!n) return w; const o = { ...w, x: Math.round(+n.x), y: Math.round(+n.y), hp: Math.max(0, Math.min(200, Math.round(+n.hp))), dead: w.dead || !!n.dead, ...cleanStatus(n), ride: n.ride == null ? null : n.ride | 0, off: n.off | 0 }; if (o.id === state.turn.wid) { if (o.cuff != null && o.cuff < state.turn.n) o.cuff = null; if (o.tube != null && o.tube < state.turn.n) o.tube = null; } return o; });
       const stats = { ...state.stats };
       for (const [u, d] of Object.entries(r.stats || {})) { if (!stats[u]) continue; stats[u] = { dmg: stats[u].dmg + Math.max(0, d.dmg | 0), kills: stats[u].kills + Math.max(0, d.kills | 0) }; }
       const s = { ...state, worms, stats,
@@ -191,13 +211,17 @@ function lobby(el, { state, me, players, sendMove, room }) {
   const col = (t) => {
     const us = state.order.filter((u) => state.teams[u] === t);
     return `<div class="kw-team ${t}"><h4>${TEAMS[t].name} <small>${us.length}명</small></h4>
-      ${us.map((u) => `<div class="kw-pl ${u === me ? 'me' : ''}"><span class="kw-face">${faceHtml(players[u] || { name: '?' })}</span><b>${esc(players[u]?.name || '?')}</b>${u === state.host ? '<em>방장</em>' : state.ready[u] ? '<i>준비 ✔</i>' : '<i class="no">대기</i>'}</div>`).join('') || '<p class="kw-empty">아무도 없어요</p>'}
+      ${us.map((u) => `<div class="kw-pl ${u === me ? 'me' : ''}"><span class="kw-face">${state.picks?.[u] != null ? `<img src="img/kkumtle/d${state.picks[u]}.webp" alt="">` : faceHtml(players[u] || { name: '?' })}</span><b>${esc(players[u]?.name || '?')}</b>${u === state.host ? '<em>방장</em>' : state.ready[u] ? '<i>준비 ✔</i>' : '<i class="no">대기</i>'}</div>`).join('') || '<p class="kw-empty">아무도 없어요</p>'}
       ${state.teams[me] !== t && state.order.includes(me) ? `<button class="btn sm" data-team="${t}">${TEAMS[t].name}으로 이동</button>` : ''}</div>`;
   };
   const allReady = state.order.every((u) => u === state.host || state.ready[u] || !players[u]);
   const two = ['red', 'blue'].every((t) => state.order.some((u) => state.teams[u] === t));
   el.innerHTML = `<div class="kw-lobby">
     <div class="kw-teams">${col('red')}<div class="kw-vs">VS</div>${col('blue')}</div>
+    <div class="kw-sec">🦆 오리 선택 <small>(같은 팀끼리는 겹칠 수 없어요)</small></div>
+    <div class="kw-ducks">${DUCKS.map((n, k) => { const mates = state.order.filter((u) => u !== me && state.teams[u] === state.teams[me] && state.picks?.[u] === k), foes = state.order.filter((u) => state.teams[u] !== state.teams[me] && state.picks?.[u] === k);
+      return `<button class="kw-duck ${state.picks?.[me] === k ? 'on' : ''} ${mates.length ? 'taken' : ''}" data-pick="${k}" ${mates.length || !state.order.includes(me) ? 'disabled' : ''}><img src="img/kkumtle/d${k}.webp" alt=""><b>${n}</b><small>${SIG[k].icon} ${SIG[k].name}</small>${mates.length ? `<em class="mate">${esc(players[mates[0]]?.name || '?')}</em>` : ''}${foes.length ? `<em class="foe">${foes.map((u) => esc(players[u]?.name || '?')).join(', ')}</em>` : ''}</button>`; }).join('')}</div>
+    <div class="kw-duckdesc">${state.picks?.[me] != null ? `<b>${DUCKS[state.picks[me]]}</b> · ${SIG[state.picks[me]].icon} ${SIG[state.picks[me]].name}: ${esc(SIG[state.picks[me]].desc)}` : ''}</div>
     <div class="kw-sec">🗺️ 맵 선택 ${isHost ? '' : '<small>(방장이 골라요)</small>'}</div>
     <div class="kw-maps">${Object.entries(MAPS).map(([k, m]) => `<button class="kw-map ${state.map === k ? 'on' : ''}" data-map="${k}" ${isHost ? '' : 'disabled'} style="--s1:${m.sky[0]};--s2:${m.sky[1]};--d:${m.dirt[0]};--t:${m.top};--bg:url(img/kkumtle/bg-${k}.webp)"><i></i><b>${m.emoji} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
     <div class="kw-opts">라운드 <b>${state.rounds}</b> · 팀당 오리 <b>${state.per}</b>마리 <small>(먼저 ${Math.floor(state.rounds / 2) + 1}라운드 이기면 승리)</small></div>
@@ -207,6 +231,7 @@ function lobby(el, { state, me, players, sendMove, room }) {
   </div>`;
   el.querySelectorAll('[data-team]').forEach((b) => (b.onclick = () => sendMove({ type: 'team', team: b.dataset.team })));
   el.querySelectorAll('[data-map]').forEach((b) => (b.onclick = () => sendMove({ type: 'map', map: b.dataset.map })));
+  el.querySelectorAll('[data-pick]').forEach((b) => (b.onclick = () => sendMove({ type: 'pick', skin: +b.dataset.pick })));
   el.querySelector('[data-ready]')?.addEventListener('click', () => sendMove({ type: 'ready' }));
   el.querySelector('[data-start]')?.addEventListener('click', () => sendMove({ type: 'start' }));
 }
@@ -316,7 +341,7 @@ function terrain(c, craters) {
       x.globalCompositeOperation = 'source-in'; x.fillStyle = x.createPattern(tex, 'repeat'); x.fillRect(0, 0, MW, MH);
       x.globalCompositeOperation = 'source-over'; x.drawImage(top, 0, 0);
     }
-    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null, tex: !!tex };
+    T = c.ter = { seed: state.seed, map: state.map, mask, cv, n: 0, mini: null, tex: !!tex, movers: movers(state.map, state.seed, mask) };
   }
   if (craters.length > T.n) {
     const x = T.cv.getContext('2d');
@@ -360,6 +385,7 @@ function startTurn(c) {
     rope: null, jet: null, chute: false, drill: null, chick: null, gren: null, mg: null, flame: null,
   };
   c.W.inv = c.W.invs[c.W.team];
+  if (c.ter?.movers?.length) { for (const o of c.ter.movers) { if (o.cx != null) for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx; x < o.cx + o.w; x++) if (x >= 0 && x < MW) c.W.mask[y * MW + x] = 0; o.cx = null; } stampMovers(c, true); }
   const me0 = c.W.worms.find((w) => w.id === c.W.wid);
   c.facing = me0 && me0.x < MW / 2 ? 1 : -1;
   const want = c.lastSel[c.W.wid] || 'shell';
@@ -567,15 +593,16 @@ function makeTornado(c, x) {
 // ───────────────── 오리마다 다른 기본 무기 ─────────────────
 function fireSig(c, w, x, y, dir, power) {
   const W = c.W, sk = w.skin % 12, a0 = Math.atan2(dir[1], dir[0]);
-  if (sk === 1) { // 부케: 파워가 클수록 모아서
-    const spread = 0.05 + 0.5 * (1 - power);
-    for (let i = 0; i < 9; i++) { const a = a0 + ((i - 4) / 4) * spread + (Math.random() - 0.5) * spread * 0.3, v = 1060 * power * (0.9 + Math.random() * 0.2 * (1.2 - power)); W.projs.push({ k: 'flw', sk, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0 }); }
-    snd(c, 'throw'); return;
-  }
+  if (sk === 1) { W.projs.push({ k: 'bq', sk, x, y, vx: dir[0] * 1060 * power, vy: dir[1] * 1060 * power, t: 0, pw: power }); snd(c, 'throw'); return; } // 부케: 날아가다가 꽃이 흩날려요
   if (sk === 9) { W.projs.push({ k: 'bea', sk, x, y, vx: dir[0] * 1060 * power, vy: dir[1] * 1060 * power, t: 0 }); snd(c, 'throw'); return; }
   const flat = sk === 6 || sk === 10, v = flat ? 1300 * Math.max(0.35, power) : 1060 * power;
   W.projs.push({ k: 'sig', sk, flat, x, y, vx: dir[0] * v, vy: dir[1] * v, t: 0 });
   snd(c, sk === 0 ? 'launch' : 'throw');
+}
+function burstBouquet(c, p) { // 파워가 클수록 모아서
+  const W = c.W, a0 = Math.atan2(p.vy, p.vx), v0 = Math.hypot(p.vx, p.vy), spread = 0.05 + 0.5 * (1 - p.pw);
+  for (let i = 0; i < 9; i++) { const a = a0 + ((i - 4) / 4) * spread + (Math.random() - 0.5) * spread * 0.3, v = v0 * (0.88 + Math.random() * 0.24 * (1.2 - p.pw)); W.projs.push({ k: 'flw', sk: 1, x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0.1 }); }
+  remove(W, p); snd(c, 'flower');
 }
 function sigHit(c, p, x, y) {
   const W = c.W, me = c.ctx.me, now = Date.now(), alive = W.worms.filter((o) => !o.dead).length;
@@ -645,12 +672,37 @@ const mySkin = (c) => { const { state, me } = c.ctx; if (c.W && myTurn(c)) retur
 const wdef = (c, id) => (id === 'shell' ? { ...WMAP.shell, ...SIG[mySkin(c)] } : WMAP[id]);
 const sigIcon = (sk) => (pic(sigImg(sk)) ? `<img src="${sigImg(sk)}" alt="">` : SIG[sk].icon);
 
+// 움직이는 바닥: 지금 시각 위치에 땅으로 찍고, 위에 서 있는 것들을 같이 옮겨요
+function stampMovers(c, place = false) {
+  const T = c.ter, W = c.W; if (!T?.movers?.length || !W) return;
+  const M = W.mask, now = Date.now();
+  T.movers.forEach((o, idx) => {
+    const nx = moverX(o, now);
+    if (place) for (const q of W.worms) if (!q.dead && q.ride === idx) { q.x = nx + q.off; q.y = o.y - 1; q.air = false; }
+    if (o.cx === nx) return;
+    if (o.cx != null) {
+      const dx = nx - o.cx, on = (q) => q.x >= o.cx - 3 && q.x <= o.cx + o.w + 3 && q.y >= o.y - 3 && q.y <= o.y + 1;
+      for (const q of W.worms) if (!q.dead && !q.air && on(q)) q.x += dx;
+      for (const q of W.crates) if (!q.air && on(q)) q.x += dx;
+      for (const q of W.mines) if (on(q)) q.x += dx;
+      for (let y = o.y; y < o.y + o.h; y++) for (let x = o.cx; x < o.cx + o.w; x++) if (x >= 0 && x < MW) M[y * MW + x] = 0;
+    }
+    for (let y = o.y; y < o.y + o.h; y++) for (let x = nx; x < nx + o.w; x++) if (x >= 0 && x < MW) M[y * MW + x] = 1;
+    o.cx = nx;
+  });
+}
+function riding(c, q) {
+  const T = c.ter; if (!T?.movers) return null;
+  for (let i = 0; i < T.movers.length; i++) { const o = T.movers[i]; if (o.cx != null && !q.dead && q.x >= o.cx - 3 && q.x <= o.cx + o.w + 3 && q.y >= o.y - 3 && q.y <= o.y + 1) return { ride: i, off: Math.round(q.x - o.cx) }; }
+  return null;
+}
 function remove(W, p) { W.projs = W.projs.filter((q) => q !== p); }
 
 // ───────────────── 시뮬레이션 (내 차례) ─────────────────
-const DEFLECT = new Set(['shell', 'mini', 'gren', 'mineT', 'tele', 'air', 'sig', 'flw', 'bea']);
+const DEFLECT = new Set(['shell', 'mini', 'gren', 'mineT', 'tele', 'air', 'sig', 'flw', 'bea', 'bq']);
 const hb = (o) => HB * (o.big != null ? 1.3 : 1), hw = (o) => 12 * (o.big != null ? 1.3 : 1);
 function simStep(c, dt) {
+  stampMovers(c);
   const W = c.W, M = W.mask, wind = c.ctx.state.turn.wind, now = performance.now();
   const w = meW(c), J = joyNow(c);
   const act = canAct(c);
@@ -773,6 +825,7 @@ function simStep(c, dt) {
   for (const p of [...W.projs]) {
     p.t += dt;
     if (p.t < 0) continue;
+    if (p.k === 'bq' && p.t > 0.22) { burstBouquet(c, p); continue; }
     for (const t of W.tors) if (DEFLECT.has(p.k) && Math.abs(p.x - t.x) < 26 && !(p.def ||= []).includes(t)) { p.def.push(t); p.vx = -p.vx * 0.9; p.vy = -Math.abs(p.vy) * 0.4 - 60; W.fx.push({ k: 'txt', x: t.x, y: p.y - 30, s: '튕겼다!', col: '#9fd3ff', t: 0 }); snd(c, 'tornado'); }
     if (p.k === 'chick') {
       if (p.t > 10) { boomChicken(c); continue; }
@@ -789,13 +842,14 @@ function simStep(c, dt) {
       const sp = Math.min(620, Math.hypot(p.vx, p.vy) + 900 * dt);
       if (o) { const want = Math.atan2(o.y - 14 - p.y, o.x - p.x), cur = Math.atan2(p.vy, p.vx); let da = want - cur; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; const a = cur + Math.max(-9 * dt, Math.min(9 * dt, da)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; }
       else p.vy += G * dt;
-    } else { p.vy += G * dt * (p.k === 'air' ? 0.6 : p.flat ? 0.45 : 1); if (p.k === 'shell' || p.k === 'sig' || p.k === 'flw' || p.k === 'bea') p.vx += wind * (p.flat ? 50 : 110) * dt; }
+    } else { p.vy += G * dt * (p.k === 'air' ? 0.6 : p.flat ? 0.45 : 1); if (p.k === 'shell' || p.k === 'sig' || p.k === 'flw' || p.k === 'bea' || p.k === 'bq') p.vx += wind * (p.flat ? 50 : 110) * dt; }
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
     if (ny > WATER) { remove(W, p); if (p.k === 'torP') makeTornado(c, nx); W.fx.push({ k: 'splash', x: nx, y: WATER, t: 0 }); snd(c, 'splash'); continue; }
     if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 9)) { remove(W, p); continue; }
-    const hitWorm = ['shell', 'mini', 'air', 'sig', 'flw', 'bea'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team || p.t > 0.4) && Math.abs(o.x - nx) < hw(o) && ny > o.y - hb(o) && ny < o.y + 2);
+    const hitWorm = ['shell', 'mini', 'air', 'sig', 'flw', 'bea', 'bq'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team || p.t > 0.4) && Math.abs(o.x - nx) < hw(o) && ny > o.y - hb(o) && ny < o.y + 2);
     if (solid(M, nx, ny) || hitWorm) {
       if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 20); }
+      else if (p.k === 'bq') { p.x = nx - p.vx * dt * 2; p.y = ny - p.vy * dt * 2; burstBouquet(c, p); }
       else if (p.k === 'sig' || p.k === 'flw' || p.k === 'bea') { remove(W, p); sigHit(c, p, nx, ny); }
       else if (p.k === 'mini') { remove(W, p); explode(c, nx, ny, 34, 35); }
       else if (p.k === 'air') { remove(W, p); explode(c, nx, ny, 38, 60); }
@@ -826,7 +880,7 @@ function simStep(c, dt) {
 function commit(c) {
   const W = c.W; W.sent = true;
   c.ctx.sendMove({ type: 'end', n: W.n, res: {
-    worms: W.worms.map((w) => ({ id: w.id, x: Math.round(w.x), y: Math.round(w.y), hp: w.hp, dead: w.dead, ...cleanStatus(w) })), puddles: W.puddles,
+    worms: W.worms.map((w) => ({ id: w.id, x: Math.round(w.x), y: Math.round(w.y), hp: w.hp, dead: w.dead, ...cleanStatus(w), ...(riding(c, w) || { ride: null, off: 0 }) })), puddles: W.puddles,
     craters: W.newCr, mines: W.mines.map(({ x, y, team, id }) => ({ x, y, team, id })), tors: W.tors, ladders: W.ladders, fog: W.fog || null, invs: W.invs, stats: W.stats,
     crates: W.crates.map(({ id, x, y, item }) => ({ id, x: Math.round(x), y: Math.round(y), item })),
   } }, { onError: () => { W.sent = false; } });
@@ -876,7 +930,8 @@ function view(c) {
   if (c.W && myTurn(c) && c.W.n === state.turn.n) return { ...snap(c), live: true, fireFx: c.W.fx.filter((f) => f.k === 'fire' || f.k === 'puff') };
   const L = state.phase === 'play' ? c.others?.[state.turn.uid] : null;
   if (L && L.n === state.turn.n && Array.isArray(L.w)) { hearLive(c, L); return { ...L, live: true, fireFx: [] }; }
-  return { pud: state.puddles || [], n: state.turn.n, w: state.worms.map((o) => [o.id, o.x, o.y, o.hp, o.dead ? 1 : 0, 0, 0, stStr(o)]), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, heli: 0, lad: state.ladders || [], crates: (state.crates || []).map((k) => [k.x, k.y, 0]), fireFx: [] };
+  const mv = c.ter?.seed === state.seed ? c.ter.movers || [] : [];
+  return { pud: state.puddles || [], n: state.turn.n, w: state.worms.map((o) => { const m = o.ride != null && !o.dead ? mv[o.ride] : null; return [o.id, m ? moverX(m, Date.now()) + o.off : o.x, m ? m.y - 1 : o.y, o.hp, o.dead ? 1 : 0, 0, 0, stStr(o)]; }), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, heli: 0, lad: state.ladders || [], crates: (state.crates || []).map((k) => [k.x, k.y, 0]), fireFx: [] };
 }
 function draw(c, dt, now) {
   const { state, me, players } = c.ctx;
@@ -906,6 +961,7 @@ function draw(c, dt, now) {
   x.fillStyle = 'rgba(255,255,255,.85)';
   if (!bg) for (let i = 0; i < 7; i++) { const cx = (((i * 330 + now * 0.03 * wind) % (MW + 400)) + MW + 400) % (MW + 400) - 200; x.beginPath(); x.ellipse(cx, 80 + (i % 3) * 45, 70, 20, 0, 0, 7); x.ellipse(cx + 34, 68 + (i % 3) * 45, 44, 22, 0, 0, 7); x.fill(); }
   x.drawImage(T.cv, 0, 0);
+  for (const o of T.movers || []) { const mx = moverX(o, Date.now()); const g = x.createLinearGradient(0, o.y, 0, o.y + o.h); g.addColorStop(0, '#d9dee8'); g.addColorStop(1, '#6b7280'); x.fillStyle = g; x.fillRect(mx, o.y, o.w, o.h); x.fillStyle = '#ffd84d'; for (let i = 4; i < o.w - 8; i += 16) { x.beginPath(); x.moveTo(mx + i, o.y + o.h); x.lineTo(mx + i + 6, o.y); x.lineTo(mx + i + 10, o.y); x.lineTo(mx + i + 4, o.y + o.h); x.fill(); } x.strokeStyle = '#2b2f38'; x.lineWidth = 1.5; x.strokeRect(mx, o.y, o.w, o.h); }
   const wy = WATER + Math.sin(now / 500) * 3;
   x.fillStyle = M.water; x.globalAlpha = 0.88; x.fillRect(-900, wy, MW + 1800, MH); x.globalAlpha = 1;
   x.strokeStyle = 'rgba(255,255,255,.6)'; x.lineWidth = 3; x.beginPath(); for (let i = -900; i < MW + 900; i += 20) x.lineTo(i, wy + Math.sin(i * 0.05 + now / 300) * 4); x.stroke();
@@ -963,8 +1019,8 @@ function draw(c, dt, now) {
   for (const p of V.p || []) {
     const [k, px, py, a, face, psk = 0] = p;
     x.save(); x.translate(px, py);
-    if (k === 'sig' || k === 'flw' || k === 'bea') {
-      const isk = k === 'bea' ? 9 : psk, im = k === 'flw' ? null : isk === 0 ? pic(ICONS.shell) : pic(sigImg(isk));
+    if (k === 'sig' || k === 'flw' || k === 'bea' || k === 'bq') {
+      const isk = k === 'bea' ? 9 : k === 'bq' ? 1 : psk, im = k === 'flw' ? null : isk === 0 ? pic(ICONS.shell) : pic(sigImg(isk));
       const base = isk === 0 ? -Math.PI / 2 : SIGPOINT[isk];
       x.rotate(k === 'flw' ? performance.now() / 150 : base != null ? a - base : isk === 9 ? Math.sin(performance.now() / 120) * 0.4 : performance.now() / 90);
       if (im) { const s2 = (isk === 0 ? 20 : 24) / Math.max(im.naturalWidth, im.naturalHeight); x.drawImage(im, -im.naturalWidth * s2 / 2, -im.naturalHeight * s2 / 2, im.naturalWidth * s2, im.naturalHeight * s2); }
@@ -976,7 +1032,9 @@ function draw(c, dt, now) {
     else if (k === 'mineT' && pic(ICONS.mine)) x.drawImage(pic(ICONS.mine), -9, -8, 18, 17);
     else if (k === 'mineT') { x.fillStyle = '#333'; x.beginPath(); x.ellipse(0, 0, 7, 4, 0, 0, 7); x.fill(); }
     else if (k === 'torP') { const im = pic(ICONS.tornado); x.rotate(performance.now() / 100); if (im) x.drawImage(im, -9, -10, 18, 20); }
+    else if (k === 'tele' && pic(ICONS.tele)) { x.rotate(performance.now() / 120); x.drawImage(pic(ICONS.tele), -8, -8, 16, 16); }
     else if (k === 'tele') { x.fillStyle = '#7fd3ff'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.stroke(); }
+    else if ((k === 'mini' || k === 'air' || k === 'shell') && pic(k === 'mini' ? ICONS.homing : ICONS.shell)) { const im = pic(k === 'mini' ? ICONS.homing : ICONS.shell), base = k === 'mini' ? 2.7 : -Math.PI / 2, L = k === 'mini' ? 22 : 20, s2 = L / Math.max(im.naturalWidth, im.naturalHeight); x.rotate(a - base); x.drawImage(im, -im.naturalWidth * s2 / 2, -im.naturalHeight * s2 / 2, im.naturalWidth * s2, im.naturalHeight * s2); x.rotate(base - a); x.fillStyle = 'rgba(255,150,40,.8)'; x.beginPath(); x.arc(-Math.cos(a) * L * 0.55, -Math.sin(a) * L * 0.55, 3.5, 0, 7); x.fill(); }
     else { x.rotate(a); x.fillStyle = k === 'mini' ? '#ff6a4a' : k === 'air' ? '#555' : '#ddd'; const L = 12; x.fillRect(-L / 2, -2.5, L, 5); x.fillStyle = 'rgba(255,150,40,.85)'; x.beginPath(); x.arc(-L / 2 - 3, 0, 3.5, 0, 7); x.fill(); }
     x.restore();
   }

@@ -17,3 +17,5 @@ export const SIG = [
 export const sigImg = (skin) => `img/kkumtle/s-${skin}.webp`;
 // 상태 표시 아이콘
 export const STATUS = { c: '⛓️', t: '🛟', b: '🔍', p: '☠️', l: '🩸', m: '👑' };
+// 오리 이름 (그림 d0~d11 순서)
+export const DUCKS = ['군인', '신부', '경찰', '수영', '탐정', '요리사', '해적선장', '소방관', '왕', '우주비행사', '닌자', '잠옷'];
