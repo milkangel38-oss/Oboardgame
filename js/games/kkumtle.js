@@ -4,8 +4,8 @@
 //   차례가 끝나면 결과(체력·구멍·지뢰 등)를 방 문서에 저장해요.
 import { soundEvent } from '../sound.js';
 import { faceHtml } from './face.js';
-import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkStep, airStep } from './kkumtle-world.js';
-import { WEAPONS, WMAP, CATS, startInv } from './kkumtle-weapons.js';
+import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkStep, airStep, surfaceAt } from './kkumtle-world.js';
+import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
 
 const TURN_MS = 30000;
 const TEAMS = { red: { name: '레드팀', col: '#ff4f5e' }, blue: { name: '블루팀', col: '#3d7bff' } };
@@ -32,7 +32,8 @@ function newRound(state, now) {
     worms.push({ id: `${t[0]}${i}`, team: t, owner: byTeam[t][i % byTeam[t].length], x: p.x, y: p.y, hp: 100, dead: false, skin: (skin++ + state.round * 5) % 12 });
   }
   const first = Math.random() < 0.5 ? 'red' : 'blue';
-  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], fog: null, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
+  const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10].sort(() => Math.random() - 0.5), drops = pool.slice(0, Math.random() < 0.5 ? 2 : 3).sort((a, b) => a - b);
+  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
   return nextTurn(s, now);
 }
 function nextTurn(state, now) {
@@ -42,7 +43,8 @@ function nextTurn(state, now) {
   const idx = (state.ti[t] + 1) % mine.length;
   const w = mine[idx];
   const n = state.turn.n + 1;
-  return { ...state, ti: { ...state.ti, [t]: idx }, turn: { team: t, wid: w.id, uid: w.owner, wind: Math.round((Math.random() * 2 - 1) * 10) / 10, deadline: now + TURN_MS, n },
+  const drop = (state.drops || []).includes(n) ? { x: Math.round(160 + Math.random() * (MW - 320)), item: SPECIALS[(Math.random() * SPECIALS.length) | 0], dir: Math.random() < 0.5 ? 1 : -1 } : null;
+  return { ...state, ti: { ...state.ti, [t]: idx }, turn: { team: t, wid: w.id, uid: w.owner, wind: Math.round((Math.random() * 2 - 1) * 10) / 10, deadline: now + TURN_MS, n, drop },
     tors: (state.tors || []).filter((x) => x.until >= n), fog: state.fog && state.fog.until >= n ? state.fog : null };
 }
 function checkRound(state, now) {
@@ -52,6 +54,7 @@ function checkRound(state, now) {
   const wins = { ...state.wins }; if (win !== 'draw') wins[win]++;
   return { ...state, phase: 'roundEnd', roundWinner: win, wins, endAt: now + 6000, turn: { ...state.turn, deadline: 0 } };
 }
+function cleanInv(v, old) { if (!v) return old; return Object.fromEntries(WEAPONS.map((w) => [w.id, Number.isFinite(+v[w.id]) ? Math.max(-1, Math.min(9, Math.round(+v[w.id]))) : old[w.id]])); }
 function matchOver(s) { const need = Math.floor(s.rounds / 2) + 1; return s.wins.red >= need || s.wins.blue >= need || s.round >= s.rounds; }
 export function finalResult(state, players) {
   const dmg = (u) => state.stats?.[u]?.dmg || 0;
@@ -86,6 +89,8 @@ export default {
     '두 팀이 번갈아 차례! 차례마다 30초 안에 꿈틀이 한 마리를 움직이고 공격해요.',
     '왼쪽 아래 조이스틱: 좌우 = 걷기, 위아래 = 조준 · 오른쪽 아래: 점프(두 번 누르면 높이 뒤로 덤블링) · 발사 · 가운데 아래: 무기 고르기',
     '공격 무기를 쓰면 차례가 끝나요. 이동 · 유틸 아이템은 쓰고도 계속 움직일 수 있어요.',
+    '🚁 로켓배송! 라운드마다 2~3번 헬기가 날아와 보급 상자를 떨어뜨려요. 상자를 먹으면 특수무기(무전기 · 닭 · 제트배낭 · 토네이도 · 안개)를 쓸 수 있어요.',
+    '데미지(정타 기준, 빗맞으면 줄어요): 포탄 20 · 수류탄 30 · 화염방사기 50 · 지뢰 40 · 권총 30 · 기관총 50 · 무전기 미사일 1발당 60 · 닭 80',
     '폭발하면 땅이 사라지고, 맞은 꿈틀이는 날아가요. 바다에 빠지거나 하늘에서 떨어지면 탈락!',
     '화면은 끌어서 움직이고, 휠(모바일은 두 손가락)로 확대 · 축소해요. 오른쪽 위 미니맵을 눌러도 이동해요.',
     '상대 팀 꿈틀이를 모두 쓰러뜨리면 라운드 승리! 라운드를 더 많이 이긴 팀이 최종 승리 (같으면 딜량이 많은 팀).',
@@ -137,7 +142,8 @@ export default {
       const s = { ...state, worms, stats,
         craters: [...state.craters, ...(r.craters || []).map((c) => c.map((v) => Math.round(+v)))].slice(-400),
         mines: (r.mines || state.mines).slice(0, 30), tors: (r.tors || state.tors).slice(0, 6), fog: r.fog === undefined ? state.fog : r.fog,
-        inv: r.inv ? { ...state.inv, [state.turn.team]: r.inv } : state.inv };
+        crates: Array.isArray(r.crates) ? r.crates.slice(0, 12).map((k) => ({ id: String(k.id), x: Math.round(+k.x), y: Math.round(+k.y), item: SPECIALS.includes(k.item) ? k.item : 'radio' })) : state.crates || [],
+        inv: r.invs ? { red: cleanInv(r.invs.red, state.inv.red), blue: cleanInv(r.invs.blue, state.inv.blue) } : r.inv ? { ...state.inv, [state.turn.team]: cleanInv(r.inv, state.inv[state.turn.team]) } : state.inv };
       const re = checkRound(s, now);
       if (re) return { state: re };
       return { state: nextTurn(s, now) };
@@ -291,6 +297,11 @@ function onState(c) {
     const w = state.worms.find((x) => x.id === state.turn.wid);
     if (w) c.camGoal = { x: w.x, y: w.y - 60 };
     if (state.turn.uid === me) startTurn(c);
+    if (state.turn.drop) {
+      const n = state.turn.n, T = terrain(c, state.craters), dx = state.turn.drop.x, sy = (surfaceAt(T.mask, dx) + 1) || WATER;
+      setTimeout(() => { if (c.turnSeen !== n) return; flash(c, '🚁 로켓배송 도착! 보급 상자를 먹어라', 2200); c.camGoal = { x: dx, y: Math.min(sy, WATER) - 150 }; }, state.turn.uid === me ? 1300 : 0);
+      setTimeout(() => { if (c.turnSeen === n && w) c.camGoal = { x: w.x, y: w.y - 60 }; }, 5200);
+    }
   }
   roundModal(c);
 }
@@ -304,9 +315,11 @@ function startTurn(c) {
     n: state.turn.n, mask: T.mask, wid: state.turn.wid, team: state.turn.team,
     worms: state.worms.map((w) => ({ ...w, air: false, vx: 0, vy: 0, flip: 0, ph: 0 })),
     projs: [], fx: [], newCr: [], mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), fog: state.fog,
-    inv: { ...state.inv[state.turn.team] }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
+    invs: { red: { ...state.inv.red }, blue: { ...state.inv.blue } }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
+    crates: (state.crates || []).map((k) => ({ ...k, air: false, vy: 0 })), heli: state.turn.drop ? { x: state.turn.drop.dir > 0 ? -160 : MW + 160, y: Math.max(60, Math.min(560, ((surfaceAt(T.mask, state.turn.drop.x) + 1) || WATER) - 210)), xd0: state.turn.drop.x, item: state.turn.drop.item, dir: state.turn.drop.dir, done: false } : null,
     rope: null, jet: null, chute: false, drill: null, chick: null, gren: null, mg: null, flame: null,
   };
+  c.W.inv = c.W.invs[c.W.team];
   const me0 = c.W.worms.find((w) => w.id === c.W.wid);
   c.facing = me0 && me0.x < MW / 2 ? 1 : -1;
   if (c.W.inv[c.sel] === 0) c.sel = 'shell';
@@ -386,10 +399,10 @@ function fireDown(c) {
   if (W.rope) { const r = W.rope; w.air = true; w.vx = r.vx; w.vy = r.vy; W.rope = null; return; }
   if (W.jet) { W.jet = null; w.air = true; w.vx = w.vx || 0; w.vy = w.vy || 0; return; }
   if (id === 'chute') { if (!w.air) { flash(c, '🪂 떨어지는 중에 눌러요'); return; } W.chute = !W.chute; return; }
-  if (W.inv[id] === 0) { flash(c, '남은 개수가 없어요'); return; }
+  if (W.inv[id] === 0) { flash(c, def.sp ? '🔒 보급 상자를 먹어야 쓸 수 있어요' : '남은 개수가 없어요'); return; }
   if (def.charge) { c.charge = 0; return; }
   const dir = aimDir(c), cx = w.x + dir[0] * 12, cy = w.y - WH / 2 + dir[1] * 12;
-  if (id === 'pistol') { useItem(c, id); W.attack = true; shoot(c, cx, cy, dir, 25, 220, 7); }
+  if (id === 'pistol') { useItem(c, id); W.attack = true; shoot(c, cx, cy, dir, 30, 220, 7); }
   else if (id === 'mg') { useItem(c, id); W.attack = true; W.mg = { left: 10, t: 0 }; }
   else if (id === 'flame') { useItem(c, id); W.attack = true; W.flame = { t: 0, hit: new Set() }; }
   else if (id === 'radio') {
@@ -467,8 +480,9 @@ function explode(c, x, y, r, dmg) {
     hurt(c, w, dm, (dx / l) * k, Math.min(-120, (dy / l) * k - dm * 4));
   }
   for (const m of W.mines) if (m.arm == null && Math.hypot(m.x - x, m.y - y) < r + 8) m.arm = 0.25;
+  W.crates = W.crates.filter((k) => { if (Math.hypot(k.x - x, k.y - 8 - y) < r + 6) { W.fx.push({ k: 'txt', x: k.x, y: k.y - 30, s: '상자 파괴!', col: '#ccc', t: 0 }); return false; } return true; });
 }
-function boomChicken(c) { const ch = c.W.chick; if (!ch) return; remove(c.W, ch); c.W.chick = null; c.W.fx.push({ k: 'txt', x: ch.x, y: ch.y - 50, s: '꼬끼오!!', col: '#ffd84d', t: 0 }); explode(c, ch.x, ch.y - 6, 64, 62); }
+function boomChicken(c) { const ch = c.W.chick; if (!ch) return; remove(c.W, ch); c.W.chick = null; c.W.fx.push({ k: 'txt', x: ch.x, y: ch.y - 50, s: '꼬끼오!!', col: '#ffd84d', t: 0 }); explode(c, ch.x, ch.y - 6, 64, 80); }
 function remove(W, p) { W.projs = W.projs.filter((q) => q !== p); }
 
 // ───────────────── 시뮬레이션 (내 차례) ─────────────────
@@ -510,9 +524,9 @@ function simStep(c, dt) {
     if (c.charge >= 0) c.charge = Math.min(1, c.charge + dt / 1.5);
   }
   // 수류탄을 손에 든 채로 시간이 다 되면 내가 터져요
-  if (W.gren && now >= W.gren.end && w && !W.sent) { W.gren = null; W.attack = true; c.charge = -1; explode(c, w.x, w.y - 8, 48, 52); }
+  if (W.gren && now >= W.gren.end && w && !W.sent) { W.gren = null; W.attack = true; c.charge = -1; explode(c, w.x, w.y - 8, 48, 30); }
   // 기관총 · 화염방사기
-  if (W.mg && w) { W.mg.t -= dt; if (W.mg.t <= 0 && W.mg.left > 0) { W.mg.t = 0.08; W.mg.left--; const a = c.angle + (Math.random() - 0.5) * 0.14, d = [Math.cos(a) * c.facing, -Math.sin(a)]; shoot(c, w.x + d[0] * 12, w.y - WH / 2 + d[1] * 12, d, 6, 70, 5); } if (W.mg.left <= 0) W.mg = null; }
+  if (W.mg && w) { W.mg.t -= dt; if (W.mg.t <= 0 && W.mg.left > 0) { W.mg.t = 0.08; W.mg.left--; const a = c.angle + (Math.random() - 0.5) * 0.14, d = [Math.cos(a) * c.facing, -Math.sin(a)]; shoot(c, w.x + d[0] * 12, w.y - WH / 2 + d[1] * 12, d, 5, 70, 5); } if (W.mg.left <= 0) W.mg = null; }
   if (W.flame && w) {
     W.flame.t += dt;
     const d = aimDir(c), ox = w.x + d[0] * 12, oy = w.y - WH / 2 + d[1] * 12;
@@ -520,7 +534,7 @@ function simStep(c, dt) {
     for (const o of W.worms) {
       if (o.dead || o.id === w.id || W.flame.hit.has(o.id)) continue;
       const vx = o.x - ox, vy = o.y - WH / 2 - oy, along = vx * d[0] + vy * d[1], side = Math.abs(vx * d[1] - vy * d[0]);
-      if (along > 0 && along < 170 * Math.min(1, W.flame.t * 2) && side < 22) { W.flame.hit.add(o.id); hurt(c, o, 24, d[0] * 280, d[1] * 280 - 150); }
+      if (along > 0 && along < 170 * Math.min(1, W.flame.t * 2) && side < 22) { W.flame.hit.add(o.id); hurt(c, o, Math.round(50 * (1 - Math.max(0, along - 40) / 260) * (1 - side / 60)), d[0] * 280, d[1] * 280 - 150); }
     }
     if (W.flame.t > 1.2) W.flame = null;
   }
@@ -553,6 +567,24 @@ function simStep(c, dt) {
     if (m.y > WATER) m.gone = true;
   }
   W.mines = W.mines.filter((m) => !m.gone);
+  // 로켓배송 헬기 · 보급 상자
+  if (W.heli) {
+    const H = W.heli; H.x += H.dir * 420 * dt;
+    if (!H.done && (H.dir > 0 ? H.x >= H.xd0 : H.x <= H.xd0)) { H.done = true; W.crates.push({ id: `c${W.n}`, x: H.xd0, y: H.y + 26, item: H.item, air: true, vy: 0 }); }
+    if (H.x < -260 || H.x > MW + 260) W.heli = null;
+  }
+  for (const k of W.crates) {
+    if (!k.air && !solid(M, k.x, k.y + 1)) k.air = true;
+    if (k.air) { k.vy = Math.min(k.vy + G * dt, 95); const ny = k.y + k.vy * dt; if (solid(M, k.x, ny)) { let y = ny; while (y > 0 && solid(M, k.x, y)) y--; k.y = Math.round(y); k.air = false; k.vy = 0; } else k.y = ny; }
+    if (k.y > WATER) { k.gone = true; W.fx.push({ k: 'splash', x: k.x, y: WATER, t: 0 }); continue; }
+    const o = W.worms.find((q) => !q.dead && Math.abs(q.x - k.x) < 16 && Math.abs(q.y - k.y) < 22);
+    if (o) {
+      k.gone = true; const inv = W.invs[o.team]; inv[k.item] = Math.max(0, inv[k.item] || 0) + 1;
+      W.fx.push({ k: 'txt', x: k.x, y: k.y - 36, s: `📦 ${WMAP[k.item].icon} ${WMAP[k.item].name}!`, col: '#ffd84d', t: 0 });
+      if (o.team === W.team) flash(c, `📦 ${WMAP[k.item].icon} ${WMAP[k.item].name} 획득!`, 1800);
+    }
+  }
+  W.crates = W.crates.filter((k) => !k.gone);
   // 탄
   for (const p of [...W.projs]) {
     p.t += dt;
@@ -575,9 +607,9 @@ function simStep(c, dt) {
     if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 6)) { remove(W, p); continue; }
     const hitWorm = ['shell', 'mini', 'air'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team) && Math.abs(o.x - nx) < 9 && ny > o.y - WH && ny < o.y + 2);
     if (solid(M, nx, ny) || hitWorm) {
-      if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 46); }
+      if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 20); }
       else if (p.k === 'mini') { remove(W, p); explode(c, nx, ny, 18, 15); }
-      else if (p.k === 'air') { remove(W, p); explode(c, nx, ny, 38, 36); }
+      else if (p.k === 'air') { remove(W, p); explode(c, nx, ny, 38, 60); }
       else if (p.k === 'tele') { remove(W, p); let y = ny; while (y > 0 && (solid(M, nx, y) || solid(M, nx, y - WH + 2))) y--; if (w) { w.x = nx; w.y = y; w.air = true; w.vx = 0; w.vy = 0; } W.fx.push({ k: 'boom', x: nx, y, r: 14, t: 0, blue: 1 }); }
       else {
         const hx = solid(M, nx, p.y), hy = solid(M, p.x, ny);
@@ -587,7 +619,7 @@ function simStep(c, dt) {
         if (p.k === 'mineT' && Math.hypot(p.vx, p.vy) < 40) { remove(W, p); let y = p.y; while (!solid(M, p.x, y + 1) && y < MH) y++; W.mines.push({ x: Math.round(p.x), y: Math.round(y), team: W.team, id: `${W.n}-${W.mines.length}` }); }
       }
     } else { p.x = nx; p.y = ny; }
-    if (p.k === 'gren' && now >= p.end && W.projs.includes(p)) { remove(W, p); explode(c, p.x, p.y, 48, 52); }
+    if (p.k === 'gren' && now >= p.end && W.projs.includes(p)) { remove(W, p); explode(c, p.x, p.y, 48, 30); }
   }
   // 효과
   for (const f of W.fx) { f.t += dt; if (f.k === 'fire' || f.k === 'puff') { f.x += (f.vx || 0) * dt; f.y += (f.vy || 0) * dt; } }
@@ -595,7 +627,7 @@ function simStep(c, dt) {
   // 차례 끝내기
   const tl = c.ctx.state.turn.deadline - Date.now();
   if (tl <= 0 && !W.ending) { W.ending = true; W.rope = null; W.jet = null; W.drill = null; W.gren = null; c.charge = -1; const me0 = meW(c); if (me0 && !solid(M, me0.x, me0.y + 1)) me0.air = true; }
-  const busy = W.projs.length || W.mg || W.flame || W.mines.some((m) => m.arm != null) || W.worms.some((o) => !o.dead && o.air);
+  const busy = W.projs.length || W.mg || W.flame || W.heli || W.crates.some((k) => k.air) || W.mines.some((m) => m.arm != null) || W.worms.some((o) => !o.dead && o.air);
   if ((W.attack || W.ending || (w && w.dead)) && !busy) W.settle += dt; else W.settle = 0;
   if (W.settle > 1.0 && !W.sent) commit(c);
 }
@@ -603,7 +635,8 @@ function commit(c) {
   const W = c.W; W.sent = true;
   c.ctx.sendMove({ type: 'end', n: W.n, res: {
     worms: W.worms.map((w) => ({ id: w.id, x: Math.round(w.x), y: Math.round(w.y), hp: w.hp, dead: w.dead })),
-    craters: W.newCr, mines: W.mines.map(({ x, y, team, id }) => ({ x, y, team, id })), tors: W.tors, fog: W.fog || null, inv: W.inv, stats: W.stats,
+    craters: W.newCr, mines: W.mines.map(({ x, y, team, id }) => ({ x, y, team, id })), tors: W.tors, fog: W.fog || null, invs: W.invs, stats: W.stats,
+    crates: W.crates.map(({ id, x, y, item }) => ({ id, x: Math.round(x), y: Math.round(y), item })),
   } }, { onError: () => { W.sent = false; } });
 }
 
@@ -637,6 +670,7 @@ function snap(c) {
     rope: W.rope ? [Math.round(W.rope.ax), Math.round(W.rope.ay)] : 0, jet: W.jet ? 1 : 0, chute: W.chute ? 1 : 0, flame: W.flame ? 1 : 0,
     mines: W.mines.map((m) => [m.x, m.y, m.team]), tors: W.tors, fog: W.fog || 0, tg: c.target ? [Math.round(c.target.x), Math.round(c.target.y)] : 0,
     gr: W.gren ? Math.max(0, Math.ceil((W.gren.end - performance.now()) / 1000)) : 0, wid: W.wid,
+    heli: W.heli ? [Math.round(W.heli.x), W.heli.y, W.heli.dir, W.heli.done ? 1 : 0] : 0, crates: W.crates.map((k) => [Math.round(k.x), Math.round(k.y), k.air ? 1 : 0]),
   };
 }
 
@@ -646,7 +680,7 @@ function view(c) {
   if (c.W && myTurn(c) && c.W.n === state.turn.n) return { ...snap(c), live: true, fireFx: c.W.fx.filter((f) => f.k === 'fire' || f.k === 'puff') };
   const L = state.phase === 'play' ? c.others?.[state.turn.uid] : null;
   if (L && L.n === state.turn.n && Array.isArray(L.w)) return { ...L, live: true, fireFx: [] };
-  return { n: state.turn.n, w: state.worms.map((o) => [o.id, o.x, o.y, o.hp, o.dead ? 1 : 0, 0, 0]), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, fireFx: [] };
+  return { n: state.turn.n, w: state.worms.map((o) => [o.id, o.x, o.y, o.hp, o.dead ? 1 : 0, 0, 0]), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, heli: 0, crates: (state.crates || []).map((k) => [k.x, k.y, 0]), fireFx: [] };
 }
 function draw(c, dt, now) {
   const { state, me, players } = c.ctx;
@@ -677,6 +711,8 @@ function draw(c, dt, now) {
   for (const t of V.tors || []) for (let k = 0; k < 6; k++) { x.strokeStyle = `rgba(200,230,255,${0.75 - k * 0.1})`; x.lineWidth = 3; x.beginPath(); x.ellipse(t.x + Math.sin(now / 120 + k) * 5, t.y + 30 - k * 12, 10 + k * 6, 4 + k, 0, 0, 7); x.stroke(); }
   const myTeam = state.teams?.[me];
   for (const m of V.mines || []) if (!myTeam || m[2] === myTeam) { x.fillStyle = '#333'; x.beginPath(); x.ellipse(m[0], m[1] - 3, 7, 4, 0, 0, 7); x.fill(); x.fillStyle = (now / 300) % 2 < 1 ? '#ff3b3b' : '#600'; x.beginPath(); x.arc(m[0], m[1] - 6, 2, 0, 7); x.fill(); }
+  for (const k of V.crates || []) drawCrate(x, k[0], k[1], k[2], now);
+  if (V.heli) drawHeli(x, V.heli[0], V.heli[1], V.heli[2], V.heli[3], now);
   const fogOn = V.fog && myTeam;
   const meta = Object.fromEntries(state.worms.map((w) => [w.id, w]));
   for (const r of V.w || []) {
@@ -721,6 +757,32 @@ function draw(c, dt, now) {
   }
   if (fogOn) { x.setTransform(dpr, 0, 0, dpr, 0, 0); x.fillStyle = 'rgba(220,225,235,.38)'; x.fillRect(0, 0, Wd, Hd); }
   miniMap(c, T, V, fogOn ? myTeam : null);
+}
+
+function drawCrate(x, X, Y, air, now) {
+  x.save(); x.translate(X, Y);
+  if (air) {
+    x.rotate(Math.sin(now / 300) * 0.12);
+    x.fillStyle = '#ffd84d'; x.beginPath(); x.arc(0, -40, 20, Math.PI, 0); x.fill();
+    x.fillStyle = '#ff5f5f'; x.beginPath(); x.arc(0, -40, 20, Math.PI, Math.PI * 1.33); x.lineTo(0, -40); x.fill(); x.beginPath(); x.arc(0, -40, 20, Math.PI * 1.66, 0); x.lineTo(0, -40); x.fill();
+    x.strokeStyle = '#fff'; x.lineWidth = 1; x.beginPath(); x.moveTo(-20, -40); x.lineTo(-7, -14); x.moveTo(20, -40); x.lineTo(7, -14); x.moveTo(0, -40); x.lineTo(0, -14); x.stroke();
+  }
+  x.fillStyle = '#b5762e'; x.fillRect(-11, -18, 22, 18); x.strokeStyle = '#6b4216'; x.lineWidth = 2; x.strokeRect(-11, -18, 22, 18);
+  x.beginPath(); x.moveTo(-11, -18); x.lineTo(11, 0); x.moveTo(11, -18); x.lineTo(-11, 0); x.stroke();
+  x.fillStyle = '#ffd84d'; x.font = 'bold 12px sans-serif'; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#000'; x.strokeText('★', 0, -5); x.fillText('★', 0, -5);
+  x.restore();
+}
+function drawHeli(x, X, Y, dir, done, now) {
+  x.save(); x.translate(X, Y); x.scale(dir, 1);
+  x.fillStyle = '#2f6f4f'; x.beginPath(); x.ellipse(0, 0, 34, 16, 0, 0, 7); x.fill();
+  x.fillRect(-70, -5, 44, 8); x.beginPath(); x.moveTo(-70, -5); x.lineTo(-78, -18); x.lineTo(-66, -5); x.fill();
+  x.fillStyle = '#9fe3ff'; x.beginPath(); x.ellipse(16, -3, 14, 9, 0, -1.6, 1.2); x.fill();
+  x.strokeStyle = '#222'; x.lineWidth = 3; x.beginPath(); x.moveTo(-18, 18); x.lineTo(22, 18); x.moveTo(-8, 14); x.lineTo(-8, 18); x.moveTo(12, 14); x.lineTo(12, 18); x.stroke();
+  x.fillRect(-2, -22, 4, 8);
+  const r = Math.abs(Math.sin(now / 30)) * 52 + 8; x.strokeStyle = 'rgba(40,40,40,.8)'; x.lineWidth = 3; x.beginPath(); x.moveTo(-r, -22); x.lineTo(r, -22); x.stroke();
+  x.fillStyle = '#fff'; x.font = 'bold 10px sans-serif'; x.textAlign = 'center'; x.fillText('로켓배송', -2, 4);
+  if (!done) { x.strokeStyle = '#d9b46a'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, 16); x.lineTo(0, 26); x.stroke(); x.restore(); drawCrate(x, X, Y + 44, 0, now); return; }
+  x.restore();
 }
 
 // 꿈틀이 (몸과 얼굴이 하나 · 걸을 때 앞뒤로 꿈틀꿈틀)
@@ -820,13 +882,13 @@ function openPanel(c) {
   const { state, me } = c.ctx;
   const inv = c.W && myTurn(c) ? c.W.inv : state.inv?.[state.teams?.[me]] || {};
   let pick = c.sel;
-  const descHtml = (d) => `<b>${d.icon} ${d.name}</b> <small>${CATS[d.cat]}</small><p>${esc(d.desc)}</p>`;
+  const descHtml = (d) => `<b>${d.icon} ${d.name}</b> <small>${CATS[d.cat]}${d.sp ? ' · 특수무기' : ''}</small><p>${esc(d.desc)}</p>${d.sp && !inv[d.id] ? '<p class="kw-lock">🔒 헬기가 떨어뜨리는 보급 상자를 먹으면 쓸 수 있어요</p>' : ''}`;
   const draw = () => {
     $p.innerHTML = `<div class="kw-pbox">
       <div class="kw-ph"><b>🎒 무기 · 아이템</b><button data-x>✕</button></div>
-      ${Object.entries(CATS).map(([k, n]) => `<div class="kw-cat"><h6>${n}</h6><div class="kw-grid">${WEAPONS.filter((w) => w.cat === k).map((w) => `<button class="kw-it ${pick === w.id ? 'on' : ''} ${inv[w.id] === 0 ? 'none' : ''}" data-it="${w.id}"><span>${w.icon}</span><small>${w.name}</small><em>${inv[w.id] == null || inv[w.id] < 0 ? '∞' : '×' + inv[w.id]}</em></button>`).join('')}</div></div>`).join('')}
+      ${Object.entries(CATS).map(([k, n]) => `<div class="kw-cat"><h6>${n}</h6><div class="kw-grid">${WEAPONS.filter((w) => w.cat === k).map((w) => `<button class="kw-it ${pick === w.id ? 'on' : ''} ${!(inv[w.id] !== 0 && (inv[w.id] != null || !w.sp)) ? 'none' : ''} ${w.sp ? 'sp' : ''}" data-it="${w.id}"><span>${w.icon}</span><small>${w.name}</small><em>${w.sp && !inv[w.id] ? '🔒' : inv[w.id] == null || inv[w.id] < 0 ? '∞' : '×' + inv[w.id]}</em>${w.sp ? '<b>특수</b>' : ''}</button>`).join('')}</div></div>`).join('')}
       <div class="kw-desc">${descHtml(WMAP[pick])}</div>
-      <button class="btn primary block" data-ok ${inv[pick] === 0 ? 'disabled' : ''}>선택</button></div>`;
+      <button class="btn primary block" data-ok ${!inv[pick] && (inv[pick] === 0 || WMAP[pick].sp) ? 'disabled' : ''}>선택</button></div>`;
     $p.querySelector('[data-x]').onclick = () => ($p.hidden = true);
     $p.querySelectorAll('[data-it]').forEach((b) => {
       b.onclick = () => { pick = b.dataset.it; draw(); };

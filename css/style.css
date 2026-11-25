@@ -3626,6 +3626,10 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 .kw-it em { position: absolute; top: 2px; right: 4px; font-style: normal; font-size: 9px; opacity: .8; }
 .kw-it.on { border-color: var(--gold); background: rgba(255, 210, 80, .15); }
 .kw-it.none { opacity: .3; }
+.kw-it.sp { border-color: rgba(190, 120, 255, .5); background: rgba(160, 90, 255, .12); }
+.kw-it.sp.on { border-color: var(--gold); }
+.kw-it b { position: absolute; top: 2px; left: 4px; font-size: 8px; color: #d9b3ff; }
+.kw-lock { color: #d9b3ff; font-size: 12px; }
 .kw-desc { margin: 10px 0; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, .3); min-height: 62px; font-size: 13px; }
 .kw-desc small { color: var(--gold); } .kw-desc p { margin: 4px 0 0; opacity: .9; }
 @media (max-height: 460px) {
