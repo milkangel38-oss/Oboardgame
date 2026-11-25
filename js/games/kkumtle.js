@@ -43,7 +43,8 @@ function newRound(state, now) {
   }
   const first = Math.random() < 0.5 ? 'red' : 'blue';
   const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10].sort(() => Math.random() - 0.5), drops = pool.slice(0, Math.random() < 0.5 ? 2 : 3).sort((a, b) => a - b);
-  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], ladders: [], puddles: [], plat: {}, fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
+  const pool2 = [3, 4, 5, 6, 7, 8, 9, 10, 11].sort(() => Math.random() - 0.5), firesAt = pool2.slice(0, Math.random() < 0.5 ? 1 : 2);
+  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], ladders: [], puddles: [], plat: {}, fires: [], firesAt, fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
   return nextTurn(s, now);
 }
 function nextTurn(state, now) {
@@ -56,6 +57,7 @@ function nextTurn(state, now) {
   const drop = (state.drops || []).includes(n) ? { x: Math.round(160 + Math.random() * (MW - 320)), item: SPECIALS[(Math.random() * SPECIALS.length) | 0], dir: Math.random() < 0.5 ? 1 : -1 } : null;
   return { ...state, ti: { ...state.ti, [t]: idx }, turn: { team: t, wid: w.id, uid: w.owner, wind: Math.round((Math.random() * 2 - 1) * 10) / 10, deadline: now + TURN_MS, n, drop },
     worms: state.worms.map((o) => (o.big != null && n > o.big ? { ...o, big: null } : o)), puddles: (state.puddles || []).filter((q) => q.until >= n),
+    fires: [...(state.fires || []).filter((f) => f.until >= n), ...((state.firesAt || []).includes(n) ? [{ x: Math.round(200 + Math.random() * (MW - 400)), until: n + 2, n }] : [])],
     tors: (state.tors || []).filter((x) => x.until >= n), fog: state.fog && state.fog.until >= n ? state.fog : null };
 }
 function checkRound(state, now) {
@@ -379,6 +381,8 @@ function onState(c) {
     const w = state.worms.find((x) => x.id === state.turn.wid);
     if (w) c.camGoal = { x: w.x, y: w.y - 60 };
     if (state.turn.uid === me) startTurn(c);
+    const nf = (state.fires || []).find((f) => f.n === state.turn.n);
+    if (nf) setTimeout(() => { if (c.turnSeen !== state.turn.n) return; flash(c, '🔥 증폭 불기둥! 통과한 탄은 데미지 2배', 2400); c.camGoal = { x: nf.x, y: 400 }; sfx('fire'); setTimeout(() => { const w2 = state.worms.find((q) => q.id === state.turn.wid); if (c.turnSeen === state.turn.n && w2) c.camGoal = { x: w2.x, y: w2.y - 60 }; }, 2600); }, 300);
     if (state.turn.drop) {
       const n = state.turn.n, T = terrain(c, state.craters), dx = state.turn.drop.x, sy = (surfaceAt(T.mask, dx) + 1) || WATER;
       setTimeout(() => { if (c.turnSeen !== n) return; flash(c, '🚁 로켓배송 도착! 보급 상자를 먹어라', 2200); c.camGoal = { x: dx, y: Math.min(sy, WATER) - 150 }; }, state.turn.uid === me ? 1300 : 0);
@@ -416,6 +420,7 @@ function flash(c, m, ms = 1500) { c.msg = m; c.msgUntil = performance.now() + ms
 // ───────────────── 입력 ─────────────────
 function bindInput(c) {
   const R = c.root;
+  R.addEventListener('pointerdown', unlockAudio, { capture: true }); window.addEventListener('keydown', unlockAudio, { once: true });
   const $j = R.querySelector('.kw-jpad'), $k = $j.querySelector('i');
   const jmove = (e) => { const r = $j.getBoundingClientRect(); let x = ((e.clientX - r.left) / r.width) * 2 - 1, y = -(((e.clientY - r.top) / r.height) * 2 - 1); const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } c.joy = { x, y }; $k.style.transform = `translate(${x * 100}%, ${-y * 100}%)`; };
   $j.addEventListener('pointerdown', (e) => { e.preventDefault(); $j.setPointerCapture(e.pointerId); jmove(e); });
@@ -563,10 +568,11 @@ function ropeShoot(c, w, dir) {
 }
 function shoot(c, x, y, dir, dmg, push, cr) {
   const W = c.W;
+  const ampAt = (d) => (c.ctx.state.fires || []).some((f) => (f.x - x) * dir[0] > 0 && Math.abs(f.x - x) < Math.abs(dir[0] * d));
   for (let d = 0; d < 760; d += 2) {
     const px = x + dir[0] * d, py = y + dir[1] * d;
     const hit = W.worms.find((w) => !w.dead && w.id !== W.wid && Math.abs(w.x - px) < hw(w) && py > w.y - hb(w) && py < w.y + 2);
-    if (hit) { W.fx.push({ k: 'tracer', x, y, x2: px, y2: py, t: 0 }); hurt(c, hit, dmg, dir[0] * push, dir[1] * push - 120); return; }
+    if (hit) { W.fx.push({ k: 'tracer', x, y, x2: px, y2: py, t: 0 }); W.mult = ampAt(d) ? 2 : 1; hurt(c, hit, dmg, dir[0] * push, dir[1] * push - 120); W.mult = 1; return; }
     if (solid(W.mask, px, py) || py > MH) { W.fx.push({ k: 'tracer', x, y, x2: px, y2: py, t: 0 }); crater(c, px, py, cr); return; }
   }
   W.fx.push({ k: 'tracer', x, y, x2: x + dir[0] * 760, y2: y + dir[1] * 760, t: 0 });
@@ -591,6 +597,7 @@ function applyPlat(T, hits) {
 function hurt(c, w, dmg, vx, vy, dot = null) {
   const W = c.W;
   if (w.dead) return;
+  if (!dot && W.mult > 1) dmg = Math.round(dmg * W.mult);
   if (!dot && w.mark && dmg > 0) { dmg += 20; w.mark = null; W.fx.push({ k: 'txt', x: w.x, y: w.y - 62, s: '👑 +20', col: '#ffd84d', t: 0 }); }
   w.hp = Math.max(0, w.hp - dmg);
   W.fx.push({ k: 'txt', x: w.x, y: w.y - 40, s: `-${dmg}`, col: dot ? (dot.k === 'p' ? '#b06bff' : '#ff6b6b') : '#ff4f4f', t: 0 });
@@ -603,13 +610,14 @@ function explode(c, x, y, r, dmg, opt = {}) {
   const W = c.W;
   if (!opt.soft) { crater(c, x, y, r); W.fx.push({ k: 'boom', x, y, r, t: 0 }); snd(c, 'boom', r); }
   for (const w of W.worms) {
-    if (w.dead) continue;
+    if (w.dead || opt.skip?.has(w.id)) continue;
     const dx = w.x - x, dy = w.y - hb(w) / 2 - y, d = Math.max(0, Math.hypot(dx, dy) - (w.big != null ? 10 : 6));
     if (d > r + 12) continue;
     const dm = Math.max(opt.min ?? 4, Math.round(dmg * (1 - d / (r + 12))));
     const l = d || 1, k = dm * 7.5 * (opt.push || 1);
     hurt(c, w, dm, (dx / l) * k, Math.min(-120, (dy / l) * k - dm * 4));
     if (opt.on && w.id !== W.wid && !w.dead) opt.on(w);
+    if (opt.skip) opt.skip.add(w.id);
   }
   for (const m of W.mines) if (m.arm == null && Math.hypot(m.x - x, m.y - y) < r + 8) m.arm = 0.25;
   W.ladders = W.ladders.filter((l) => Math.hypot(l.x - x, Math.max(l.y1, Math.min(l.y2, y)) - y) > r * 0.8);
@@ -634,7 +642,7 @@ function fireSig(c, w, x, y, dir, power) {
 }
 function burstBouquet(c, p) { // 파워가 클수록 모아서
   const W = c.W, a0 = Math.atan2(p.vy, p.vx), v0 = Math.hypot(p.vx, p.vy), spread = 0.05 + 0.5 * (1 - p.pw);
-  for (let i = 0; i < 9; i++) { const a = a0 + ((i - 4) / 4) * spread + (Math.random() - 0.5) * spread * 0.3, v = v0 * (0.88 + Math.random() * 0.24 * (1.2 - p.pw)); W.projs.push({ k: 'flw', sk: 1, x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0.1 }); }
+  for (let i = 0; i < 9; i++) { const a = a0 + ((i - 4) / 4) * spread + (Math.random() - 0.5) * spread * 0.3, v = v0 * (0.88 + Math.random() * 0.24 * (1.2 - p.pw)); W.projs.push({ k: 'flw', sk: 1, x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0.1, amp: p.amp }); }
   remove(W, p); snd(c, 'flower');
 }
 function sigHit(c, p, x, y) {
@@ -650,7 +658,7 @@ function sigHit(c, p, x, y) {
     case 6: explode(c, x, y, 18, 15, { on: (o) => { if (!o.poison) { o.poison = { until: now + 120000, next: now + 10000, by: me }; label(o, '☠️ 중독!', '#b06bff'); } } }); break;
     case 8: explode(c, x, y, 30, 20, { on: (o) => { o.mark = me; label(o, '👑 표식!'); } }); break;
     case 10: explode(c, x, y, 18, 15, { on: (o) => { if (!o.bleed) { o.bleed = { until: now + 60000, next: now + 10000, by: me }; label(o, '🩸 출혈!', '#ff6b6b'); } } }); break;
-    case 11: explode(c, x, y, 28, 20); explode(c, x, y, 70, 10, { soft: true, min: 10 }); for (let i = 0; i < 14; i++) W.fx.push({ k: 'cot', x: x + Math.cos(i * 0.45) * (20 + (i % 3) * 18), y: y - 10 + Math.sin(i * 0.45) * (16 + (i % 3) * 12), t: 0 }); snd(c, 'flower'); break;
+    case 11: { explode(c, x, y, 28, 20); const hit = new Set(); for (const sg of [-1, 1]) for (let i = 0; i < 3; i++) W.projs.push({ k: 'cotp', x, y: y - 6, vx: sg * (70 + i * 45), vy: -150 - i * 40, t: 0, hit, amp: p.amp }); snd(c, 'flower'); break; }
     default: explode(c, x, y, 42, 20);
   }
 }
@@ -660,7 +668,8 @@ function addPuddle(W, x, y) {
   if (q) { const l = Math.min(q.x - q.w / 2, x - 6), r = Math.max(q.x + q.w / 2, x + 6); if (r - l <= 160) { q.x = Math.round((l + r) / 2); q.w = Math.round(r - l); } q.until = W.n + 4; }
   else if (W.puddles.length < 40) W.puddles.push({ x: Math.round(x), y: Math.round(y), w: 16, until: W.n + 4 });
 }
-const ufoY = (t, ty) => (t < 0.9 ? -140 + (ty - 210 + 140) * (t / 0.9) : t < 1.7 ? ty - 210 : ty - 210 - (t - 1.7) * 600);
+// 우주선: 1.1초 내려와서 → 1.1~2.3초 레이저 → 위로 사라짐
+const ufoY = (t, ty) => { const h = ty - 190; return t < 1.1 ? h - 380 * (1 - t / 1.1) ** 2 : t < 2.4 ? h + Math.sin(t * 9) * 2 : h - (t - 2.4) * 700; };
 function simSig(c, dt, w) {
   const W = c.W, M = W.mask, now = Date.now();
   // 독 · 출혈: 10초마다 (실제 시간)
@@ -692,13 +701,13 @@ function simSig(c, dt, w) {
   // 우주선 레이저
   if (W.ufo) {
     const U = W.ufo; U.t += dt;
-    if (U.t >= 0.9 && !U.fired) {
+    if (U.t >= 1.25 && !U.fired) {
       U.fired = true; snd(c, 'laser');
-      const top = U.ty - 190;
+      const top = U.ty - 180;
       for (let y = top; y <= U.ty + 10; y += 12) if (solid(M, U.x, y)) crater(c, U.x, y, 12);
       for (const o of W.worms) if (!o.dead && Math.abs(o.x - U.x) < 24 && o.y > top && o.y < U.ty + 50) hurt(c, o, 30, Math.sign(o.x - U.x || 1) * 120, -160);
     }
-    if (U.t > 2.3) W.ufo = null;
+    if (U.t > 3.0) W.ufo = null;
   }
 }
 const mySkin = (c) => { const { state, me } = c.ctx; if (c.W && myTurn(c)) return meW(c)?.skin % 12 || 0; return (state.worms || []).find((w) => w.owner === me && !w.dead)?.skin % 12 || 0; };
@@ -858,8 +867,14 @@ function simStep(c, dt) {
   for (const p of [...W.projs]) {
     p.t += dt;
     if (p.t < 0) continue;
+    if (!p.amp && p.k !== 'tele' && p.k !== 'torP' && p.k !== 'chick') for (const f of c.ctx.state.fires || []) if (Math.abs(p.x - f.x) < 22) { p.amp = true; W.fx.push({ k: 'txt', x: p.x, y: p.y - 20, s: '🔥 x2!', col: '#ff9a2e', t: 0 }); snd(c, 'amp'); }
     if (p.k === 'bq' && p.t > 0.22) { burstBouquet(c, p); continue; }
     for (const t of W.tors) if (DEFLECT.has(p.k) && Math.abs(p.x - t.x) < 26 && !(p.def ||= []).includes(t)) { p.def.push(t); p.vx = -p.vx * 0.9; p.vy = -Math.abs(p.vy) * 0.4 - 60; W.fx.push({ k: 'txt', x: t.x, y: p.y - 30, s: '튕겼다!', col: '#9fd3ff', t: 0 }); snd(c, 'tornado'); }
+    if (p.k === 'cotp') { // 솜뭉치: 0.4초 날아가다 퐁!
+      p.vy += G * dt * 0.6; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.t > 0.4 || solid(M, p.x, p.y)) { remove(W, p); W.mult = p.amp ? 2 : 1; explode(c, p.x, p.y, 22, 10, { soft: true, min: 10, skip: p.hit }); W.mult = 1; for (let i = 0; i < 5; i++) W.fx.push({ k: 'cot', x: p.x + Math.cos(i * 1.26) * 10, y: p.y + Math.sin(i * 1.26) * 8, t: 0 }); snd(c, 'puff'); }
+      continue;
+    }
     if (p.k === 'chick') {
       if (p.t > 10) { boomChicken(c); continue; }
       if (p.air) airStep(M, p, dt);
@@ -881,6 +896,7 @@ function simStep(c, dt) {
     if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 9)) { remove(W, p); continue; }
     const hitWorm = ['shell', 'mini', 'air', 'sig', 'flw', 'bea', 'bq'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team || p.t > 0.4) && Math.abs(o.x - nx) < hw(o) && ny > o.y - hb(o) && ny < o.y + 2);
     if (solid(M, nx, ny) || hitWorm) {
+      W.mult = p.amp ? 2 : 1;
       if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 20); }
       else if (p.k === 'bq') { p.x = nx - p.vx * dt * 2; p.y = ny - p.vy * dt * 2; burstBouquet(c, p); }
       else if (p.k === 'sig' || p.k === 'flw' || p.k === 'bea') { remove(W, p); sigHit(c, p, nx, ny); }
@@ -897,7 +913,8 @@ function simStep(c, dt) {
         if (p.k === 'mineT' && Math.hypot(p.vx, p.vy) < 40) { remove(W, p); snd(c, 'mineset'); let y = p.y; while (!solid(M, p.x, y + 1) && y < MH) y++; W.mines.push({ x: Math.round(p.x), y: Math.round(y), team: W.team, id: `${W.n}-${W.mines.length}` }); }
       }
     } else { p.x = nx; p.y = ny; }
-    if (p.k === 'gren' && now >= p.end && W.projs.includes(p)) { remove(W, p); explode(c, p.x, p.y, 48, 40); }
+    W.mult = 1;
+    if (p.k === 'gren' && now >= p.end && W.projs.includes(p)) { remove(W, p); W.mult = p.amp ? 2 : 1; explode(c, p.x, p.y, 48, 40); W.mult = 1; }
   }
   // 효과
   for (const f of W.fx) { f.t += dt; if (f.k === 'fire' || f.k === 'puff') { f.x += (f.vx || 0) * dt; f.y += (f.vy || 0) * dt; } }
@@ -945,8 +962,8 @@ function snap(c) {
     mv: Math.round(W.mv * 100) / 100,
     n: W.n, w: W.worms.map((o) => [o.id, Math.round(o.x), Math.round(o.y), o.hp, o.dead ? 1 : 0, o.flip ? 1 : 0, Math.round((o.ph || 0) * 10) / 10, stStr(o)]),
     ph: W.plat,
-    ufo: W.ufo ? [Math.round(W.ufo.x), Math.round(W.ufo.y), Math.round(W.ufo.t * 100) / 100] : 0, dr: W.drops.slice(-50).map((d) => [Math.round(d.x), Math.round(d.y)]), pud: W.puddles, hose: W.hose ? 1 : 0,
-    p: W.projs.filter((p) => p.t >= 0).map((p) => [p.k, Math.round(p.x), Math.round(p.y), Math.round(Math.atan2(p.vy, p.vx) * 10) / 10, p.face || 0, p.sk || 0]),
+    ufo: W.ufo ? [Math.round(W.ufo.x), Math.round(W.ufo.ty), Math.round(W.ufo.t * 100) / 100] : 0, dr: W.drops.slice(-50).map((d) => [Math.round(d.x), Math.round(d.y)]), pud: W.puddles, hose: W.hose ? 1 : 0,
+    p: W.projs.filter((p) => p.t >= 0).map((p) => [p.k, Math.round(p.x), Math.round(p.y), Math.round(Math.atan2(p.vy, p.vx) * 10) / 10, p.face || 0, p.sk || 0, p.amp ? 1 : 0]),
     sk: meW(c)?.skin % 12 || 0,
     fx: W.fx.filter((f) => f.k !== 'fire' && f.k !== 'puff').map((f) => [f.k, Math.round(f.x), Math.round(f.y), f.r || 0, Math.round(f.t * 100) / 100, f.s || '', f.col || '', Math.round(f.x2 || 0), Math.round(f.y2 || 0), f.blue ? 1 : 0]),
     cr: W.newCr, a: Math.round(c.angle * 100) / 100, ch: c.charge >= 0 ? Math.round(c.charge * 100) / 100 : -1, wp: c.sel, f: c.facing,
@@ -1007,12 +1024,30 @@ function draw(c, dt, now) {
   for (const q of V.pud || []) { x.fillStyle = 'rgba(80,170,255,.55)'; x.beginPath(); x.ellipse(q.x, q.y + 1, q.w / 2 + 3, 4, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.5)'; x.fillRect(q.x - q.w / 4, q.y - 1, q.w / 6, 1.5); }
   for (const d of V.dr || []) { x.fillStyle = 'rgba(90,180,255,.9)'; x.beginPath(); x.arc(d[0], d[1], 3, 0, 7); x.fill(); }
   if (V.ufo) { const [ux, uty, ut] = V.ufo, uy = ufoY(ut, uty);
-    if (ut >= 0.9 && ut < 1.7) { const k = Math.sin(((ut - 0.9) / 0.8) * Math.PI); x.fillStyle = `rgba(120,255,240,${0.35 * k})`; x.fillRect(ux - 16, uy + 8, 32, uty - uy + 4); x.fillStyle = `rgba(255,255,255,${0.9 * k})`; x.fillRect(ux - 4, uy + 8, 8, uty - uy + 4); }
+    const uk = `${state.turn.n}:${ux}`; if (c.ufoSeen !== uk) { c.ufoSeen = uk; c.camGoal = { x: ux, y: uty - 130 }; flash(c, '🛸 우주선 등장!', 1400); }
+    if (ut >= 0.85 && ut < 1.2) { const k = (ut - 0.85) / 0.35; x.fillStyle = `rgba(160,255,250,${0.8 * k})`; x.beginPath(); x.arc(ux, uy + 12, 6 + k * 10, 0, 7); x.fill(); } // 충전
+    if (ut >= 1.2 && ut < 2.4) { // 레이저
+      const k = Math.min(1, (ut - 1.2) / 0.12, (2.4 - ut) / 0.25), fl = 0.85 + Math.random() * 0.15, top = uy + 12, len = uty + 6 - top;
+      const g = x.createLinearGradient(ux - 26, 0, ux + 26, 0); g.addColorStop(0, 'rgba(60,240,255,0)'); g.addColorStop(0.5, `rgba(60,240,255,${0.55 * k * fl})`); g.addColorStop(1, 'rgba(60,240,255,0)');
+      x.fillStyle = g; x.fillRect(ux - 26, top, 52, len);
+      x.fillStyle = `rgba(120,255,255,${0.9 * k})`; x.fillRect(ux - 9 * fl, top, 18 * fl, len);
+      x.fillStyle = `rgba(255,255,255,${k})`; x.fillRect(ux - 3.5, top, 7, len);
+      x.fillStyle = `rgba(200,255,255,${0.8 * k})`; x.beginPath(); x.arc(ux, uty, 22 + Math.sin(now / 40) * 5, 0, 7); x.fill();
+      x.fillStyle = `rgba(255,255,255,${k})`; x.beginPath(); x.arc(ux, uty, 10, 0, 7); x.fill();
+      for (let i = 0; i < 6; i++) { const a = now / 90 + i * 1.05, r = 18 + ((now / 4 + i * 37) % 26); x.fillStyle = `rgba(160,255,255,${k})`; x.fillRect(ux + Math.cos(a) * r - 2, uty - Math.abs(Math.sin(a)) * r - 2, 4, 4); }
+    }
     const ui = pic('img/kkumtle/ufo.webp');
-    if (ui) { const w2 = 72, h2 = w2 * ui.naturalHeight / ui.naturalWidth; x.drawImage(ui, ux - w2 / 2, uy - h2 * 0.6, w2, h2); } else {
+    if (ui) { const w2 = 96, h2 = w2 * ui.naturalHeight / ui.naturalWidth; x.drawImage(ui, ux - w2 / 2, uy - h2 * 0.6, w2, h2); } else {
     x.save(); x.translate(ux, uy); x.fillStyle = '#9fe3ff'; x.beginPath(); x.ellipse(0, -6, 12, 10, 0, Math.PI, 0); x.fill(); x.fillStyle = '#b8c0cc'; x.beginPath(); x.ellipse(0, 0, 30, 8, 0, 0, 7); x.fill(); x.strokeStyle = '#555'; x.lineWidth = 1.5; x.stroke();
     for (let i = -2; i <= 2; i++) { x.fillStyle = (Math.floor(now / 150) + i) % 2 ? '#ffd84d' : '#ff4f4f'; x.beginPath(); x.arc(i * 10, 2, 2, 0, 7); x.fill(); } x.restore(); } }
   for (const l of V.lad || []) { x.strokeStyle = '#8a5a2b'; x.lineWidth = 3; x.beginPath(); x.moveTo(l.x - 7, l.y1); x.lineTo(l.x - 7, l.y2); x.moveTo(l.x + 7, l.y1); x.lineTo(l.x + 7, l.y2); x.stroke(); x.strokeStyle = '#c08a4a'; x.lineWidth = 2.5; x.beginPath(); for (let y = l.y2 - 6; y > l.y1; y -= 12) { x.moveTo(l.x - 7, y); x.lineTo(l.x + 7, y); } x.stroke(); }
+  for (const f of state.fires || []) { // 증폭 불기둥
+    const g = x.createLinearGradient(f.x - 30, 0, f.x + 30, 0); g.addColorStop(0, 'rgba(255,80,0,0)'); g.addColorStop(0.5, `rgba(255,${120 + Math.sin(now / 80) * 30},20,.55)`); g.addColorStop(1, 'rgba(255,80,0,0)');
+    x.fillStyle = g; x.fillRect(f.x - 30, -400, 60, MH + 400);
+    x.fillStyle = 'rgba(255,230,120,.5)'; x.fillRect(f.x - 4, -400, 8, MH + 400);
+    for (let i = 0; i < 14; i++) { const yy = MH - ((now * 0.25 + i * 70) % (MH + 400)), wob = Math.sin(now / 120 + i) * 10; x.fillStyle = `rgba(255,${140 + (i % 3) * 40},40,.85)`; x.beginPath(); x.moveTo(f.x + wob - 9, yy + 14); x.quadraticCurveTo(f.x + wob, yy - 14, f.x + wob + 9, yy + 14); x.fill(); }
+    x.font = 'bold 14px sans-serif'; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = '#000'; x.fillStyle = '#ffd84d'; x.strokeText('🔥 x2', f.x, 90); x.fillText('🔥 x2', f.x, 90);
+  }
   for (const t of V.tors || []) { // 하늘부터 바닥까지 긴 토네이도
     x.save(); x.globalAlpha = 0.55; const g = x.createLinearGradient(t.x - 30, 0, t.x + 30, 0); g.addColorStop(0, 'rgba(160,200,240,0)'); g.addColorStop(0.5, 'rgba(200,230,255,.55)'); g.addColorStop(1, 'rgba(160,200,240,0)'); x.fillStyle = g; x.fillRect(t.x - 30, -400, 60, WATER + 400); x.globalAlpha = 1;
     for (let yy = -380; yy < WATER; yy += 26) { const k = ((yy + now * 0.25) % 52) / 52; x.strokeStyle = `rgba(230,245,255,${0.35 + 0.35 * Math.sin(k * Math.PI)})`; x.lineWidth = 3; x.beginPath(); x.ellipse(t.x + Math.sin(now / 160 + yy * 0.05) * 6, yy, 18 + 6 * Math.sin(yy * 0.02 + now / 300), 5, 0, 0, 7); x.stroke(); }
@@ -1056,8 +1091,10 @@ function draw(c, dt, now) {
   }
   if (V.tg) { x.strokeStyle = '#ff3b3b'; x.lineWidth = 3; const [tx, ty] = V.tg; x.beginPath(); x.arc(tx, ty, 16, 0, 7); x.moveTo(tx - 24, ty); x.lineTo(tx + 24, ty); x.moveTo(tx, ty - 24); x.lineTo(tx, ty + 24); x.stroke(); }
   for (const p of V.p || []) {
-    const [k, px, py, a, face, psk = 0] = p;
+    const [k, px, py, a, face, psk = 0, amp = 0] = p;
     x.save(); x.translate(px, py);
+    if (amp) { x.fillStyle = `rgba(255,140,30,${0.45 + Math.sin(now / 50) * 0.15})`; x.beginPath(); x.arc(0, 0, 16, 0, 7); x.fill(); }
+    if (k === 'cotp') { x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 6, 0, 7); x.arc(4, -3, 4, 0, 7); x.arc(-4, -2, 4, 0, 7); x.fill(); x.restore(); continue; }
     if (k === 'sig' || k === 'flw' || k === 'bea' || k === 'bq') {
       const isk = k === 'bea' ? 9 : k === 'bq' ? 1 : psk, im = k === 'flw' ? null : isk === 0 ? pic(ICONS.shell) : pic(sigImg(isk));
       const base = isk === 0 ? -Math.PI / 2 : SIGPOINT[isk];
@@ -1410,14 +1447,34 @@ function hearLive(c, L) {
   for (const [q, k, v] of L.snd) if (q > c.heard.seq) { c.heard.seq = q; sfx(k, v); }
 }
 let actx = null, last = {};
+// 첫 터치 때 소리 잠금 풀기 (아이폰 등은 사용자가 화면을 만진 순간에만 소리를 켤 수 있어요)
+function unlockAudio() {
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const b = actx.createBuffer(1, 1, 22050), s = actx.createBufferSource(); s.buffer = b; s.connect(actx.destination); s.start(0);
+  } catch {}
+}
 function sfx(k, v) {
   try {
     if (isMuted()) return;
     const vol = getVolume(); if (!vol) return;
     const now = performance.now(); if (now - (last[k] || 0) < (k === 'mg' ? 40 : 35)) return; last[k] = now;
+    if (window.__kwSfx) window.__kwSfx.push(k);
     actx ||= new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === 'suspended') actx.resume();
-    const A = actx, t = A.currentTime, out = A.createGain(); out.gain.value = vol * 0.9; out.connect(A.destination);
+    const out = actx.createGain(); out.gain.value = vol * 0.9; out.connect(actx.destination);
+    buildSfx(actx, out, k, v);
+  } catch {}
+}
+// 시험용: 소리를 실제로 만들어 가장 큰 소리 크기를 돌려줘요
+export async function sfxPeak(k, v = 0) {
+  const A = new OfflineAudioContext(1, 44100 * 2, 44100), out = A.createGain(); out.connect(A.destination);
+  buildSfx(A, out, k, v);
+  const d = (await A.startRendering()).getChannelData(0); let m = 0; for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i])); return m;
+}
+function buildSfx(A, out, k, v) {
+    const t = A.currentTime;
     const noise = (len, type, f0, f1, g0, q = 1) => {
       const b = A.createBuffer(1, Math.max(1, Math.floor(A.sampleRate * len)), A.sampleRate), d = b.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -1432,15 +1489,16 @@ function sfx(k, v) {
       g.gain.setValueAtTime(0.0001, t + dt); g.gain.linearRampToValueAtTime(g0, t + dt + 0.01); g.gain.exponentialRampToValueAtTime(0.001, t + dt + len);
       o.connect(g); g.connect(out); o.start(t + dt); o.stop(t + dt + len + 0.05);
     };
-    const quack = (f, len, g0) => { // 꽥!
-      const o = A.createOscillator(), bp = A.createBiquadFilter(), g = A.createGain();
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * 0.75, t + len);
-      bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 3;
-      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(g0, t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + len);
-      o.connect(bp); bp.connect(g); g.connect(out); o.start(t); o.stop(t + len + 0.05);
+    const quack = (f, len, g0, dt = 0) => { // 꽥! (코맹맹이 소리: 톱니파 + 두 개의 울림)
+      const t0 = t + dt, o = A.createOscillator(), lfo = A.createOscillator(), lg = A.createGain(), g = A.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.15, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.05); o.frequency.exponentialRampToValueAtTime(f * 0.7, t0 + len);
+      lfo.frequency.value = 28; lg.gain.value = f * 0.06; lfo.connect(lg); lg.connect(o.frequency);
+      for (const [fq, q, a] of [[1150, 6, 1], [2400, 8, 0.6], [600, 4, 0.5]]) { const bp = A.createBiquadFilter(), bg = A.createGain(); bp.type = 'bandpass'; bp.frequency.value = fq; bp.Q.value = q; bg.gain.value = a * 2.2; o.connect(bp); bp.connect(bg); bg.connect(g); }
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(g0, t0 + 0.015); g.gain.setValueAtTime(g0, t0 + len * 0.6); g.gain.exponentialRampToValueAtTime(0.001, t0 + len);
+      g.connect(out); o.start(t0); lfo.start(t0); o.stop(t0 + len + 0.05); lfo.stop(t0 + len + 0.05);
     };
     switch (k) {
-      case 'boom': { const r = v || 40; noise(0.35 + r / 90, 'lowpass', 900 + r * 8, 60, 0.9); tone('sine', 110, 35, 0.4 + r / 150, 0.8); break; }
+      case 'boom': { const r = v || 40; noise(0.35 + r / 90, 'lowpass', 900 + r * 8, 60, 0.7); tone('sine', 110, 35, 0.4 + r / 150, 0.6); break; }
       case 'launch': noise(0.45, 'bandpass', 1400, 250, 0.5, 0.8); tone('sine', 160, 60, 0.18, 0.6); break;
       case 'throw': noise(0.22, 'highpass', 600, 2400, 0.25); break;
       case 'bounce': tone('triangle', 420, 260, 0.06, 0.35); break;
@@ -1455,12 +1513,12 @@ function sfx(k, v) {
       case 'tele': tone('sine', 300, 1600, 0.3, 0.4); tone('triangle', 600, 2400, 0.3, 0.15, 0.05); break;
       case 'drill': tone('sawtooth', 110, 95, 0.15, 0.18); noise(0.15, 'bandpass', 2500, 2000, 0.15, 4); break;
       case 'rope': tone('triangle', 1400, 380, 0.13, 0.35); break;
-      case 'jet': noise(0.5, 'lowpass', 400, 2200, 0.5); break;
-      case 'jetloop': noise(0.25, 'lowpass', 1200, 900, 0.3); break;
-      case 'chute': noise(0.35, 'lowpass', 300, 1500, 0.4); break;
+      case 'jet': noise(0.5, 'lowpass', 600, 2600, 1.0); break;
+      case 'jetloop': noise(0.25, 'lowpass', 1400, 1000, 0.6); break;
+      case 'chute': noise(0.35, 'lowpass', 500, 2000, 0.9); break;
       case 'heal': [523, 659, 784, 1047].forEach((f, i) => tone('sine', f, f, 0.18, 0.25, i * 0.08)); break;
-      case 'tornado': noise(1.4, 'bandpass', 250, 1200, 0.5, 2); noise(1.4, 'bandpass', 900, 300, 0.3, 3); break;
-      case 'fog': noise(1.3, 'lowpass', 200, 900, 0.35); break;
+      case 'tornado': noise(1.4, 'bandpass', 250, 1200, 1.0, 1.2); noise(1.4, 'bandpass', 900, 300, 0.6, 2); break;
+      case 'fog': noise(1.3, 'lowpass', 300, 1200, 1.0); break;
       case 'ladder': tone('triangle', 260, 220, 0.06, 0.5); tone('triangle', 230, 200, 0.06, 0.5, 0.12); break;
       case 'jump': tone('sine', 280, 620, 0.12, 0.3); break;
       case 'flip': tone('sine', 300, 900, 0.25, 0.3); break;
@@ -1473,13 +1531,16 @@ function sfx(k, v) {
       case 'flower': noise(0.5, 'highpass', 2000, 4000, 0.15); [1047, 1319, 1568].forEach((f, i) => tone('sine', f, f, 0.2, 0.12, i * 0.06)); break;
       case 'clink': tone('triangle', 1400, 1200, 0.08, 0.25); break;
       case 'crack': noise(0.4, 'bandpass', 1800, 400, 0.5, 1.5); tone('square', 300, 120, 0.2, 0.15); break;
+      case 'puff': noise(0.25, 'lowpass', 900, 300, 0.35); tone('sine', 500, 260, 0.12, 0.2); break;
+      case 'fire': noise(1.2, 'lowpass', 600, 1800, 0.5, 0.7); tone('sawtooth', 90, 140, 1.0, 0.12); break;
+      case 'amp': tone('square', 600, 1500, 0.18, 0.2); noise(0.3, 'bandpass', 1200, 3000, 0.3, 2); break;
       case 'lock': tone('square', 1500, 1500, 0.05, 0.2); tone('square', 1900, 1900, 0.07, 0.2, 0.07); break;
       case 'pickup': tone('sine', 880, 880, 0.12, 0.3); tone('sine', 1320, 1320, 0.2, 0.3, 0.1); break;
-      case 'heli': noise(0.09, 'lowpass', 260, 120, 0.35); break;
-      case 'quack': quack(420, 0.22, 0.45); break;
-      case 'die': quack(380, 0.25, 0.5); setTimeout(() => sfx('quackdown', 0), 260); break;
+      case 'heli': noise(0.09, 'lowpass', 500, 160, 1.0); tone('sine', 90, 60, 0.08, 0.25); break;
+      case 'quack': quack(360, 0.2, 0.5); break;
+      case 'die': quack(330, 0.22, 0.5); quack(260, 0.5, 0.5, 0.26); break;
       case 'quackdown': quack(300, 0.45, 0.45); break;
       default: break;
     }
-  } catch {}
+
 }
