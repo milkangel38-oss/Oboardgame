@@ -33,7 +33,7 @@ function newRound(state, now) {
   }
   const first = Math.random() < 0.5 ? 'red' : 'blue';
   const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10].sort(() => Math.random() - 0.5), drops = pool.slice(0, Math.random() < 0.5 ? 2 : 3).sort((a, b) => a - b);
-  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
+  const s = { ...state, phase: 'play', round: state.round + 1, seed, craters: [], worms, mines: [], tors: [], ladders: [], fog: null, crates: [], drops, inv: { red: startInv(), blue: startInv() }, ti: { red: -1, blue: -1 }, turn: { team: other(first), n: 0 }, roundWinner: null };
   return nextTurn(s, now);
 }
 function nextTurn(state, now) {
@@ -89,6 +89,7 @@ export default {
     '두 팀이 번갈아 차례! 차례마다 30초 안에 꿈틀이 한 마리를 움직이고 공격해요.',
     '왼쪽 아래 조이스틱: 좌우 = 걷기, 위아래 = 조준 · 오른쪽 아래: 점프(두 번 누르면 높이 뒤로 덤블링) · 발사 · 가운데 아래: 무기 고르기',
     '공격 무기를 쓰면 차례가 끝나요. 이동 · 유틸 아이템은 쓰고도 계속 움직일 수 있어요.',
+    '🪜 사다리: 내 자리에 세우고 조이스틱 위아래로 오르내려요. 좌우로 움직이거나 점프하면 내려와요.',
     '🚁 로켓배송! 라운드마다 2~3번 헬기가 날아와 보급 상자를 떨어뜨려요. 상자를 먹으면 특수무기(무전기 · 닭 · 제트배낭 · 토네이도 · 안개)를 쓸 수 있어요.',
     '데미지(정타 기준, 빗맞으면 줄어요): 포탄 20 · 수류탄 30 · 화염방사기 50 · 지뢰 40 · 권총 30 · 기관총 50 · 무전기 미사일 1발당 60 · 닭 80',
     '폭발하면 땅이 사라지고, 맞은 꿈틀이는 날아가요. 바다에 빠지거나 하늘에서 떨어지면 탈락!',
@@ -141,7 +142,7 @@ export default {
       for (const [u, d] of Object.entries(r.stats || {})) { if (!stats[u]) continue; stats[u] = { dmg: stats[u].dmg + Math.max(0, d.dmg | 0), kills: stats[u].kills + Math.max(0, d.kills | 0) }; }
       const s = { ...state, worms, stats,
         craters: [...state.craters, ...(r.craters || []).map((c) => c.map((v) => Math.round(+v)))].slice(-400),
-        mines: (r.mines || state.mines).slice(0, 30), tors: (r.tors || state.tors).slice(0, 6), fog: r.fog === undefined ? state.fog : r.fog,
+        mines: (r.mines || state.mines).slice(0, 30), tors: (r.tors || state.tors).slice(0, 6), ladders: Array.isArray(r.ladders) ? r.ladders.slice(0, 20).map((l) => ({ x: Math.round(+l.x), y1: Math.round(+l.y1), y2: Math.round(+l.y2) })) : state.ladders || [], fog: r.fog === undefined ? state.fog : r.fog,
         crates: Array.isArray(r.crates) ? r.crates.slice(0, 12).map((k) => ({ id: String(k.id), x: Math.round(+k.x), y: Math.round(+k.y), item: SPECIALS.includes(k.item) ? k.item : 'radio' })) : state.crates || [],
         inv: r.invs ? { red: cleanInv(r.invs.red, state.inv.red), blue: cleanInv(r.invs.blue, state.inv.blue) } : r.inv ? { ...state.inv, [state.turn.team]: cleanInv(r.inv, state.inv[state.turn.team]) } : state.inv };
       const re = checkRound(s, now);
@@ -314,7 +315,7 @@ function startTurn(c) {
   c.W = {
     n: state.turn.n, mask: T.mask, wid: state.turn.wid, team: state.turn.team,
     worms: state.worms.map((w) => ({ ...w, air: false, vx: 0, vy: 0, flip: 0, ph: 0 })),
-    projs: [], fx: [], newCr: [], mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), fog: state.fog,
+    projs: [], fx: [], newCr: [], mines: (state.mines || []).map((m) => ({ ...m })), tors: (state.tors || []).map((t) => ({ ...t })), ladders: (state.ladders || []).map((l) => ({ ...l })), fog: state.fog,
     invs: { red: { ...state.inv.red }, blue: { ...state.inv.blue } }, stats: {}, attack: false, ending: false, settle: 0, sent: false,
     crates: (state.crates || []).map((k) => ({ ...k, air: false, vy: 0 })), heli: state.turn.drop ? { x: state.turn.drop.dir > 0 ? -160 : MW + 160, y: Math.max(60, Math.min(560, ((surfaceAt(T.mask, state.turn.drop.x) + 1) || WATER) - 210)), xd0: state.turn.drop.x, item: state.turn.drop.item, dir: state.turn.drop.dir, done: false } : null,
     rope: null, jet: null, chute: false, drill: null, chick: null, gren: null, mg: null, flame: null,
@@ -384,6 +385,7 @@ function jump(c) {
   if (!canAct(c)) return;
   const w = meW(c); if (!w || w.dead || c.W.rope || c.W.jet || c.W.drill) return;
   const now = performance.now();
+  if (w.climb) { w.climb = false; w.air = false; }
   if (!w.air) { w.air = true; w.vx = c.facing * 140; w.vy = -230; c.lastJump = now; }
   else if (now - c.lastJump < 380 && !w.flip) { w.vx = -c.facing * 80; w.vy = -400; w.flip = now; } // 두 번 누르면 높이 뒤로 덤블링
 }
@@ -416,6 +418,11 @@ function fireDown(c) {
   else if (id === 'rope') ropeShoot(c, w, dir);
   else if (id === 'jet') { useItem(c, id); W.jet = { t: 5 }; w.air = true; w.vx = 0; w.vy = -60; }
   else if (id === 'pill' || id === 'medkit') { useItem(c, id); const before = w.hp; w.hp = Math.min(100, w.hp + (id === 'pill' ? 30 : 60)); W.fx.push({ k: 'txt', x: w.x, y: w.y - 40, s: `+${w.hp - before}`, col: '#3ddc84', t: 0 }); afterUtil(c, id); }
+  else if (id === 'ladder') {
+    let y1 = w.y - 150; for (let y = w.y - WH; y > w.y - 150; y--) if (solid(W.mask, w.x, y)) { y1 = y + 4; break; }
+    if (w.air || w.y - y1 < 30) { flash(c, '여기에는 사다리를 세울 수 없어요'); return; }
+    useItem(c, id); W.ladders.push({ x: Math.round(w.x), y1: Math.round(y1), y2: Math.round(w.y) }); w.climb = true; flash(c, '🪜 조이스틱 위로 올라가요', 1200); afterUtil(c, id);
+  }
   else if (id === 'tornado') { useItem(c, id); W.tors.push({ x: Math.round(w.x + c.facing * 55), y: Math.round(w.y - 30), team: W.team, until: W.n + 2 }); afterUtil(c, id); }
   else if (id === 'fog') { useItem(c, id); W.fog = { until: W.n + 2, by: c.ctx.me }; flash(c, '🌫️ 안개가 깔렸어요'); afterUtil(c, id); }
 }
@@ -463,7 +470,7 @@ function hurt(c, w, dmg, vx, vy) {
   w.hp = Math.max(0, w.hp - dmg);
   W.fx.push({ k: 'txt', x: w.x, y: w.y - 40, s: `-${dmg}`, col: '#ff4f4f', t: 0 });
   if (w.team !== W.team) { const st = (W.stats[c.ctx.me] ||= { dmg: 0, kills: 0 }); st.dmg += dmg; if (w.hp <= 0) st.kills++; }
-  if (vx || vy) { w.air = true; w.vx = vx; w.vy = vy; if (w.id === W.wid) { W.rope = null; W.jet = null; W.drill = null; } }
+  if (vx || vy) { w.air = true; w.climb = false; w.vx = vx; w.vy = vy; if (w.id === W.wid) { W.rope = null; W.jet = null; W.drill = null; } }
   if (w.hp <= 0) { w.dead = true; W.fx.push({ k: 'boom', x: w.x, y: w.y - 8, r: 22, t: 0 }); }
 }
 function explode(c, x, y, r, dmg) {
@@ -480,9 +487,12 @@ function explode(c, x, y, r, dmg) {
     hurt(c, w, dm, (dx / l) * k, Math.min(-120, (dy / l) * k - dm * 4));
   }
   for (const m of W.mines) if (m.arm == null && Math.hypot(m.x - x, m.y - y) < r + 8) m.arm = 0.25;
+  W.ladders = W.ladders.filter((l) => Math.hypot(l.x - x, Math.max(l.y1, Math.min(l.y2, y)) - y) > r * 0.8);
+  for (const o of W.worms) if (o.climb && !onLadder(W, o)) { o.climb = false; o.air = true; }
   W.crates = W.crates.filter((k) => { if (Math.hypot(k.x - x, k.y - 8 - y) < r + 6) { W.fx.push({ k: 'txt', x: k.x, y: k.y - 30, s: '상자 파괴!', col: '#ccc', t: 0 }); return false; } return true; });
 }
 function boomChicken(c) { const ch = c.W.chick; if (!ch) return; remove(c.W, ch); c.W.chick = null; c.W.fx.push({ k: 'txt', x: ch.x, y: ch.y - 50, s: '꼬끼오!!', col: '#ffd84d', t: 0 }); explode(c, ch.x, ch.y - 6, 64, 80); }
+function onLadder(W, o) { return o && W.ladders.find((l) => Math.abs(o.x - l.x) < 9 && o.y >= l.y1 - 2 && o.y <= l.y2 + 3); }
 function remove(W, p) { W.projs = W.projs.filter((q) => q !== p); }
 
 // ───────────────── 시뮬레이션 (내 차례) ─────────────────
@@ -492,7 +502,10 @@ function simStep(c, dt) {
   const w = meW(c), J = joyNow(c);
   const free = canAct(c) && w && !w.dead;
   if (free) {
-    if (!W.rope && !W.jet && Math.abs(J.y) > 0.35) c.angle = Math.max(-1.35, Math.min(1.45, c.angle + J.y * dt * 1.4));
+    const L = onLadder(W, w);
+    if (w.climb && !L) w.climb = false;
+    if (L && !W.rope && !W.jet && !W.drill && c.charge < 0 && Math.abs(J.y) > 0.35) w.climb = true;
+    if (!W.rope && !W.jet && !w.climb && Math.abs(J.y) > 0.35) c.angle = Math.max(-1.35, Math.min(1.45, c.angle + J.y * dt * 1.4));
     if (W.rope) {
       const R = W.rope, px = w.x, py = w.y - WH / 2;
       R.vy += G * dt; R.vx += J.x * 380 * dt;
@@ -518,7 +531,11 @@ function simStep(c, dt) {
       if (!W.drill.last || Math.hypot(w.x - W.drill.last[0], w.y - W.drill.last[1]) > 5) { W.drill.last = [w.x, w.y]; crater(c, w.x, w.y - WH / 2, 13); }
       w.air = false; w.vx = 0; w.vy = 0;
       if (W.drill.t > 4) fireUp(c);
-    } else if (!w.air && c.charge < 0 && Math.abs(J.x) > 0.3) {
+    } else if (w.climb && Math.abs(J.x) <= 0.3) {
+      w.air = false; w.vx = 0; w.vy = 0; w.x += (L.x - w.x) * Math.min(1, dt * 12);
+      if (Math.abs(J.y) > 0.35) { const ny = Math.max(L.y1, Math.min(L.y2, w.y - J.y * 80 * dt)); if (!solid(M, w.x, ny - WH + 2) || J.y < 0) w.y = ny; w.ph += dt * 10; }
+    } else if ((!w.air || w.climb) && c.charge < 0 && Math.abs(J.x) > 0.3) {
+      w.climb = false;
       c.facing = J.x > 0 ? 1 : -1; walkStep(M, w, c.facing * 75 * dt); w.ph += dt * 14;
     }
     if (c.charge >= 0) c.charge = Math.min(1, c.charge + dt / 1.5);
@@ -542,6 +559,7 @@ function simStep(c, dt) {
   for (const o of W.worms) {
     if (o.dead) continue;
     if (o.id === W.wid && (W.rope || W.jet || W.drill)) continue;
+    if (o.climb || (!o.air && onLadder(W, o))) continue;
     if (!o.air && !solid(M, o.x, o.y + 1) && !solid(M, o.x, o.y + 2)) { o.air = true; o.vx = 0; o.vy = 0; }
     if (!o.air) continue;
     if (o.id === W.wid && W.chute) {
@@ -635,7 +653,7 @@ function commit(c) {
   const W = c.W; W.sent = true;
   c.ctx.sendMove({ type: 'end', n: W.n, res: {
     worms: W.worms.map((w) => ({ id: w.id, x: Math.round(w.x), y: Math.round(w.y), hp: w.hp, dead: w.dead })),
-    craters: W.newCr, mines: W.mines.map(({ x, y, team, id }) => ({ x, y, team, id })), tors: W.tors, fog: W.fog || null, invs: W.invs, stats: W.stats,
+    craters: W.newCr, mines: W.mines.map(({ x, y, team, id }) => ({ x, y, team, id })), tors: W.tors, ladders: W.ladders, fog: W.fog || null, invs: W.invs, stats: W.stats,
     crates: W.crates.map(({ id, x, y, item }) => ({ id, x: Math.round(x), y: Math.round(y), item })),
   } }, { onError: () => { W.sent = false; } });
 }
@@ -668,7 +686,7 @@ function snap(c) {
     fx: W.fx.filter((f) => f.k !== 'fire' && f.k !== 'puff').map((f) => [f.k, Math.round(f.x), Math.round(f.y), f.r || 0, Math.round(f.t * 100) / 100, f.s || '', f.col || '', Math.round(f.x2 || 0), Math.round(f.y2 || 0), f.blue ? 1 : 0]),
     cr: W.newCr, a: Math.round(c.angle * 100) / 100, ch: c.charge >= 0 ? Math.round(c.charge * 100) / 100 : -1, wp: c.sel, f: c.facing,
     rope: W.rope ? [Math.round(W.rope.ax), Math.round(W.rope.ay)] : 0, jet: W.jet ? 1 : 0, chute: W.chute ? 1 : 0, flame: W.flame ? 1 : 0,
-    mines: W.mines.map((m) => [m.x, m.y, m.team]), tors: W.tors, fog: W.fog || 0, tg: c.target ? [Math.round(c.target.x), Math.round(c.target.y)] : 0,
+    mines: W.mines.map((m) => [m.x, m.y, m.team]), tors: W.tors, lad: W.ladders, fog: W.fog || 0, tg: c.target ? [Math.round(c.target.x), Math.round(c.target.y)] : 0,
     gr: W.gren ? Math.max(0, Math.ceil((W.gren.end - performance.now()) / 1000)) : 0, wid: W.wid,
     heli: W.heli ? [Math.round(W.heli.x), W.heli.y, W.heli.dir, W.heli.done ? 1 : 0] : 0, crates: W.crates.map((k) => [Math.round(k.x), Math.round(k.y), k.air ? 1 : 0]),
   };
@@ -680,7 +698,7 @@ function view(c) {
   if (c.W && myTurn(c) && c.W.n === state.turn.n) return { ...snap(c), live: true, fireFx: c.W.fx.filter((f) => f.k === 'fire' || f.k === 'puff') };
   const L = state.phase === 'play' ? c.others?.[state.turn.uid] : null;
   if (L && L.n === state.turn.n && Array.isArray(L.w)) return { ...L, live: true, fireFx: [] };
-  return { n: state.turn.n, w: state.worms.map((o) => [o.id, o.x, o.y, o.hp, o.dead ? 1 : 0, 0, 0]), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, heli: 0, crates: (state.crates || []).map((k) => [k.x, k.y, 0]), fireFx: [] };
+  return { n: state.turn.n, w: state.worms.map((o) => [o.id, o.x, o.y, o.hp, o.dead ? 1 : 0, 0, 0]), p: [], fx: [], cr: [], a: 0.6, ch: -1, wp: 'shell', f: 1, rope: 0, mines: (state.mines || []).map((m) => [m.x, m.y, m.team]), tors: state.tors || [], fog: state.fog || 0, tg: 0, gr: 0, wid: state.turn.wid, heli: 0, lad: state.ladders || [], crates: (state.crates || []).map((k) => [k.x, k.y, 0]), fireFx: [] };
 }
 function draw(c, dt, now) {
   const { state, me, players } = c.ctx;
@@ -708,6 +726,7 @@ function draw(c, dt, now) {
   const wy = WATER + Math.sin(now / 500) * 3;
   x.fillStyle = M.water; x.globalAlpha = 0.88; x.fillRect(-900, wy, MW + 1800, MH); x.globalAlpha = 1;
   x.strokeStyle = 'rgba(255,255,255,.6)'; x.lineWidth = 3; x.beginPath(); for (let i = -900; i < MW + 900; i += 20) x.lineTo(i, wy + Math.sin(i * 0.05 + now / 300) * 4); x.stroke();
+  for (const l of V.lad || []) { x.strokeStyle = '#8a5a2b'; x.lineWidth = 3; x.beginPath(); x.moveTo(l.x - 7, l.y1); x.lineTo(l.x - 7, l.y2); x.moveTo(l.x + 7, l.y1); x.lineTo(l.x + 7, l.y2); x.stroke(); x.strokeStyle = '#c08a4a'; x.lineWidth = 2.5; x.beginPath(); for (let y = l.y2 - 6; y > l.y1; y -= 12) { x.moveTo(l.x - 7, y); x.lineTo(l.x + 7, y); } x.stroke(); }
   for (const t of V.tors || []) for (let k = 0; k < 6; k++) { x.strokeStyle = `rgba(200,230,255,${0.75 - k * 0.1})`; x.lineWidth = 3; x.beginPath(); x.ellipse(t.x + Math.sin(now / 120 + k) * 5, t.y + 30 - k * 12, 10 + k * 6, 4 + k, 0, 0, 7); x.stroke(); }
   const myTeam = state.teams?.[me];
   for (const m of V.mines || []) if (!myTeam || m[2] === myTeam) { x.fillStyle = '#333'; x.beginPath(); x.ellipse(m[0], m[1] - 3, 7, 4, 0, 0, 7); x.fill(); x.fillStyle = (now / 300) % 2 < 1 ? '#ff3b3b' : '#600'; x.beginPath(); x.arc(m[0], m[1] - 6, 2, 0, 7); x.fill(); }

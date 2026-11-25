@@ -14,6 +14,7 @@ export const WEAPONS = [
   { id: 'rope', cat: 'move', icon: '🪢', name: '로프', n: -1, desc: '로프를 쏴서 지형에 걸어요. 좌우로 흔들고 위아래로 줄을 감거나 풀어요. 발사 버튼을 다시 누르면 놓고 날아가요.' },
   { id: 'jet', cat: 'move', icon: '🎒', name: '제트배낭', n: 0, sp: true, desc: '5초 동안 로켓처럼 날아다녀요. 조이스틱 위로 상승, 좌우로 이동. 시간이 끝나면 그 자리에서 떨어져요.' },
   { id: 'chute', cat: 'move', icon: '🪂', name: '낙하산', n: -1, desc: '떨어지는 중에 발사 버튼을 누르면 낙하산이 펴져 천천히 내려가요 (바람에 밀려요). 한 번 더 누르면 접혀요.' },
+  { id: 'ladder', cat: 'util', icon: '🪜', name: '사다리', n: 2, desc: '내 자리에 사다리를 세워요. 조이스틱 위아래로 오르내리고, 좌우로 내려와요. 폭발에 맞으면 부서져요.' },
   { id: 'pill', cat: 'util', icon: '💊', name: '알약', n: 2, desc: '꿈틀이 체력을 30 회복해요.' },
   { id: 'medkit', cat: 'util', icon: '🧰', name: '구급상자', n: 1, desc: '꿈틀이 체력을 60 회복해요.' },
   { id: 'tornado', cat: 'util', icon: '🌪️', name: '토네이도', n: 0, sp: true, desc: '내 앞에 회오리바람을 만들어요. 날아오는 탄을 튕겨 되돌려 보내요. (2턴 유지)' },
