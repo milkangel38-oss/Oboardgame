@@ -2,7 +2,7 @@
 // - 대기방: 팀 나누기 · 맵 고르기 · 준비 → 방장 시작
 // - 차례인 사람의 화면에서 실제로 시뮬레이션하고(걷기·무기·폭발), 실시간 채널로 다른 사람에게 보여줘요.
 //   차례가 끝나면 결과(체력·구멍·지뢰 등)를 방 문서에 저장해요.
-import { soundEvent, isMuted, getVolume } from '../sound.js';
+import { soundEvent, isMuted, getVolume, setVolume, setMuted, onSoundChange } from '../sound.js';
 import { faceHtml } from './face.js';
 import { MW, MH, WATER, G, WH, MAPS, makeMask, solid, carve, spawnPoints, walkStep, airStep, surfaceAt } from './kkumtle-world.js';
 import { WEAPONS, WMAP, CATS, SPECIALS, startInv } from './kkumtle-weapons.js';
@@ -77,9 +77,9 @@ export function finalResult(state, players) {
 
 export default {
   id: 'kkumtle',
-  name: '꿈틀 포격전',
-  emoji: '💥',
-  category: 'board',
+  name: 'Duck War',
+  emoji: '🦆',
+  category: 'mini',
   minPlayers: 2,
   maxPlayers: 6,
   duration: '10~25분',
@@ -88,20 +88,21 @@ export default {
   description: '레드팀 vs 블루팀! 바람을 읽고 무기를 골라 땅을 부숴라',
   options: [
     { key: 'rounds', label: '라운드 수', choices: [1, 2, 3, 4, 5], default: 3 },
-    { key: 'worms', label: '팀당 꿈틀이', choices: [1, 2, 3], default: 2 },
+    { key: 'worms', label: '팀당 오리', choices: [1, 2, 3], default: 2 },
   ],
   rules: [
     '대기방에서 레드팀 · 블루팀으로 나누고, 방장이 맵(도시 · 산 · 하늘 · 바다 · 설산 · 해외)을 골라 시작해요.',
-    '두 팀이 번갈아 차례! 차례마다 30초 안에 꿈틀이 한 마리를 움직이고 공격해요.',
-    '왼쪽 아래 조이스틱: 좌우 = 걷기, 위아래 = 조준 · 오른쪽 아래: 점프(두 번 누르면 높이 뒤로 덤블링) · 발사 · 가운데 아래: 무기 고르기',
+    '두 팀이 번갈아 차례! 차례마다 30초 안에 오리 한 마리를 움직이고 공격해요.',
+    '왼쪽 아래 조이스틱: 좌우 = 걷기, 위아래 = 조준 · 오른쪽 아래: 무기 고르기 · 점프(두 번 누르면 높이 뒤로 덤블링) · 발사',
+    'PC 키보드: 방향키/WASD = 걷기 · 조준, Ctrl = 점프, Space = 발사(꾹 눌러 힘 모으기), Q = 무기 창, Esc = 메뉴',
     '무기든 이동 · 유틸 아이템이든 한 번 쓰면 차례가 끝나요. (로프 · 제트배낭 · 낙하산 · 드릴은 다 쓰고 내려앉을 때까지 조종할 수 있어요)',
     '🪜 사다리: 내 자리에 세워두면 다음 차례부터 조이스틱 위아래로 오르내려요. 좌우로 움직이거나 점프하면 내려와요.',
     'Esc 또는 왼쪽 위 나가기 버튼으로 나갈 수 있어요. 경기 중에 나가면 보상을 받을 수 없어요.',
     '🚁 로켓배송! 라운드마다 2~3번 헬기가 날아와 보급 상자를 떨어뜨려요. 상자를 먹으면 특수무기(무전기 · 닭 · 제트배낭 · 토네이도 · 안개)를 쓸 수 있어요.',
     '데미지(정타 기준, 빗맞으면 줄어요): 포탄 20 · 수류탄 30 · 화염방사기 50 · 지뢰 40 · 권총 30 · 기관총 50 · 무전기 미사일 1발당 60 · 닭 80',
-    '폭발하면 땅이 사라지고, 맞은 꿈틀이는 날아가요. 바다에 빠지거나 하늘에서 떨어지면 탈락!',
+    '폭발하면 땅이 사라지고, 맞은 오리는 날아가요. 바다에 빠지거나 하늘에서 떨어지면 탈락!',
     '화면은 끌어서 움직이고, 휠(모바일은 두 손가락)로 확대 · 축소해요. 오른쪽 위 미니맵을 눌러도 이동해요.',
-    '상대 팀 꿈틀이를 모두 쓰러뜨리면 라운드 승리! 라운드를 더 많이 이긴 팀이 최종 승리 (같으면 딜량이 많은 팀).',
+    '상대 팀 오리를 모두 쓰러뜨리면 라운드 승리! 라운드를 더 많이 이긴 팀이 최종 승리 (같으면 딜량이 많은 팀).',
     '가넷: 승리 팀 모두 +2',
   ],
 
@@ -168,7 +169,7 @@ export default {
     if (!ctl || ctl.code !== code) { teardown(); ctl = build(code, ctx); }
     ctl.ctx = ctx;
     if (!el.querySelector('.kw-holder')) {
-      el.innerHTML = '<div class="kw-holder">💥 꿈틀 포격전 진행 중 <button class="btn sm" data-open>화면 열기</button></div>';
+      el.innerHTML = '<div class="kw-holder">🦆 Duck War 진행 중 <button class="btn sm" data-open>화면 열기</button></div>';
       el.querySelector('[data-open]').onclick = () => { if (ctl && !ctl.root.isConnected) document.body.appendChild(ctl.root); };
     }
     onState(ctl);
@@ -190,7 +191,7 @@ function lobby(el, { state, me, players, sendMove, room }) {
     <div class="kw-teams">${col('red')}<div class="kw-vs">VS</div>${col('blue')}</div>
     <div class="kw-sec">🗺️ 맵 선택 ${isHost ? '' : '<small>(방장이 골라요)</small>'}</div>
     <div class="kw-maps">${Object.entries(MAPS).map(([k, m]) => `<button class="kw-map ${state.map === k ? 'on' : ''}" data-map="${k}" ${isHost ? '' : 'disabled'} style="--s1:${m.sky[0]};--s2:${m.sky[1]};--d:${m.dirt[0]};--t:${m.top};--bg:url(img/kkumtle/bg-${k}.webp)"><i></i><b>${m.emoji} ${m.name}</b><small>${m.desc}</small></button>`).join('')}</div>
-    <div class="kw-opts">라운드 <b>${state.rounds}</b> · 팀당 꿈틀이 <b>${state.per}</b>마리 <small>(먼저 ${Math.floor(state.rounds / 2) + 1}라운드 이기면 승리)</small></div>
+    <div class="kw-opts">라운드 <b>${state.rounds}</b> · 팀당 오리 <b>${state.per}</b>마리 <small>(먼저 ${Math.floor(state.rounds / 2) + 1}라운드 이기면 승리)</small></div>
     ${state.order.includes(me) ? (isHost
       ? `<button class="btn primary block" data-start ${allReady && two ? '' : 'disabled'}>${!two ? '두 팀에 모두 사람이 있어야 해요' : allReady ? '🚀 게임 시작!' : '모두 준비하면 시작할 수 있어요'}</button>`
       : `<button class="btn ${state.ready[me] ? '' : 'primary'} block" data-ready>${state.ready[me] ? '준비 취소' : '준비 완료!'}</button>`) : ''}
@@ -224,7 +225,7 @@ let ctl = null;
 function teardown() {
   if (!ctl) return;
   cancelAnimationFrame(ctl.raf); ctl.unwatch?.(); ctl.live?.close?.(ctl.ctx?.me);
-  window.removeEventListener('keydown', ctl.onKey); window.removeEventListener('keyup', ctl.onKey); window.removeEventListener('hashchange', ctl.onHash);
+  window.removeEventListener('keydown', ctl.onKey); window.removeEventListener('keyup', ctl.onKey); window.removeEventListener('hashchange', ctl.onHash); ctl.offSnd?.();
   ctl.root.remove(); document.documentElement.classList.remove('kw-on');
   ctl = null;
 }
@@ -235,6 +236,8 @@ function build(code, ctx) {
   root.innerHTML = `
     <canvas class="kw-cv"></canvas>
     <button class="kw-exit" data-exit title="나가기 (Esc)">⏏ 나가기</button>
+    <button class="kw-snd" data-snd title="소리">🔊</button>
+    <div class="kw-vol" data-vol hidden><button data-mute>🔇 음소거</button><input type="range" min="0" max="100" step="5" data-volr><b data-volv></b></div>
     <div class="kw-tl" data-teams></div>
     <div class="kw-menu" data-menu hidden></div>
     <div class="kw-tc"><div class="kw-round" data-round></div><div class="kw-timer" data-timer></div></div>
@@ -352,7 +355,6 @@ function startTurn(c) {
   c.facing = me0 && me0.x < MW / 2 ? 1 : -1;
   const want = c.lastSel[c.W.wid] || 'shell';
   c.sel = c.W.inv[want] === 0 || (WMAP[want].sp && !c.W.inv[want]) ? 'shell' : want;
-  if (c.sel === 'grenade') c.W.gren = { end: performance.now() + 5000 };
   if (room) soundEvent(room.code, `kw:turn:${state.turn.n}`, 'ok');
   flash(c, '🎯 내 차례!');
 }
@@ -374,6 +376,13 @@ function bindInput(c) {
   $f.addEventListener('pointerup', fu); $f.addEventListener('pointercancel', fu); $f.addEventListener('pointerleave', fu);
   R.querySelector('[data-wbtn]').onclick = () => openPanel(c);
   R.querySelector('[data-exit]').onclick = () => exitMenu(c, true);
+  // 소리: 음소거 · 음량 (앱 전체 설정과 같이 움직여요)
+  const $sb = R.querySelector('[data-snd]'), $vol = R.querySelector('[data-vol]'), $r = R.querySelector('[data-volr]');
+  const showVol = () => { const m = isMuted(), v = Math.round(getVolume() * 100); $sb.textContent = m || !v ? '🔇' : v < 40 ? '🔈' : '🔊'; $r.value = String(v); R.querySelector('[data-volv]').textContent = m ? '꺼짐' : `${v}%`; R.querySelector('[data-mute]').textContent = m ? '🔊 소리 켜기' : '🔇 음소거'; };
+  showVol(); c.offSnd = onSoundChange?.(showVol);
+  $sb.onclick = () => { $vol.hidden = !$vol.hidden; showVol(); };
+  R.querySelector('[data-mute]').onclick = () => { setMuted(!isMuted()); showVol(); };
+  $r.oninput = () => { setVolume(Number($r.value) / 100); if (Number($r.value) > 0 && isMuted()) setMuted(false); showVol(); };
   c.onHash = () => { if (!location.hash.includes(c.ctx.room?.code || '#')) teardown(); };
   window.addEventListener('hashchange', c.onHash);
   // 파워 게이지를 눌러 표시목 놓기 (내 화면에만, 다음 판에도 기억)
@@ -407,7 +416,7 @@ function bindInput(c) {
     const d = e.type === 'keydown', k = e.key;
     const dir = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd', a: 'l', d: 'r', w: 'u', s: 'd' }[k];
     if (dir) { e.preventDefault(); c.keys[dir] = d; }
-    if (k === 'Enter' && d && !e.repeat) { e.preventDefault(); jump(c); }
+    if ((k === 'Control' || k === 'Enter') && d && !e.repeat) { e.preventDefault(); jump(c); }
     if (k === ' ') { e.preventDefault(); if (d && !e.repeat) fireDown(c); if (!d) fireUp(c); }
     if ((k === 'q' || k === 'Tab') && d) { e.preventDefault(); openPanel(c); }
     if (k === 'Escape' && d) { e.preventDefault(); const $p = R.querySelector('[data-panel]'); if (!$p.hidden) $p.hidden = true; else exitMenu(c, false); }
@@ -445,7 +454,7 @@ function fireDown(c) {
   if (!w || w.dead) return;
   if (id === 'chute') { if (!w.air) { flash(c, '🪂 떨어지는 중에 눌러요'); return; } useItem(c, id); W.chute = true; snd(c, 'chute'); return; }
   if (W.inv[id] === 0) { flash(c, def.sp ? '🔒 보급 상자를 먹어야 쓸 수 있어요' : '남은 개수가 없어요'); return; }
-  if (def.charge) { c.charge = 0; return; }
+  if (def.charge) { c.charge = 0; if (id === 'grenade' && !W.gren) { W.gren = { end: performance.now() + 5000 }; flash(c, '💣 5초 카운트다운!', 900); } return; }
   const dir = aimDir(c), cx = w.x + dir[0] * 12, cy = w.y - WH / 2 + dir[1] * 12;
   if (id === 'pistol') { useItem(c, id); snd(c, 'pistol'); shoot(c, cx, cy, dir, 30, 220, 7); }
   else if (id === 'mg') { useItem(c, id); W.attack = true; W.mg = { left: 10, t: 0 }; }
@@ -481,7 +490,7 @@ function fireUp(c) {
   if (!useItem(c, id)) return;
   const dir = aimDir(c), x = w.x + dir[0] * 14, y = w.y - WH / 2 + dir[1] * 14;
   if (id === 'shell') { snd(c, 'launch'); W.projs.push({ k: 'shell', x, y, vx: dir[0] * 1060 * power, vy: dir[1] * 1060 * power, t: 0 }); }
-  else if (id === 'homing') { snd(c, 'launch'); for (let i = 0; i < 6; i++) { const a = Math.atan2(dir[1], dir[0]) + (i - 2.5) * 0.12, s = 480 * (0.5 + power * 0.5); W.projs.push({ k: 'mini', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: -i * 0.06 }); } }
+  else if (id === 'homing') { snd(c, 'launch'); W.projs.push({ k: 'mini', x, y, vx: dir[0] * 1000 * power, vy: dir[1] * 1000 * power, t: 0, lock: null }); }
   else if (id === 'grenade') { snd(c, 'throw'); W.projs.push({ k: 'gren', x, y, vx: dir[0] * 830 * power, vy: dir[1] * 830 * power, t: 0, end: W.gren?.end || performance.now() + 5000 }); W.gren = null; }
   else if (id === 'mine') { snd(c, 'throw'); W.projs.push({ k: 'mineT', x, y, vx: dir[0] * 660 * power, vy: dir[1] * 660 * power, t: 0 }); }
   else if (id === 'tele') { W.projs.push({ k: 'tele', x, y, vx: dir[0] * 960 * power, vy: dir[1] * 960 * power, t: 0 }); snd(c, 'throw'); }
@@ -609,13 +618,15 @@ function simStep(c, dt) {
     }
     if (W.flame.t > 1.2) W.flame = null;
   }
-  // 꿈틀이 낙하
+  // 오리 낙하
   for (const o of W.worms) {
     if (o.dead) continue;
     if (o.id === W.wid && (W.rope || W.jet || W.drill)) continue;
     if (o.climb || (!o.air && onLadder(W, o))) continue;
     if (!o.air && !solid(M, o.x, o.y + 1) && !solid(M, o.x, o.y + 2)) { o.air = true; o.vx = 0; o.vy = 0; }
-    if (!o.air) continue;
+    if (!o.air) { o.at = 0; continue; }
+    o.at = (o.at || 0) + dt;
+    if (o.at > 7 && !(o.id === W.wid && (W.rope || W.jet || W.chute))) { o.air = false; o.vx = 0; o.vy = 0; o.at = 0; continue; } // 안전장치: 7초 넘게 떠 있으면 그 자리에 멈춰요
     if (o.id === W.wid && W.chute) {
       o.vy = Math.min(o.vy + G * dt, 70); o.vx += (wind * 70 - o.vx) * Math.min(1, dt * 2);
       const nx = o.x + o.vx * dt, ny = o.y + o.vy * dt;
@@ -670,18 +681,22 @@ function simStep(c, dt) {
       if (p.y > WATER) { remove(W, p); W.chick = null; W.fx.push({ k: 'splash', x: p.x, y: WATER, t: 0 }); }
       continue;
     }
-    if (p.k === 'mini' && p.t > 0.3) {
-      let best = null, bd = 1e9;
-      for (const o of W.worms) if (!o.dead && o.team !== W.team) { const d = Math.hypot(o.x - p.x, o.y - 9 - p.y); if (d < bd) { bd = d; best = o; } }
-      if (best) { const want = Math.atan2(best.y - 9 - p.y, best.x - p.x), cur = Math.atan2(p.vy, p.vx); let da = want - cur; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; const a = cur + Math.max(-5 * dt, Math.min(5 * dt, da)); p.vx = Math.cos(a) * 340; p.vy = Math.sin(a) * 340; }
+    if (p.k === 'mini' && !p.lock) { // 포탄처럼 날아가다가 상대에게 가까워지면 목표를 잡아요
+      p.vy += G * dt; p.vx += wind * 110 * dt;
+      if (p.t > 0.25) { let best = null, bd = 170; for (const o of W.worms) if (!o.dead && o.team !== W.team) { const d = Math.hypot(o.x - p.x, o.y - 14 - p.y); if (d < bd) { bd = d; best = o; } } if (best) { p.lock = best.id; W.fx.push({ k: 'txt', x: p.x, y: p.y - 20, s: '🎯 LOCK!', col: '#ff4f4f', t: 0 }); snd(c, 'lock'); } }
+    } else if (p.k === 'mini') {
+      const o = W.worms.find((q) => q.id === p.lock && !q.dead);
+      const sp = Math.min(620, Math.hypot(p.vx, p.vy) + 900 * dt);
+      if (o) { const want = Math.atan2(o.y - 14 - p.y, o.x - p.x), cur = Math.atan2(p.vy, p.vx); let da = want - cur; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; const a = cur + Math.max(-9 * dt, Math.min(9 * dt, da)); p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; }
+      else p.vy += G * dt;
     } else { p.vy += G * dt * (p.k === 'air' ? 0.6 : 1); if (p.k === 'shell') p.vx += wind * 110 * dt; }
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
     if (ny > WATER) { remove(W, p); if (p.k === 'torP') makeTornado(c, nx); W.fx.push({ k: 'splash', x: nx, y: WATER, t: 0 }); snd(c, 'splash'); continue; }
-    if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 6)) { remove(W, p); continue; }
-    const hitWorm = ['shell', 'mini', 'air'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team) && Math.abs(o.x - nx) < 12 && ny > o.y - HB && ny < o.y + 2);
+    if (nx < -400 || nx > MW + 400 || (p.k === 'mini' && p.t > 9)) { remove(W, p); continue; }
+    const hitWorm = ['shell', 'mini', 'air'].includes(p.k) && p.t > 0.08 && W.worms.some((o) => !o.dead && (p.k !== 'mini' || o.team !== W.team || p.t > 0.4) && Math.abs(o.x - nx) < 12 && ny > o.y - HB && ny < o.y + 2);
     if (solid(M, nx, ny) || hitWorm) {
       if (p.k === 'shell') { remove(W, p); explode(c, nx, ny, 42, 20); }
-      else if (p.k === 'mini') { remove(W, p); explode(c, nx, ny, 18, 15); }
+      else if (p.k === 'mini') { remove(W, p); explode(c, nx, ny, 34, 35); }
       else if (p.k === 'air') { remove(W, p); explode(c, nx, ny, 38, 60); }
       else if (p.k === 'torP') { remove(W, p); makeTornado(c, nx); }
       else if (p.k === 'tele') { remove(W, p); snd(c, 'tele'); let y = ny; while (y > 0 && (solid(M, nx, y) || solid(M, nx, y - WH + 2))) y--; if (w) { w.x = nx; w.y = y; w.air = true; w.vx = 0; w.vy = 0; } W.fx.push({ k: 'boom', x: nx, y, r: 14, t: 0, blue: 1 }); }
@@ -704,7 +719,8 @@ function simStep(c, dt) {
   if (tl <= 0 && !W.ending) { W.ending = true; W.rope = null; W.jet = null; W.drill = null; W.gren = null; c.charge = -1; const me0 = meW(c); if (me0 && !solid(M, me0.x, me0.y + 1)) me0.air = true; }
   const busy = W.projs.length || W.rope || W.jet || W.drill || W.mg || W.flame || W.heli || W.crates.some((k) => k.air) || W.mines.some((m) => m.arm != null) || W.worms.some((o) => !o.dead && o.air);
   if ((W.attack || W.ending || (w && w.dead)) && !busy) W.settle += dt; else W.settle = 0;
-  if (W.settle > 1.0 && !W.sent) commit(c);
+  if (W.ending || W.attack) W.over = (W.over || 0) + dt;
+  if ((W.settle > 1.0 || W.over > 14) && !W.sent) commit(c); // 안전장치: 끝난 뒤 14초가 지나면 무조건 넘겨요
 }
 function commit(c) {
   const W = c.W; W.sent = true;
@@ -837,7 +853,7 @@ function draw(c, dt, now) {
     else if (k === 'mineT') { x.fillStyle = '#333'; x.beginPath(); x.ellipse(0, 0, 7, 4, 0, 0, 7); x.fill(); }
     else if (k === 'torP') { const im = pic(ICONS.tornado); x.rotate(performance.now() / 100); if (im) x.drawImage(im, -9, -10, 18, 20); }
     else if (k === 'tele') { x.fillStyle = '#7fd3ff'; x.beginPath(); x.arc(0, 0, 5, 0, 7); x.fill(); x.strokeStyle = '#fff'; x.stroke(); }
-    else { x.rotate(a); x.fillStyle = k === 'mini' ? '#ffd84d' : k === 'air' ? '#555' : '#ddd'; const L = k === 'mini' ? 7 : 12; x.fillRect(-L / 2, -2.5, L, 5); x.fillStyle = 'rgba(255,150,40,.85)'; x.beginPath(); x.arc(-L / 2 - 3, 0, 3.5, 0, 7); x.fill(); }
+    else { x.rotate(a); x.fillStyle = k === 'mini' ? '#ff6a4a' : k === 'air' ? '#555' : '#ddd'; const L = 12; x.fillRect(-L / 2, -2.5, L, 5); x.fillStyle = 'rgba(255,150,40,.85)'; x.beginPath(); x.arc(-L / 2 - 3, 0, 3.5, 0, 7); x.fill(); }
     x.restore();
   }
   for (const f of V.fireFx || []) { if (f.k === 'fire') { x.fillStyle = `rgba(255,${120 + f.t * 200},30,${Math.max(0, 0.9 - f.t * 2)})`; x.beginPath(); x.arc(f.x, f.y, 5 + f.t * 22, 0, 7); x.fill(); } else { x.fillStyle = `rgba(255,200,120,${Math.max(0, 0.6 - f.t)})`; x.beginPath(); x.arc(f.x, f.y, 4 + f.t * 14, 0, 7); x.fill(); } }
@@ -895,7 +911,7 @@ function drawHeli(x, X, Y, dir, done, now) {
   x.restore();
 }
 
-// 꿈틀이 (몸과 얼굴이 하나 · 걸을 때 앞뒤로 꿈틀꿈틀)
+// 오리 (몸과 얼굴이 하나 · 걸을 때 앞뒤로 꿈틀꿈틀)
 function drawWorm(x, X, Y, skin, face, ph, flipT, col, name, hp, active) {
   const duck = pic(`img/kkumtle/d${skin % 12}.webp`);
   if (duck) {
@@ -1218,6 +1234,7 @@ function sfx(k, v) {
       case 'jump': tone('sine', 280, 620, 0.12, 0.3); break;
       case 'flip': tone('sine', 300, 900, 0.25, 0.3); break;
       case 'splash': noise(0.5, 'lowpass', 2500, 300, 0.6); tone('sine', 500, 150, 0.15, 0.2); break;
+      case 'lock': tone('square', 1500, 1500, 0.05, 0.2); tone('square', 1900, 1900, 0.07, 0.2, 0.07); break;
       case 'pickup': tone('sine', 880, 880, 0.12, 0.3); tone('sine', 1320, 1320, 0.2, 0.3, 0.1); break;
       case 'heli': noise(0.09, 'lowpass', 260, 120, 0.35); break;
       case 'quack': quack(420, 0.22, 0.45); break;

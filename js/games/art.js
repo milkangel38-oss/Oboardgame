@@ -7,18 +7,21 @@ import { animalSvg } from './underdog-art.js';
 const nest = (svg, x, y, w, h) => svg.replace('<svg viewBox="0 0 120 150"', `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 120 150"`);
 
 export const ART = {
-  // 꿈틀 포격전: 섬 위의 꿈틀이와 포탄
+  // Duck War: 산 위에서 마주 보는 오리 두 마리와 포탄
   kkumtle: `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="kts" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fb6ff"/><stop offset="1" stop-color="#d6ecff"/></linearGradient></defs>
-  <rect width="300" height="420" fill="url(#kts)"/>
-  <path d="M0 300 Q60 220 120 260 T240 230 T300 260 L300 360 L0 360Z" fill="#9a6a3e"/><path d="M0 300 Q60 220 120 260 T240 230 T300 260" stroke="#5fcf5a" stroke-width="8" fill="none"/>
-  <circle cx="170" cy="262" r="26" fill="url(#kts)"/>
-  <rect y="350" width="300" height="70" fill="#2a74c8"/>
-  <path d="M70 240 q50 -150 140 -40" stroke="#fff" stroke-width="3" stroke-dasharray="6 6" fill="none"/>
-  <circle cx="210" cy="200" r="7" fill="#333"/>
-  <g transform="translate(64 244)"><ellipse cx="0" cy="-10" rx="12" ry="12" fill="#ffb5c5" stroke="#c4607a" stroke-width="2"/><rect x="-12" y="-21" width="24" height="5" fill="#ff4f6e"/><circle cx="5" cy="-12" r="4" fill="#fff"/><circle cx="6" cy="-12" r="2" fill="#222"/></g>
-  <g transform="translate(236 226)"><ellipse cx="0" cy="-10" rx="12" ry="12" fill="#ffb5c5" stroke="#c4607a" stroke-width="2"/><rect x="-12" y="-21" width="24" height="5" fill="#3d7bff"/><circle cx="-5" cy="-12" r="4" fill="#fff"/><circle cx="-6" cy="-12" r="2" fill="#222"/></g>
-  <text x="150" y="120" text-anchor="middle" font-size="44">💥</text></svg>`,
+  <defs><pattern id="dwt" patternUnits="userSpaceOnUse" width="264" height="46"><image href="img/kkumtle/tex-mountain.webp" width="264" height="46"/></pattern>
+  <radialGradient id="dwb"><stop offset="0" stop-color="#fff6c0"/><stop offset=".45" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/></radialGradient></defs>
+  <image href="img/kkumtle/bg-mountain.webp" x="-260" y="0" width="840" height="420" preserveAspectRatio="xMidYMid slice"/>
+  <path d="M-10 300 Q50 250 110 285 Q150 305 185 278 Q240 240 310 270 L310 430 L-10 430Z" fill="url(#dwt)"/>
+  <path d="M-10 300 Q50 250 110 285 Q150 305 185 278 Q240 240 310 270" stroke="#5fcf5a" stroke-width="7" fill="none"/>
+  <path d="M150 302 a26 20 0 0 1 52 0" fill="#a8d6ff" opacity=".0"/>
+  <path d="M78 228 Q150 70 222 196" stroke="#fff" stroke-width="3.5" stroke-dasharray="7 7" fill="none"/>
+  <circle cx="222" cy="214" r="34" fill="url(#dwb)"/>
+  <image href="img/kkumtle/w-shell.webp" x="140" y="96" width="16" height="38" transform="rotate(62 148 115)"/>
+  <image href="img/kkumtle/d0.webp" x="30" y="196" width="68" height="100"/>
+  <g transform="translate(270 0) scale(-1 1)"><image href="img/kkumtle/d6.webp" x="0" y="168" width="70" height="101"/></g>
+  <image href="img/kkumtle/w-grenade.webp" x="122" y="268" width="26" height="31"/>
+</svg>`,
   // 그림 이어그리기: 예능 스튜디오 칸막이와 화이트보드
   drawrelay: (() => {
     const bulbs = Array.from({ length: 13 }, (_, i) => `<circle cx="${12 + i * 23}" cy="22" r="5" fill="${i % 2 ? '#ffd84d' : '#ff5fa2'}"/>`).join('');

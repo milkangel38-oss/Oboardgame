@@ -112,12 +112,17 @@ export function walkStep(m, w, dx) {
 // 땅에 닿으면 착지 속도를 돌려줘요 (아니면 0)
 export function airStep(m, w, dt, drag = 0) {
   w.vy += G * dt; if (drag) { w.vx *= 1 - drag * dt; }
-  const nx = w.x + w.vx * dt, ny = w.y + w.vy * dt;
-  if (solid(m, nx, ny - WH / 2) || solid(m, nx, ny - WH + 3)) { w.vx *= -0.3; if (w.vy < 0 && solid(m, w.x, ny - WH)) w.vy = 0; return 0; }
-  if (w.vy > 0 && solid(m, nx, ny)) {
-    let y = ny; while (y > 0 && solid(m, nx, y)) y--;
-    const v = w.vy; w.x = nx; w.y = y; w.vx = 0; w.vy = 0; w.air = false; return v || 1;
+  // 땅 속에 박혀 있으면 위로 빼내요 (천장에 걸려 공중에 멈추는 버그 방지)
+  if (solid(m, w.x, w.y - WH / 2)) { let k = 0; while (k < 4 && solid(m, w.x, w.y - WH / 2)) { w.y -= 1; k++; } w.stuck = (w.stuck || 0) + 1; if (w.stuck > 90) { w.y += w.vy * dt; w.stuck = 0; } }
+  // 가로 · 세로를 따로 움직여요
+  const nx = Math.max(2, Math.min(MW - 2, w.x + w.vx * dt));
+  if (!solid(m, nx, w.y - WH / 2) && !solid(m, nx, w.y - WH + 3)) w.x = nx; else w.vx *= -0.3;
+  const ny = w.y + w.vy * dt;
+  if (w.vy < 0) { if (solid(m, w.x, ny - WH + 3)) w.vy = 0; else w.y = ny; return 0; }
+  if (solid(m, w.x, ny)) {
+    let y = ny; while (y > 0 && solid(m, w.x, y)) y--;
+    const v = w.vy; w.y = y; w.vx = 0; w.vy = 0; w.air = false; w.stuck = 0; return v || 1;
   }
-  w.x = Math.max(2, Math.min(MW - 2, nx)); w.y = ny;
+  w.y = ny;
   return 0;
 }

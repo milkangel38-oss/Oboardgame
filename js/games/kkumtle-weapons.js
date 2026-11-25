@@ -1,7 +1,7 @@
 // 꿈틀 포격전 무기 · 아이템 목록 (cat: atk 공격 / move 이동 / util 유틸, n: 라운드당 개수, -1 = 무제한, sp: 특수무기 = 보급 상자로만 획득)
 export const WEAPONS = [
   { id: 'shell', cat: 'atk', icon: '🚀', name: '일반 포탄', n: -1, charge: true, desc: '꾹 눌러 힘을 모아 쏘는 기본 포탄. 바람의 영향을 받고, 닿는 즉시 폭발해요. (정타 20)' },
-  { id: 'homing', cat: 'atk', icon: '🎯', name: '유도탄', n: 1, charge: true, desc: '작은 미사일 6발이 날아가다가 가까운 적을 스스로 찾아가 타격해요.' },
+  { id: 'homing', cat: 'atk', icon: '🎯', name: '유도탄', n: 1, charge: true, desc: '포탄처럼 날아가다가 상대 오리에게 가까워지면 갑자기 방향을 틀어 쫓아가요. (정타 35)' },
   { id: 'grenade', cat: 'atk', icon: '💣', name: '수류탄', n: 3, charge: true, desc: '고르는 순간 5초 카운트다운 시작! 땅에 닿아도 튕기기만 하고, 시간이 되면 폭발해요. 손에 들고 있으면 내가 터져요! (정타 30)' },
   { id: 'flame', cat: 'atk', icon: '🔥', name: '화염방사기', n: 2, desc: '앞쪽 일직선으로 불을 내뿜어 맞은 적을 밀어내요. (가까이서 맞으면 50)' },
   { id: 'mine', cat: 'atk', icon: '🧨', name: '지뢰', n: 2, charge: true, desc: '던져서 설치해요. 상대 팀에게는 보이지 않고, 상대가 가까이 오면 폭발해요. (정타 40)' },
@@ -15,10 +15,10 @@ export const WEAPONS = [
   { id: 'jet', cat: 'move', icon: '🎒', name: '제트배낭', n: 0, sp: true, desc: '5초 동안 로켓처럼 날아다녀요. 조이스틱 위로 상승, 좌우로 이동. 시간이 끝나면 그 자리에서 떨어져요.' },
   { id: 'chute', cat: 'move', icon: '🪂', name: '낙하산', n: -1, desc: '떨어지는 중에 발사 버튼을 누르면 낙하산이 펴져 천천히 내려가요 (바람에 밀려요). 한 번 더 누르면 접혀요.' },
   { id: 'ladder', cat: 'util', icon: '🪜', name: '사다리', n: 2, desc: '내 자리에 사다리를 세워요. 조이스틱 위아래로 오르내리고, 좌우로 내려와요. 폭발에 맞으면 부서져요.' },
-  { id: 'pill', cat: 'util', icon: '💊', name: '알약', n: 2, desc: '꿈틀이 체력을 30 회복해요.' },
-  { id: 'medkit', cat: 'util', icon: '🧰', name: '구급상자', n: 1, desc: '꿈틀이 체력을 60 회복해요.' },
+  { id: 'pill', cat: 'util', icon: '💊', name: '알약', n: 2, desc: '오리 체력을 30 회복해요.' },
+  { id: 'medkit', cat: 'util', icon: '🧰', name: '구급상자', n: 1, desc: '오리 체력을 60 회복해요.' },
   { id: 'tornado', cat: 'util', icon: '🌪️', name: '토네이도', n: 0, sp: true, charge: true, desc: '꾹 눌러 던지면 떨어진 자리에 하늘부터 바닥까지 긴 토네이도가 생겨요. 지나가는 탄을 튕겨내요. (2턴 유지)' },
-  { id: 'fog', cat: 'util', icon: '🌫️', name: '안개', n: 0, sp: true, desc: '안개가 깔려서 모두 자기 팀 꿈틀이만 보여요. (2턴 유지)' },
+  { id: 'fog', cat: 'util', icon: '🌫️', name: '안개', n: 0, sp: true, desc: '안개가 깔려서 모두 자기 팀 오리만 보여요. (2턴 유지)' },
 ];
 export const WMAP = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
 export const CATS = { atk: '공격', move: '이동', util: '유틸' };
