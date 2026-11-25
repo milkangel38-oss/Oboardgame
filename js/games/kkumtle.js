@@ -239,7 +239,7 @@ function build(code, ctx) {
       <div class="kw-dialbox"><canvas class="kw-dial" width="128" height="128"></canvas><div class="kw-windg" title="바람"><i class="l"><s></s></i><i class="r"><s></s></i></div></div>
       <div class="kw-bars">
         <div class="kw-bar hp"><b>체력</b><u><s></s></u><em data-hpv></em></div>
-        <div class="kw-bar pow" data-powbar title="눌러서 표시목을 놓아요"><b>파워</b><u><s></s><i class="mark" hidden></i></u><em data-powv></em></div>
+        <div class="kw-bar pow" data-powbar title="눌러서 표시목을 놓아요"><b>파워</b><u><s></s><i class="mark" hidden><img src="img/kkumtle/g-mark.webp" alt=""></i></u><em data-powv></em></div>
         <div class="kw-bar mv"><b>이동</b><u><s></s></u><em data-mvv></em></div>
       </div>
     </div>
@@ -975,9 +975,22 @@ function gauges(c, mine, L) {
   // 각도 원
   const key = `${Math.round(ang * 100)}:${face}`;
   if (c.dialKey === key) return;
-  c.dialKey = key;
+  c.dialKey = pic('img/kkumtle/g-dial.webp') ? key : '';
   const cv = R.querySelector('.kw-dial'), x = cv.getContext('2d'), S = cv.width, m = S / 2;
   x.clearRect(0, 0, S, S);
+  const ring = pic('img/kkumtle/g-dial.webp');
+  if (ring) { // 금색 링 그림 + 안쪽 바늘
+    const r = m * 0.6, a = face > 0 ? -ang : Math.PI + ang;
+    x.fillStyle = '#141a30'; x.beginPath(); x.arc(m, m, r, 0, 7); x.fill();
+    x.drawImage(ring, 0, 0, S, S);
+    x.strokeStyle = 'rgba(255,210,80,.25)'; x.lineWidth = r * 0.5; x.beginPath(); x.arc(m, m, r * 0.72, face > 0 ? -1.45 : Math.PI - 1.35, face > 0 ? 1.35 : Math.PI + 1.45); x.stroke();
+    x.strokeStyle = '#ff4f4f'; x.lineWidth = S * 0.045; x.lineCap = 'round'; x.beginPath(); x.moveTo(m, m); x.lineTo(m + Math.cos(a) * r * 0.92, m + Math.sin(a) * r * 0.92); x.stroke();
+    x.fillStyle = '#ffd84d'; x.beginPath(); x.arc(m, m, S * 0.05, 0, 7); x.fill();
+    x.fillStyle = '#fff'; x.font = `bold ${S * 0.15}px sans-serif`; x.textAlign = 'center'; x.lineWidth = 3; x.strokeStyle = 'rgba(0,0,0,.8)';
+    const deg = `${Math.round((ang * 180) / Math.PI)}°`; x.strokeText(deg, m, m + r * 0.7); x.fillText(deg, m, m + r * 0.7);
+    return;
+  }
+  if (c.dialKey !== key) c.dialKey = key; // (그림이 아직 안 왔을 때)
   x.lineWidth = 7; x.strokeStyle = 'rgba(255,255,255,.15)'; x.beginPath(); x.arc(m, m, m - 10, 0, 7); x.stroke();
   // 조준 가능한 범위
   const a0 = -1.45, a1 = 1.35, toC = (a) => (face > 0 ? -a : Math.PI + a);

@@ -3676,3 +3676,26 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 .kw.kw-wait .kw-gauge { opacity: .85; }
 @media (max-height: 460px) { .kw-gauge { left: 124px; right: 252px; padding: 4px 8px 4px 4px; } .kw-dialbox { width: 52px; } .kw-bar { height: 14px; } }
 @media (max-width: 520px) { .kw-gauge { left: 10px; right: 112px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 136px); max-width: none; } }
+
+/* 게이지 그림 */
+.kw-gauge { background: none; border: 0; box-shadow: none; padding: 11px 16px 11px 12px; min-height: 92px; }
+.kw-gauge::before { content: ''; position: absolute; inset: 0; z-index: -1; border-style: solid; border-width: 24px 28px 24px 70px; border-image: url(../img/kkumtle/g-panel.webp) 110 130 110 320 fill / 24px 28px 24px 70px stretch; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .45)); }
+.kw-gauge { isolation: isolate; }
+.kw-dialbox { width: 54px; }
+.kw-dial { border: 0; background: none; border-radius: 0; }
+.kw-windg { position: relative; height: 19px; gap: 0; background: url(../img/kkumtle/g-wind.webp) center / 100% 100% no-repeat; }
+.kw-windg i { position: absolute; top: 14%; bottom: 14%; background: rgba(0, 0, 0, .45); border-radius: 0; }
+.kw-windg .l { left: 8.7%; right: 53.3%; border-radius: 99px 0 0 99px; }
+.kw-windg .r { left: 52.5%; right: 8.6%; border-radius: 0 99px 99px 0; }
+.kw-bar { height: 18px; }
+.kw-bar u { height: 11px; border: 0; border-radius: 6px; background: rgba(0, 0, 0, .55); }
+.kw-bar u::after { content: ''; position: absolute; inset: -4px -4px; border-style: solid; border-width: 4px 9px; border-image: url(../img/kkumtle/g-bar.webp) 60 135 / 4px 9px stretch; pointer-events: none; }
+.kw-bar s { border-radius: 6px; }
+.kw-bar .mark { top: -9px; bottom: auto; width: 12px; height: 28px; margin-left: -6px; background: none; box-shadow: none; z-index: 2; }
+.kw-bar .mark::before { display: none; }
+.kw-bar .mark img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7)); }
+@media (max-height: 460px) { .kw-gauge { min-height: 84px; padding: 9px 14px 9px 10px; } .kw-dialbox { width: 48px; } .kw-windg { height: 16px; } }
+.kw-windg i { height: auto; }
+.kw-gauge { min-height: 100px; padding-top: 9px; padding-bottom: 9px; }
+.kw-dialbox { width: 62px; gap: 2px; }
+@media (max-height: 460px) { .kw-gauge { min-height: 90px; } .kw-dialbox { width: 54px; } }
