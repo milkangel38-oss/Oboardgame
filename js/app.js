@@ -140,6 +140,8 @@ window.addEventListener('hashchange', route);
 function route() {
   if (!authReady) return;
   setGameFull(false);
+  setPhonePlay(false);
+  exitOurFull();
   cleanup?.();
   cleanup = null;
   profileListeners.clear();
@@ -1402,7 +1404,7 @@ function drawIntro(room, game) {
     $o.querySelector('[data-ireplay]').onclick = () => {
       if ($v.isConnected) { $v.currentTime = 0; $v.play().catch(() => {}); } else slides();
     };
-    $o.querySelector('[data-iok]').onclick = () => { ok(); if (!getGame(room.gameId)?.ownFull) enterBrowserFull(); };
+    $o.querySelector('[data-iok]').onclick = () => { ok(); if (!getGame(room.gameId)?.ownFull || isPhone()) enterBrowserFull(); };
   }
   const $w = intro.$el.querySelector('.intro-wait');
   if (ack[user.uid]) {
@@ -1503,15 +1505,54 @@ function recordIfFinished(room) {
 let fsByUs = false;
 function setGameFull(on) {
   document.documentElement.classList.toggle('gfull', !!on);
-  if (!on) { document.querySelector('.gmenu')?.remove(); if (fsByUs && document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); fsByUs = false; }
+  if (!on) document.querySelector('.gmenu')?.remove();
 }
-function enterBrowserFull() { // 브라우저 주소창까지 숨기기 (안 되는 기기는 그냥 넘어가요)
-  if (!document.fullscreenEnabled || document.fullscreenElement) return;
-  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => { fsByUs = true; }).catch(() => {});
+function exitOurFull() {
+  try { screen.orientation?.unlock?.(); } catch { /* 지원 안 함 */ }
+  if (fsByUs && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  fsByUs = false;
+}
+const isPhone = () => matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
+function lockLandscape() { if (isPhone()) screen.orientation?.lock?.('landscape').catch(() => {}); }
+function enterBrowserFull() { // 브라우저 주소창까지 숨기기 (안 되는 기기는 그냥 넘어가요) + 휴대폰은 가로로
+  if (!document.fullscreenEnabled) return;
+  if (document.fullscreenElement) { lockLandscape(); return; }
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => { fsByUs = true; lockLandscape(); }).catch(() => {});
 }
 function toggleBrowserFull() {
-  if (document.fullscreenElement) { document.exitFullscreen?.().catch(() => {}); fsByUs = false; } else enterBrowserFull();
+  if (document.fullscreenElement) { fsManualOff = true; document.exitFullscreen?.().catch(() => {}); fsByUs = false; } else { fsManualOff = false; enterBrowserFull(); }
 }
+// ───────── 휴대폰: 게임이 시작되면 자동으로 가로 + 전체 화면 ─────────
+// 브라우저는 사용자가 화면을 누를 때만 전체 화면을 허락해요 → 게임 중 첫 터치에 전환해요.
+// 아이폰(사파리)은 화면 돌리기를 막아 두어서, 세로일 때 "가로로 돌려주세요" 안내를 띄워요.
+let phonePlay = false, fsManualOff = false, rotSkip = false;
+function setPhonePlay(on) {
+  if (on === phonePlay) return;
+  phonePlay = on;
+  if (!on) {
+    fsManualOff = false; rotSkip = false; document.querySelector('.rot-hint')?.remove();
+    exitOurFull();
+  }
+  rotHint();
+}
+const autoFull = () => { if (phonePlay && isPhone() && !fsManualOff && !document.querySelector('.gmenu')) enterBrowserFull(); };
+document.addEventListener('click', autoFull, true);
+document.addEventListener('touchend', autoFull, true);
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && fsByUs) { fsByUs = false; fsManualOff = true; } });
+function rotHint() {
+  const need = phonePlay && isPhone() && !rotSkip && (!document.fullscreenEnabled || fsManualOff) && matchMedia('(orientation: portrait)').matches;
+  let $h = document.querySelector('.rot-hint');
+  if (!need) { $h?.remove(); return; }
+  if ($h) return;
+  $h = document.createElement('div'); $h.className = 'rot-hint';
+  $h.innerHTML = `<div class="rot-box"><div class="rot-ph">📱</div><b>휴대폰을 가로로 돌려주세요</b><p>가로 화면에서 게임이 더 크게 보여요.<br><small>화면 회전 잠금이 켜져 있다면 꺼 주세요.</small></p>
+    ${document.fullscreenEnabled ? '<button class="btn primary block" data-rot-fs>⛶ 가로 전체 화면으로</button>' : ''}<button class="btn block" data-rot-skip>세로로 할게요</button></div>`;
+  $h.querySelector('[data-rot-skip]').onclick = () => { rotSkip = true; $h.remove(); };
+  $h.querySelector('[data-rot-fs]')?.addEventListener('click', () => { fsManualOff = false; enterBrowserFull(); });
+  document.body.appendChild($h);
+}
+matchMedia('(orientation: portrait)').addEventListener?.('change', rotHint);
+document.addEventListener('fullscreenchange', rotHint);
 document.addEventListener('fullscreenchange', () => { const b = document.querySelector('[data-gfs]'); if (b) b.textContent = document.fullscreenElement ? '🗗' : '⛶'; });
 function gameMenu(askLeave) {
   document.querySelector('.gmenu')?.remove();
@@ -1600,6 +1641,7 @@ function drawRoom($main, room, game) {
 
   const full = playing && !game.ownFull;
   setGameFull(full);
+  setPhonePlay(playing);
   $main.innerHTML = `${full ? `<div class="ghud">
       <button class="ghud-b exit" data-gexit title="나가기 (Esc)">⏏<span> 나가기</span></button>
       <span class="ghud-t">${game.emoji} <b>${esc(game.name)}</b> <i>${esc(room.code)}</i></span>

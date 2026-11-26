@@ -3795,3 +3795,29 @@ html.gfull .vdock .vbtn { height: 32px; font-size: 13px; padding: 0 10px; }
 .gm-box small { opacity: .65; }
 .gm-out { background: #d63a3a !important; border-color: #d63a3a !important; color: #fff !important; }
 .gm-warn { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 79, 79, .15); border: 1px solid rgba(255, 79, 79, .5); font-size: 13px; }
+/* 휴대폰 세로일 때 "가로로 돌려주세요" 안내 */
+.rot-hint { position: fixed; inset: 0; z-index: 9400; display: grid; place-items: center; padding: 20px; background: rgba(8, 5, 20, .88); backdrop-filter: blur(4px); }
+.rot-box { width: min(320px, 100%); display: grid; gap: 10px; justify-items: center; text-align: center; padding: 22px 18px; border-radius: 18px; background: #1d2236; border: 2px solid var(--gold); }
+.rot-box b { font-size: 17px; color: var(--gold); } .rot-box p { margin: 0; font-size: 13.5px; opacity: .85; }
+.rot-ph { font-size: 46px; animation: rotPh 1.8s ease-in-out infinite; }
+@keyframes rotPh { 0%, 25% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+@media (orientation: landscape) { .rot-hint { display: none; } }
+/* 휴대폰 가로(낮은 화면): 전체 화면 배치를 촘촘하게 */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ghud { top: calc(5px + env(safe-area-inset-top)); left: calc(6px + env(safe-area-inset-left)); gap: 4px; }
+  .ghud-b, .ghud-t { height: 28px; font-size: 12px; }
+  .ghud-b span, .ghud-t b { display: none; }
+  html.gfull .vol { top: calc(4px + env(safe-area-inset-top)); }
+  html.gfull .vol-btn { width: 30px; height: 30px; font-size: 14px; }
+  html.gfull .vdock { top: calc(5px + env(safe-area-inset-top)); right: 44px; }
+  html.gfull .vdock .vbtn { height: 28px; font-size: 12px; }
+  html.gfull .vdock.off .vbtn span { display: none; }
+  html.gfull .wrap { padding: calc(38px + env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 8px max(6px, env(safe-area-inset-left)); }
+  html.gfull .room-body { grid-template-columns: 74px minmax(0, 1fr); gap: 6px; }
+  html.gfull .room-body > .players { top: calc(38px + env(safe-area-inset-top)); max-height: calc(100dvh - 46px); overflow-y: auto; padding: 6px 4px; }
+  html.gfull .players h3 { display: none; }
+  html.gfull .seats, html.gfull .players.ingame .seats { gap: 6px; }
+  html.gfull .seat .avatar { width: 30px; height: 30px; font-size: 13px; }
+  html.gfull .seat-name { font-size: 9.5px; }
+  html.gfull .gchat input { padding: 4px 6px; font-size: 12px; }
+}
