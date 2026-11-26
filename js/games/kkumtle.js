@@ -56,7 +56,7 @@ function nextTurn(state, now) {
   const n = state.turn.n + 1;
   const drop = (state.drops || []).includes(n) ? { x: Math.round(160 + Math.random() * (MW - 320)), item: SPECIALS[(Math.random() * SPECIALS.length) | 0], dir: Math.random() < 0.5 ? 1 : -1 } : null;
   return { ...state, ti: { ...state.ti, [t]: idx }, turn: { team: t, wid: w.id, uid: w.owner, wind: Math.round((Math.random() * 2 - 1) * 10) / 10, deadline: now + TURN_MS, n, drop },
-    worms: state.worms.map((o) => (o.big != null && n > o.big ? { ...o, big: null } : o)), puddles: (state.puddles || []).filter((q) => q.until >= n),
+    worms: state.worms.map((o) => (o.big != null && n > o.big ? { ...o, big: null, bigN: 0 } : o)), puddles: (state.puddles || []).filter((q) => q.until >= n),
     fires: [...(state.fires || []).filter((f) => f.until >= n), ...((state.firesAt || []).includes(n) ? [{ x: Math.round(200 + Math.random() * (MW - 400)), until: n + 2, n }] : [])],
     tors: (state.tors || []).filter((x) => x.until >= n), fog: state.fog && state.fog.until >= n ? state.fog : null };
 }
@@ -71,9 +71,9 @@ function checkRound(state, now) {
 function cleanStatus(n) {
   const num = (v) => (v == null || !Number.isFinite(+v) ? null : Math.round(+v));
   const dot = (d) => (d && Number.isFinite(+d.until) ? { until: Math.round(+d.until), next: Math.round(+d.next), by: String(d.by || '') } : null);
-  return { cuff: num(n.cuff), tube: num(n.tube), big: num(n.big), mark: n.mark ? String(n.mark) : null, poison: dot(n.poison), bleed: dot(n.bleed) };
+  return { cuff: num(n.cuff), tube: num(n.tube), big: num(n.big), bigN: n.big == null ? 0 : Math.min(2, Math.max(1, n.bigN | 0 || 1)), mark: n.mark ? String(n.mark) : null, poison: dot(n.poison), bleed: dot(n.bleed) };
 }
-const stStr = (o) => (o.cuff != null ? 'c' : '') + (o.tube != null ? 't' : '') + (o.big != null ? 'b' : '') + (o.poison ? 'p' : '') + (o.bleed ? 'l' : '') + (o.mark ? 'm' : '');
+const stStr = (o) => (o.cuff != null ? 'c' : '') + (o.tube != null ? 't' : '') + (o.big != null ? ((o.bigN || 1) > 1 ? 'bb' : 'b') : '') + (o.poison ? 'p' : '') + (o.bleed ? 'l' : '') + (o.mark ? 'm' : '');
 // 오리 고르기: 사람마다 조종할 오리 수만큼 (팀당 오리 수 ÷ 팀 인원), 같은 팀끼리는 겹치지 않게
 export function needOf(state, uid) {
   const mem = state.order.filter((u) => state.teams[u] === state.teams[uid]), i = mem.indexOf(uid), n = Math.max(state.per, mem.length);
@@ -529,7 +529,7 @@ function fireDown(c) {
   else if (id === 'drill') { if (!w.air) { useItem(c, id); W.drill = { t: 0 }; } }
   else if (id === 'rope') ropeShoot(c, w, dir);
   else if (id === 'jet') { useItem(c, id); W.jet = { t: 5 }; w.air = true; w.vx = 0; w.vy = -60; snd(c, 'jet'); }
-  else if (id === 'pill' || id === 'medkit') { useItem(c, id); snd(c, 'heal'); const before = w.hp; w.hp = Math.min(100, w.hp + (id === 'pill' ? 30 : 60)); W.fx.push({ k: 'txt', x: w.x, y: w.y - 40, s: `+${w.hp - before}`, col: '#3ddc84', t: 0 }); afterUtil(c, id); }
+  else if (id === 'pill' || id === 'medkit') { useItem(c, id); snd(c, 'heal'); if (w.bleed || w.poison) { w.bleed = null; w.poison = null; W.fx.push({ k: 'txt', x: w.x, y: w.y - 62, s: '🩹 치료!', col: '#3ddc84', t: 0 }); } const before = w.hp; w.hp = Math.min(100, w.hp + (id === 'pill' ? 30 : 60)); W.fx.push({ k: 'txt', x: w.x, y: w.y - 40, s: `+${w.hp - before}`, col: '#3ddc84', t: 0 }); afterUtil(c, id); }
   else if (id === 'ladder') {
     let y1 = w.y - 150; for (let y = w.y - WH; y > w.y - 150; y--) if (solid(W.mask, w.x, y)) { y1 = y + 4; break; }
     if (w.air || w.y - y1 < 30) { flash(c, '여기에는 사다리를 세울 수 없어요'); return; }
@@ -611,7 +611,7 @@ function explode(c, x, y, r, dmg, opt = {}) {
   if (!opt.soft) { crater(c, x, y, r); W.fx.push({ k: 'boom', x, y, r, t: 0 }); snd(c, 'boom', r); }
   for (const w of W.worms) {
     if (w.dead || opt.skip?.has(w.id)) continue;
-    const dx = w.x - x, dy = w.y - hb(w) / 2 - y, d = Math.max(0, Math.hypot(dx, dy) - (w.big != null ? 10 : 6));
+    const dx = w.x - x, dy = w.y - hb(w) / 2 - y, d = Math.max(0, Math.hypot(dx, dy) - 6 * bigK(w));
     if (d > r + 12) continue;
     const dm = Math.max(opt.min ?? 4, Math.round(dmg * (1 - d / (r + 12))));
     const l = d || 1, k = dm * 7.5 * (opt.push || 1);
@@ -648,24 +648,24 @@ function burstBouquet(c, p) { // 파워가 클수록 모아서
 function sigHit(c, p, x, y) {
   const W = c.W, me = c.ctx.me, now = Date.now(), alive = W.worms.filter((o) => !o.dead).length;
   const label = (o, s, col = '#ffd84d') => W.fx.push({ k: 'txt', x: o.x, y: o.y - 74, s, col, t: 0 });
-  if (p.k === 'flw') { explode(c, x, y, 12, 5, { min: 3 }); return; }
-  if (p.k === 'bea') { W.ufo = { x: Math.round(x), ty: Math.round(y), t: 0, fired: false }; W.fx.push({ k: 'txt', x, y: y - 30, s: '✨ 신호 발신!', col: '#9fe3ff', t: 0 }); snd(c, 'ufo'); return; }
+  if (p.k === 'flw') { explode(c, x, y, 12, 4, { min: 3 }); return; }
+  if (p.k === 'bea') { W.ufo = { x: Math.round(x), ty: Math.round(y), hy: laserHit(c, x), t: 0, fired: false }; W.fx.push({ k: 'txt', x, y: y - 30, s: '✨ 신호 발신!', col: '#9fe3ff', t: 0 }); snd(c, 'ufo'); return; }
   switch (p.sk) {
-    case 2: explode(c, x, y, 30, 10, { on: (o) => { o.cuff = W.n; label(o, '⛓️ 수갑!'); snd(c, 'cuff'); } }); break;
-    case 3: explode(c, x, y, 30, 10, { on: (o) => { o.tube = W.n; label(o, '🛟 튜브!'); } }); break;
-    case 4: explode(c, x, y, 30, 10, { on: (o) => { if (o.big == null) { o.big = W.n + alive; label(o, '🔍 커졌다!'); } } }); break;
-    case 5: explode(c, x, y, 32, 10, { push: 4.5 }); snd(c, 'pan'); break;
-    case 6: explode(c, x, y, 18, 10, { on: (o) => { if (!o.poison) { o.poison = { until: now + 120000, next: now + 10000, by: me }; label(o, '☠️ 중독!', '#b06bff'); } } }); break;
-    case 8: explode(c, x, y, 30, 10, { on: (o) => { o.mark = me; label(o, '👑 표식!'); } }); break;
-    case 10: explode(c, x, y, 18, 10, { on: (o) => { if (!o.bleed) { o.bleed = { until: now + 60000, next: now + 10000, by: me }; label(o, '🩸 출혈!', '#ff6b6b'); } } }); break;
+    case 2: explode(c, x, y, 30, 20, { on: (o) => { o.cuff = W.n; label(o, '⛓️ 수갑!'); snd(c, 'cuff'); } }); break;
+    case 3: explode(c, x, y, 30, 20, { on: (o) => { o.tube = W.n; label(o, '🛟 튜브!'); } }); break;
+    case 4: explode(c, x, y, 30, 20, { on: (o) => { if (o.big == null) { o.big = W.n + alive; o.bigN = 1; label(o, '🔍 커졌다!'); } else if ((o.bigN || 1) < 2) { o.big = W.n + alive; o.bigN = 2; label(o, '🔍🔍 더 커졌다!'); } } }); break;
+    case 5: explode(c, x, y, 32, 20, { push: 2.4 }); snd(c, 'pan'); break;
+    case 6: { const sh = meW(c); explode(c, x, y, 22, 20, { on: (o) => { if (!sh) return; const d = Math.sign(sh.x - o.x) || 1, far = Math.min(1, Math.abs(sh.x - o.x) / 400); o.air = true; o.vx = d * (120 + far * 60); o.vy = -160; label(o, '🪝 끌려온다!'); } }); snd(c, 'cuff'); break; }
+    case 8: explode(c, x, y, 30, 20, { on: (o) => { o.mark = me; label(o, '👑 표식!'); } }); break;
+    case 10: explode(c, x, y, 18, 20, { on: (o) => { if (!o.bleed) { o.bleed = { until: now + 60000, next: now + 10000, by: me }; label(o, '🩸 출혈!', '#ff6b6b'); } } }); break;
     case 11: { // 베개: 폭발 뒤 솜뭉치가 양옆 바닥으로 짧게 튀어 나가 터져요
-      explode(c, x, y, 28, 10); const hit = new Set(), M = W.mask;
+      explode(c, x, y, 28, 20); const hit = new Set(), M = W.mask;
       for (const sg of [-1, 1]) for (const [k, off] of [[0, 30], [1, 58]]) {
         const tx = Math.max(4, Math.min(MW - 4, x + sg * off)); let ty = y - 40; while (ty < y + 120 && !solid(M, tx, ty + 1)) ty++; while (ty > y - 60 && solid(M, tx, ty)) ty--;
         W.projs.push({ k: 'cotp', x, y: y - 4, x0: x, y0: y - 4, tx, ty, dur: 0.28 + k * 0.08, t: 0, hit, amp: p.amp });
       }
       snd(c, 'flower'); break; }
-    default: explode(c, x, y, 42, 10);
+    default: explode(c, x, y, 42, 20);
   }
 }
 function onPuddle(W, o) { return W.puddles.some((q) => Math.abs(o.x - q.x) < q.w / 2 + 4 && Math.abs(o.y - q.y) < 7); }
@@ -675,13 +675,24 @@ function addPuddle(W, x, y) {
   else if (W.puddles.length < 40) W.puddles.push({ x: Math.round(x), y: Math.round(y), w: 16, until: W.n + 4 });
 }
 // 우주선: 1.1초 내려와서 → 1.1~2.3초 레이저 → 위로 사라짐
-const ufoY = (t, ty) => { const h = ty - 190; return t < 1.1 ? h - 380 * (1 - t / 1.1) ** 2 : t < 2.4 ? h + Math.sin(t * 9) * 2 : h - (t - 2.4) * 700; };
+// 우주선: 목표 바로 위 하늘 맨 위(UFO_Y)에 나타나 → 레이저 → 위로 사라짐
+const UFO_Y = 40;
+const ufoY = (t) => (t < 0.6 ? UFO_Y - 140 * (1 - t / 0.6) ** 2 : t < 2.4 ? UFO_Y + Math.sin(t * 9) * 2 : UFO_Y - (t - 2.4) * 700);
+// 레이저가 위에서부터 처음 닿는 곳 (오리 또는 땅)
+function laserHit(c, x) {
+  const W = c.W, M = W.mask;
+  for (let y = UFO_Y + 14; y < MH; y += 2) {
+    if (W.worms.some((o) => !o.dead && Math.abs(o.x - x) < hw(o) && y > o.y - hb(o) && y <= o.y)) return y;
+    if (solid(M, x, y)) return y;
+  }
+  return MH;
+}
 function simSig(c, dt, w) {
   const W = c.W, M = W.mask, now = Date.now();
   // 독 · 출혈: 10초마다 (실제 시간)
   for (const o of W.worms) for (const key of ['poison', 'bleed']) {
     const d = o[key]; if (!d || o.dead) continue;
-    while (d.next <= Math.min(now, d.until) && !o.dead) { hurt(c, o, key === 'poison' ? 1 : 5, 0, 0, { k: key === 'poison' ? 'p' : 'l', by: d.by }); d.next += 10000; }
+    while (d.next <= Math.min(now, d.until) && !o.dead) { hurt(c, o, key === 'poison' ? 1 : 2, 0, 0, { k: key === 'poison' ? 'p' : 'l', by: d.by }); d.next += 10000; }
     if (now > d.until) o[key] = null;
   }
   // 소방관 물대포
@@ -697,7 +708,7 @@ function simSig(c, dt, w) {
     const o = W.worms.find((u) => !u.dead && u.id !== W.wid && Math.abs(u.x - q.x) < hw(u) && q.y > u.y - hb(u) && q.y < u.y + 2);
     if (o && W.hose) {
       q.gone = true; const h = W.hose.hit, n = (h[o.id] = (h[o.id] || 0) + 1);
-      if (n % 3 === 1 && n <= 15) hurt(c, o, 2, Math.sign(q.vx) * 170, -90);
+      if (n % 3 === 1 && n <= 30) hurt(c, o, 2, Math.sign(q.vx) * 170, -90);
       continue;
     }
     if (solid(M, q.x, q.y)) { let y = q.y; while (y > 0 && solid(M, q.x, y)) y--; addPuddle(W, q.x, y); q.gone = true; }
@@ -707,12 +718,8 @@ function simSig(c, dt, w) {
   // 우주선 레이저
   if (W.ufo) {
     const U = W.ufo; U.t += dt;
-    if (U.t >= 1.25 && !U.fired) {
-      U.fired = true; snd(c, 'laser');
-      const top = U.ty - 180;
-      for (let y = top; y <= U.ty + 10; y += 12) if (solid(M, U.x, y)) crater(c, U.x, y, 12);
-      for (const o of W.worms) if (!o.dead && Math.abs(o.x - U.x) < 24 && o.y > top && o.y < U.ty + 50) hurt(c, o, 10, Math.sign(o.x - U.x || 1) * 120, -160);
-    }
+    if (U.t < 1.25) U.hy = laserHit(c, U.x);
+    if (U.t >= 1.25 && !U.fired) { U.fired = true; snd(c, 'laser'); if (U.hy < MH) explode(c, U.x, U.hy, 24, 20); }
     if (U.t > 3.0) W.ufo = null;
   }
 }
@@ -748,7 +755,7 @@ function remove(W, p) { W.projs = W.projs.filter((q) => q !== p); }
 
 // ───────────────── 시뮬레이션 (내 차례) ─────────────────
 const DEFLECT = new Set(['shell', 'mini', 'gren', 'mineT', 'tele', 'air', 'sig', 'flw', 'bea', 'bq']);
-const hb = (o) => HB * (o.big != null ? 1.3 : 1), hw = (o) => 12 * (o.big != null ? 1.3 : 1);
+const bigK = (o) => (o.big != null ? 1 + 0.3 * (o.bigN || 1) : 1), hb = (o) => HB * bigK(o), hw = (o) => 12 * bigK(o);
 function simStep(c, dt) {
   stampMovers(c);
   const W = c.W, M = W.mask, wind = c.ctx.state.turn.wind, now = performance.now();
@@ -969,7 +976,7 @@ function snap(c) {
     mv: Math.round(W.mv * 100) / 100,
     n: W.n, w: W.worms.map((o) => [o.id, Math.round(o.x), Math.round(o.y), o.hp, o.dead ? 1 : 0, o.flip ? 1 : 0, Math.round((o.ph || 0) * 10) / 10, stStr(o)]),
     ph: W.plat,
-    ufo: W.ufo ? [Math.round(W.ufo.x), Math.round(W.ufo.ty), Math.round(W.ufo.t * 100) / 100] : 0, dr: W.drops.slice(-50).map((d) => [Math.round(d.x), Math.round(d.y)]), pud: W.puddles, hose: W.hose ? 1 : 0,
+    ufo: W.ufo ? [Math.round(W.ufo.x), Math.round(W.ufo.hy), Math.round(W.ufo.t * 100) / 100] : 0, dr: W.drops.slice(-50).map((d) => [Math.round(d.x), Math.round(d.y)]), pud: W.puddles, hose: W.hose ? 1 : 0,
     p: W.projs.filter((p) => p.t >= 0).map((p) => [p.k, Math.round(p.x), Math.round(p.y), Math.round(Math.atan2(p.vy, p.vx) * 10) / 10, p.face || 0, p.sk || 0, p.amp ? 1 : 0]),
     sk: meW(c)?.skin % 12 || 0,
     fx: W.fx.filter((f) => f.k !== 'fire' && f.k !== 'puff').map((f) => [f.k, Math.round(f.x), Math.round(f.y), f.r || 0, Math.round(f.t * 100) / 100, f.s || '', f.col || '', Math.round(f.x2 || 0), Math.round(f.y2 || 0), f.blue ? 1 : 0]),
@@ -1030,8 +1037,8 @@ function draw(c, dt, now) {
   }
   for (const q of V.pud || []) { x.fillStyle = 'rgba(80,170,255,.55)'; x.beginPath(); x.ellipse(q.x, q.y + 1, q.w / 2 + 3, 4, 0, 0, 7); x.fill(); x.fillStyle = 'rgba(255,255,255,.5)'; x.fillRect(q.x - q.w / 4, q.y - 1, q.w / 6, 1.5); }
   for (const d of V.dr || []) { x.fillStyle = 'rgba(90,180,255,.9)'; x.beginPath(); x.arc(d[0], d[1], 3, 0, 7); x.fill(); }
-  if (V.ufo) { const [ux, uty, ut] = V.ufo, uy = ufoY(ut, uty);
-    const uk = `${state.turn.n}:${ux}`; if (c.ufoSeen !== uk) { c.ufoSeen = uk; c.camGoal = { x: ux, y: uty - 130 }; flash(c, '🛸 우주선 등장!', 1400); }
+  if (V.ufo) { const [ux, uty, ut] = V.ufo, uy = ufoY(ut);
+    const uk = `${state.turn.n}:${ux}`; if (c.ufoSeen !== uk) { c.ufoSeen = uk; c.camGoal = { x: ux, y: Math.max((UFO_Y + uty) / 2, uty - 200) }; flash(c, '🛸 우주선 등장!', 1400); }
     if (ut >= 0.85 && ut < 1.2) { const k = (ut - 0.85) / 0.35; x.fillStyle = `rgba(160,255,250,${0.8 * k})`; x.beginPath(); x.arc(ux, uy + 12, 6 + k * 10, 0, 7); x.fill(); } // 충전
     if (ut >= 1.2 && ut < 2.4) { // 레이저
       const k = Math.min(1, (ut - 1.2) / 0.12, (2.4 - ut) / 0.25), fl = 0.85 + Math.random() * 0.15, top = uy + 12, len = uty + 6 - top;
@@ -1068,7 +1075,9 @@ function draw(c, dt, now) {
     if (fogOn && info.team !== myTeam) continue;
     const active = id === V.wid && state.phase === 'play';
     const f = active ? V.f || 1 : wx < MW / 2 ? 1 : -1;
-    drawWorm(x, wx, wy2, info.skin, f, active ? ph : 0, flip ? now : 0, TEAMS[info.team].col, esc(players[info.owner]?.name || '?').slice(0, 7), hp, active, st);
+    const lg = (c.legs ||= {})[id]; if (!lg || lg.ph !== ph) c.legs[id] = { ph, t: now };
+    const walking = active && now - c.legs[id].t < 160;
+    drawWorm(x, wx, wy2, info.skin, f, walking ? ph : 0, flip ? now : 0, TEAMS[info.team].col, esc(players[info.owner]?.name || '?').slice(0, 7), hp, active, st);
     if (!active) continue;
     if (V.rope) { x.strokeStyle = '#d9b46a'; x.lineWidth = 2; x.beginPath(); x.moveTo(wx, wy2 - 9); x.lineTo(V.rope[0], V.rope[1]); x.stroke(); }
     if (V.chute && pic(ICONS.chute)) { const im = pic(ICONS.chute), w = 54, h = w * im.naturalHeight / im.naturalWidth * 0.78; x.drawImage(im, 0, 0, im.naturalWidth, im.naturalHeight * 0.78, wx - w / 2, wy2 - 34 - h, w, h); }
@@ -1096,6 +1105,7 @@ function draw(c, dt, now) {
     x.save(); x.translate(px, py);
     if (amp) { x.fillStyle = `rgba(255,140,30,${0.45 + Math.sin(now / 50) * 0.15})`; x.beginPath(); x.arc(0, 0, 16, 0, 7); x.fill(); }
     if (k === 'cotp') { x.fillStyle = '#fff'; x.beginPath(); x.arc(0, 0, 6, 0, 7); x.arc(4, -3, 4, 0, 7); x.arc(-4, -2, 4, 0, 7); x.fill(); x.restore(); continue; }
+    if (k === 'sig' && psk === 6) { const sw = (V.w || []).find((r) => r[0] === V.wid); if (sw) { x.restore(); x.strokeStyle = '#8a6a3a'; x.lineWidth = 2; x.beginPath(); x.moveTo(sw[1], sw[2] - 14); x.quadraticCurveTo((sw[1] + px) / 2, Math.max(sw[2], py) + 20, px, py); x.stroke(); x.save(); x.translate(px, py); } }
     if (k === 'sig' || k === 'flw' || k === 'bea' || k === 'bq') {
       const isk = k === 'bea' ? 9 : k === 'bq' ? 1 : psk, im = k === 'flw' ? null : isk === 0 ? pic(ICONS.shell) : pic(sigImg(isk));
       const base = isk === 0 ? -Math.PI / 2 : SIGPOINT[isk];
@@ -1200,14 +1210,19 @@ function drawHeli(x, X, Y, dir, done, now) {
 
 // 오리 (몸과 얼굴이 하나 · 걸을 때 앞뒤로 꿈틀꿈틀)
 function drawWorm(x, X, Y, skin, face, ph, flipT, col, name, hp, active, st = '') {
-  const big = st.includes('b') ? 1.3 : 1, up = (big - 1) * 38;
+  const big = 1 + 0.3 * (st.split('b').length - 1), up = (big - 1) * 38;
   const duck = pic(`img/kkumtle/d${skin % 12}.webp`);
   if (duck) {
     const h = 38 * big, w = h * duck.naturalWidth / duck.naturalHeight, step = Math.sin(ph);
     x.save(); x.translate(X, Y);
     if (flipT) { x.translate(0, -h / 2); x.rotate(((flipT / 90) % (Math.PI * 2)) * -face); x.translate(0, h / 2); }
-    x.rotate(step * 0.13 * face); x.translate(0, -Math.abs(step) * 2.5); // 뒤뚱뒤뚱
-    x.scale(face, 1); x.drawImage(duck, -w / 2, -h + 2, w, h);
+    x.rotate(step * 0.07 * face); x.translate(0, -Math.abs(step) * 1.5); // 뒤뚱뒤뚱
+    x.scale(face, 1);
+    // 다리: 그림 아래쪽 발 부분을 왼발 · 오른발로 나눠 번갈아 들어 올려요
+    const [fh, sp] = FOOT[skin % 12], sw = duck.naturalWidth, sh = duck.naturalHeight, fy = sh * (1 - fh), dh = h * fh, bodyH = h - dh;
+    const foot = (s0, s1, ox, oy) => x.drawImage(duck, s0, fy, s1 - s0, sh - fy, -w / 2 + (s0 / sw) * w + ox, -h + 2 + bodyH + oy, ((s1 - s0) / sw) * w, dh);
+    if (ph) { foot(0, sp * sw, step * 3, -Math.max(0, step) * 3.5); foot(sp * sw, sw, -step * 3, -Math.max(0, -step) * 3.5); } else foot(0, sw, 0, 0);
+    x.drawImage(duck, 0, 0, sw, fy, -w / 2, -h + 2, w, bodyH);
     x.restore();
   } else {
   const [c1, c2] = SKINS[skin % 12], acc = ACC[skin % 12];
@@ -1414,7 +1429,9 @@ function openPanel(c) {
 // ───────────────── 손에 든 무기 ─────────────────
 // 그림 속 무기 앞쪽이 가리키는 방향 (라디안, 오른쪽 0 · 아래 +)
 const POINT = { shell: -Math.PI / 2, homing: 2.7, pistol: Math.PI, mg: 0, flame: -0.42, drill: 0 };
-const SIGPOINT = { 6: 0.5, 7: 0 }; // 오리 무기 그림 앞쪽 방향 (독침 · 물대포)
+const SIGPOINT = { 7: 0 };
+// 오리 그림의 발 부분: [아래에서부터 발 높이 비율, 왼발·오른발 나누는 가로 위치]
+const FOOT = [[0.065, 0.541], [0.085, 0.629], [0.07, 0.529], [0.075, 0.537], [0.1, 0.5], [0.075, 0.441], [0.125, 0.536], [0.14, 0.538], [0.09, 0.596], [0.07, 0.559], [0.075, 0.629], [0.07, 0.537]]; // 오리 무기 그림 앞쪽 방향 (독침 · 물대포)
 const THROW = new Set(['grenade', 'mine', 'tele', 'tornado', 'chicken']);
 function drawHeld(x, wx, wy, id, ang, f, rc, ch, sk = 0) {
   let im = ICONS[id] && pic(ICONS[id]), emo = null, sigT = false;
