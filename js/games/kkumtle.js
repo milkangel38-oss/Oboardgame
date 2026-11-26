@@ -107,6 +107,7 @@ export function finalResult(state, players) {
 
 export default {
   id: 'kkumtle',
+  ownFull: true, // 자체 전체 화면
   name: 'Duck War',
   emoji: '🦆',
   category: 'mini',

@@ -139,6 +139,7 @@ window.addEventListener('hashchange', route);
 // #/room/CODE   게임 방 (초대 링크)
 function route() {
   if (!authReady) return;
+  setGameFull(false);
   cleanup?.();
   cleanup = null;
   profileListeners.clear();
@@ -1401,7 +1402,7 @@ function drawIntro(room, game) {
     $o.querySelector('[data-ireplay]').onclick = () => {
       if ($v.isConnected) { $v.currentTime = 0; $v.play().catch(() => {}); } else slides();
     };
-    $o.querySelector('[data-iok]').onclick = ok;
+    $o.querySelector('[data-iok]').onclick = () => { ok(); if (!getGame(room.gameId)?.ownFull) enterBrowserFull(); };
   }
   const $w = intro.$el.querySelector('.intro-wait');
   if (ack[user.uid]) {
@@ -1496,6 +1497,53 @@ function recordIfFinished(room) {
   });
 }
 
+// ───────── 게임 중 전체 화면 ─────────
+// 게임이 시작되면 앱 머리말 · 방 정보를 숨기고 게임이 화면을 꽉 채워요.
+// 나가기 · 방 코드 · 다시하기는 왼쪽 위 작은 막대(ghud)로, 소리 · 음성채팅은 오른쪽 위로 옮겨요.
+let fsByUs = false;
+function setGameFull(on) {
+  document.documentElement.classList.toggle('gfull', !!on);
+  if (!on) { document.querySelector('.gmenu')?.remove(); if (fsByUs && document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); fsByUs = false; }
+}
+function enterBrowserFull() { // 브라우저 주소창까지 숨기기 (안 되는 기기는 그냥 넘어가요)
+  if (!document.fullscreenEnabled || document.fullscreenElement) return;
+  document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).then(() => { fsByUs = true; }).catch(() => {});
+}
+function toggleBrowserFull() {
+  if (document.fullscreenElement) { document.exitFullscreen?.().catch(() => {}); fsByUs = false; } else enterBrowserFull();
+}
+document.addEventListener('fullscreenchange', () => { const b = document.querySelector('[data-gfs]'); if (b) b.textContent = document.fullscreenElement ? '🗗' : '⛶'; });
+function gameMenu(askLeave) {
+  document.querySelector('.gmenu')?.remove();
+  const $m = document.createElement('div'); $m.className = 'gmenu';
+  const close = () => $m.remove();
+  const menu = () => {
+    $m.innerHTML = `<div class="gm-box"><div class="gm-t">⏸ 메뉴</div><div class="gm-btns">
+      <button class="btn primary block" data-x>계속하기</button>
+      ${document.fullscreenEnabled ? `<button class="btn block" data-fs>${document.fullscreenElement ? '🗗 전체 화면 끄기' : '⛶ 전체 화면으로'}</button>` : ''}
+      <button class="btn block gm-out" data-out>⏏ 나가기</button></div><small>Esc를 다시 누르면 닫혀요</small></div>`;
+    $m.querySelector('[data-x]').onclick = close;
+    $m.querySelector('[data-fs]')?.addEventListener('click', () => { toggleBrowserFull(); close(); });
+    $m.querySelector('[data-out]').onclick = ask;
+  };
+  const ask = () => {
+    $m.innerHTML = `<div class="gm-box"><div class="gm-t">나가시겠습니까?</div><p class="gm-warn">⚠️ 경기 중에 나가면 <b>보상(가넷)을 받을 수 없어요.</b></p>
+      <div class="gm-btns row"><button class="btn block" data-x>취소</button><button class="btn block gm-out" data-yes>나가기</button></div></div>`;
+    $m.querySelector('[data-x]').onclick = close;
+    $m.querySelector('[data-yes]').onclick = () => { close(); window.__leaveConfirmed = true; document.querySelector('[data-leave]')?.click(); };
+  };
+  $m.onclick = (e) => { if (e.target === $m) close(); };
+  if (askLeave) ask(); else menu();
+  document.body.appendChild($m);
+}
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !document.documentElement.classList.contains('gfull')) return;
+  const $m = document.querySelector('.gmenu');
+  if ($m) { $m.remove(); return; }
+  if (document.querySelector('.intro-ov, .end-ov, .rv-ov, .og-alert, .sk-modal, .dr-pop, .ms-pop, .am-kick')) return; // 다른 창이 떠 있으면 그 창이 먼저
+  e.preventDefault(); gameMenu(false);
+});
+
 function drawRoom($main, room, game) {
   const players = R.sortedPlayers(room);
   const isHost = room.hostId === user.uid;
@@ -1550,7 +1598,14 @@ function drawRoom($main, room, game) {
        </div>`
     : `${resultBanner}${isHost && room.status === 'playing' ? '<div class="stage-tools"><button class="btn sm ghost" data-restart title="같은 사람들로 처음부터 다시 시작 (모두 동의 필요)">🔄 다시하기</button></div>' : ''}<div class="game-area"></div>`;
 
-  $main.innerHTML = `
+  const full = playing && !game.ownFull;
+  setGameFull(full);
+  $main.innerHTML = `${full ? `<div class="ghud">
+      <button class="ghud-b exit" data-gexit title="나가기 (Esc)">⏏<span> 나가기</span></button>
+      <span class="ghud-t">${game.emoji} <b>${esc(game.name)}</b> <i>${esc(room.code)}</i></span>
+      ${document.fullscreenEnabled ? `<button class="ghud-b" data-gfs title="전체 화면">${document.fullscreenElement ? '🗗' : '⛶'}</button>` : ''}
+      ${isHost ? '<button class="ghud-b" data-grestart title="같은 사람들로 처음부터 다시 시작 (모두 동의 필요)">🔄<span> 다시하기</span></button>' : ''}
+    </div>` : ''}
     <div class="room-head">
       <div>
         <div class="eyebrow">${game.deathmatch ? '<span class="dm-chip">⚔ DEATH MATCH</span> ' : ''}${game.teamGame ? '<span class="tg-chip">👥 팀게임</span> ' : ''}${game.coopGame ? '<span class="tg-chip coop">🤝 협동게임</span> ' : ''}${game.emoji} ${esc(game.name)} · ${room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '게임 중' : '게임 종료'}</div>
@@ -1589,6 +1644,11 @@ function drawRoom($main, room, game) {
 
   drawRoomChat(room, true);
   if (gameChat) bindGameChat($main, room);
+  if (full) {
+    $main.querySelector('[data-gexit]').onclick = () => gameMenu(true);
+    $main.querySelector('[data-gfs]')?.addEventListener('click', () => toggleBrowserFull());
+    $main.querySelector('[data-grestart]')?.addEventListener('click', () => $main.querySelector('[data-restart]')?.click());
+  }
   $main.querySelector('[data-invite]').onclick = () => invite(room, game);
   const $seatInvite = $main.querySelector('[data-invite-seat]');
   if ($seatInvite) $seatInvite.onclick = () => invite(room, game);

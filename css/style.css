@@ -3739,3 +3739,59 @@ html.kw-on, html.kw-on body { overflow: hidden; }
 .kw-slot i { font-style: normal; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); color: #2a1d08; display: grid; place-items: center; font-weight: 900; font-size: 11px; }
 .kw-slot img { height: 24px; }
 .kw-duck .num { position: absolute; left: 4px; bottom: 34px; font-style: normal; width: 18px; height: 18px; border-radius: 50%; background: var(--gold); color: #2a1d08; display: grid; place-items: center; font-weight: 900; font-size: 11px; }
+
+/* ───────── 모든 게임: 게임 중 전체 화면 (html.gfull) ───────── */
+html.gfull header.top, html.gfull .room-head, html.gfull .stage-tools { display: none !important; }
+html.gfull .wrap { max-width: 1100px; padding: calc(48px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom)); gap: 10px; }
+html.gfull .room-body { grid-template-columns: 104px minmax(0, 1fr); gap: 10px; }
+html.gfull .room-body > .players { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: calc(48px + env(safe-area-inset-top)); max-height: calc(100dvh - 62px); overflow: visible; padding: 8px 6px; }
+html.gfull .room-body > :not(.players) { grid-column: 2; min-width: 0; }
+html.gfull .players h3 { font-size: 13px; margin-bottom: 6px; flex-direction: column; align-items: center; gap: 0; }
+html.gfull .seats, html.gfull .players.ingame .seats { grid-template-columns: 1fr; gap: 8px; padding-top: 0; }
+html.gfull .seat .avatar { width: 40px; height: 40px; font-size: 16px; }
+html.gfull .seat-name { font-size: 11px; }
+html.gfull .players .seat-bubble { left: calc(50% + 26px); bottom: auto; top: 0; transform: none; z-index: 30; }
+html.gfull .players .seat-bubble .bub::after { left: -5px; top: 10px; bottom: auto; transform: none; border: 6px solid transparent; border-right-color: #fff; border-left: 0; }
+html.gfull .gchat { grid-template-columns: 1fr; margin-top: 8px; }
+html.gfull .gchat input { padding: 6px 8px; font-size: 13px; }
+/* 게임 화면 안에 자리 · 채팅이 따로 있는 게임은 왼쪽 참가자 칸을 빼고 게임을 넓게 */
+html.gfull .room-body:has(.game-area .sp-chat, .game-area .sit) { grid-template-columns: minmax(0, 1fr); }
+html.gfull .room-body:has(.game-area .sp-chat, .game-area .sit) > .players { display: none; }
+html.gfull .room-body:has(.game-area .sp-chat, .game-area .sit) > :not(.players) { grid-column: 1; }
+/* 세로 휴대폰: 참가자는 게임 위에 작게 한 줄로 */
+@media (max-width: 640px) and (orientation: portrait) {
+  html.gfull .wrap { padding-left: 6px; padding-right: 6px; }
+  html.gfull .room-body { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  html.gfull .room-body > .players { grid-column: 1; grid-row: auto; position: static; max-height: none; padding: 6px 8px; }
+  html.gfull .room-body > :not(.players) { grid-column: 1; }
+  html.gfull .players h3 { display: none; }
+  html.gfull .seats, html.gfull .players.ingame .seats { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 26px 4px; padding-top: 26px; }
+  html.gfull .seat .avatar { width: 34px; height: 34px; font-size: 14px; }
+  html.gfull .seat-name { font-size: 10px; }
+  html.gfull .players .seat-bubble { left: 50%; top: auto; bottom: calc(100% + 2px); transform: translateX(-50%); }
+  html.gfull .players .seat-bubble .bub::after { left: 50%; top: auto; bottom: -5px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #fff; border-bottom: 0; }
+  html.gfull .gchat { grid-template-columns: 1fr auto; margin-top: 6px; }
+}
+/* 왼쪽 위: 나가기 · 게임 이름 · 방 코드 · 전체 화면 · 다시하기 */
+.ghud { position: fixed; z-index: 850; top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); display: flex; align-items: center; gap: 6px; max-width: calc(100vw - 150px); }
+.ghud-b { height: 32px; padding: 0 11px; border-radius: 99px; border: 1.5px solid rgba(201, 168, 90, .65); background: rgba(14, 9, 30, .88); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; backdrop-filter: blur(6px); }
+.ghud-b:hover { background: rgba(60, 40, 110, .95); }
+.ghud-b.exit:hover { background: rgba(214, 58, 58, .9); }
+.ghud-t { min-width: 0; height: 32px; display: inline-flex; align-items: center; gap: 5px; padding: 0 12px; border-radius: 99px; background: rgba(14, 9, 30, .7); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ghud-t i { font-style: normal; font-family: ui-monospace, Menlo, monospace; letter-spacing: .1em; color: var(--gold); font-weight: 800; }
+@media (max-width: 640px) { .ghud-b span, .ghud-t b { display: none; } .ghud-b { padding: 0 10px; } }
+/* 오른쪽 위: 소리 · 음성채팅 */
+html.gfull .vol { top: calc(8px + env(safe-area-inset-top)); bottom: auto; right: 8px; z-index: 850; }
+html.gfull .vol-btn { width: 36px; height: 36px; font-size: 16px; }
+html.gfull .vol-pop { order: 2; }
+html.gfull .vdock { top: calc(8px + env(safe-area-inset-top)); bottom: auto; left: auto; right: 52px; z-index: 850; max-width: calc(100vw - 160px); }
+html.gfull .vdock .vbtn { height: 32px; font-size: 13px; padding: 0 10px; }
+@media (max-width: 640px) { html.gfull .vdock.off .vbtn span { display: none; } }
+/* Esc 메뉴 · 나가기 확인 */
+.gmenu { position: fixed; inset: 0; z-index: 9500; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, .6); }
+.gm-box { width: min(380px, 100%); padding: 18px; border-radius: 16px; background: #1d2236; border: 2px solid var(--gold); text-align: center; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.gm-t { font-family: var(--display); font-size: 22px; color: var(--gold); }
+.gm-btns { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; } .gm-btns.row { flex-direction: row; }
+.gm-box small { opacity: .65; }
+.gm-out { background: #d63a3a !important; border-color: #d63a3a !important; color: #fff !important; }
+.gm-warn { margin: 10px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255, 79, 79, .15); border: 1px solid rgba(255, 79, 79, .5); font-size: 13px; }

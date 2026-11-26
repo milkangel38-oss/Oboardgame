@@ -102,6 +102,7 @@ function drawTile(s, u, players, now, why) {
 
 export default {
   id: 'rummikub',
+  ownFull: true, // 자체 전체 화면
   name: '루미큐브',
   emoji: '🀄',
   category: 'board',
