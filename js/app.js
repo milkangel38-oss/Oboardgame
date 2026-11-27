@@ -189,6 +189,35 @@ function openExternal() {
   navigator.clipboard?.writeText(url).then(() => toast('주소를 복사했어요. Safari에 붙여 넣어 열어 주세요!'), () => toast(url));
 }
 
+// ───────── 앱 설치 (홈 화면 아이콘) ─────────
+const IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const isInstalled = () => matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvt = e; updateInstallBtn(); });
+window.addEventListener('appinstalled', () => { installEvt = null; updateInstallBtn(); toast('📲 홈 화면에 O게임 아이콘이 생겼어요!'); });
+if ('serviceWorker' in navigator) { const reg = () => navigator.serviceWorker.register('/sw.js').catch(() => {}); if (document.readyState === 'complete') reg(); else window.addEventListener('load', reg); }
+function updateInstallBtn() {
+  const show = !isInstalled() && !IN_APP && (installEvt || IS_IOS);
+  document.querySelectorAll('[data-install]').forEach((b) => { b.hidden = !show; });
+}
+async function doInstall() {
+  if (installEvt) {
+    const e = installEvt; installEvt = null;
+    e.prompt();
+    const r = await e.userChoice.catch(() => null);
+    if (r?.outcome !== 'accepted') installEvt = e; // 취소하면 다음에 다시
+    updateInstallBtn(); return;
+  }
+  // 아이폰 · 아이패드: 사파리 공유 메뉴에서 직접 추가해야 해요
+  const $m = document.createElement('div'); $m.className = 'gmenu';
+  $m.innerHTML = `<div class="gm-box inst"><img src="/img/app/icon-192.png" alt="" width="72" height="72"><div class="gm-t">홈 화면에 O게임 추가</div>
+    <ol><li>사파리 아래(또는 위)의 <b>공유 버튼 <span class="ios-share">⎋</span></b>을 눌러요</li><li>목록을 내려 <b>‘홈 화면에 추가’</b>를 눌러요</li><li>오른쪽 위 <b>‘추가’</b>를 누르면 끝!</li></ol>
+    <small>사파리에서만 추가할 수 있어요. 아이콘으로 열면 주소창 없이 꽉 찬 화면으로 즐길 수 있어요.</small>
+    <div class="gm-btns"><button class="btn primary block" data-x>알겠어요</button></div></div>`;
+  $m.onclick = (e) => { if (e.target === $m || e.target.closest('[data-x]')) $m.remove(); };
+  document.body.appendChild($m);
+}
+
 function renderLogin(invited) {
   $app.innerHTML = `
     <main class="login">
@@ -252,11 +281,13 @@ function header() {
   return `
     <header class="top">
       <a href="#/" class="brand">${logo('sm')}${backend.mode === 'mock' ? '<span class="test-chip">TEST</span>' : ''}</a>
-      <span class="row"><a class="fr-badge" data-frbadge href="#/" hidden></a><button class="btn ghost sm" data-logout>로그아웃</button></span>
+      <span class="row"><a class="fr-badge" data-frbadge href="#/" hidden></a><button class="btn ghost sm install-btn" data-install hidden>📲 앱 설치</button><button class="btn ghost sm" data-logout>로그아웃</button></span>
     </header>`;
 }
 function bindHeader() {
   updateFriendBadge();
+  updateInstallBtn();
+  $app.querySelector('[data-install]').onclick = doInstall;
   $app.querySelector('[data-logout]').onclick = async () => {
     location.hash = '#/';
     pushPresence(true);

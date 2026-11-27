@@ -3821,3 +3821,8 @@ html.gfull .vdock .vbtn { height: 32px; font-size: 13px; padding: 0 10px; }
   html.gfull .seat-name { font-size: 9.5px; }
   html.gfull .gchat input { padding: 4px 6px; font-size: 12px; }
 }
+/* 앱 설치 */
+.install-btn { border-color: rgba(255, 210, 90, .7) !important; color: var(--gold) !important; }
+.gm-box.inst img { border-radius: 18px; box-shadow: 0 4px 16px rgba(0, 0, 0, .4); }
+.gm-box.inst ol { text-align: left; margin: 12px 0 8px; padding-left: 22px; font-size: 14px; line-height: 1.7; }
+.ios-share { display: inline-block; transform: rotate(-90deg); }
