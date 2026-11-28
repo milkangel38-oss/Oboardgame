@@ -11,6 +11,7 @@ import { showAlert } from './alert.js';
 import { primeSounds, startThemeBgm, stopGameBgm, getVolume, isMuted, setVolume, setMuted, onSoundChange, setDuck } from './sound.js';
 import { createVoice } from './voice.js';
 import { bindPreview, hidePreview, justPreviewed } from './preview.js';
+import { emblem, titleHtml, smoke, loadingOverlay } from './start.js';
 
 const $app = document.getElementById('app');
 let user = null;      // 로그인 정보 (구글/네이버)
@@ -19,6 +20,7 @@ let profileUnsub = null;
 const profileListeners = new Set();
 let authReady = false;
 let cleanup = null;
+let loadedOnce = false; // 처음 한 번만 로딩 화면
 const recordedMatches = new Set();
 let roomSecret = null; // 서버 진행 게임에서 내 비밀 (역할 등)
 const recordRetries = new Map();
@@ -155,9 +157,14 @@ function route() {
 
   if (!user) {
     if (m) sessionStorage.setItem('mbg:after', hash); // 로그인 후 초대받은 방으로 이동
-    return renderLogin(!!m);
+    cleanup = renderLogin(!!m);
+    return;
   }
-  stopBgm(); // BGM은 로그인 화면에서만
+  // 앱을 처음 열었는데 이미 로그인돼 있으면: 시작 화면 → 시작하기 → 로딩 → 메인
+  if (!startedThisVisit()) { cleanup = renderLogin(!!m, true); return; }
+  const firstLoad = !loadedOnce;
+  loadedOnce = true;
+  if (!firstLoad || !bgmPlaying()) stopBgm(); // BGM은 시작 화면 · 로딩 화면까지
   const after = sessionStorage.getItem('mbg:after');
   if (after) {
     sessionStorage.removeItem('mbg:after');
@@ -168,7 +175,14 @@ function route() {
   if (m) cleanup = renderRoom(m[1].toUpperCase());
   else if (cat && getCategory(cat[1])) renderCategory(getCategory(cat[1]));
   else cleanup = renderLobby();
+  if (firstLoad) {
+    const prev = cleanup;
+    const stopLd = loadingOverlay($app, () => stopBgm());
+    cleanup = () => { stopLd(); prev?.(); };
+  }
 }
+function startedThisVisit() { try { return sessionStorage.getItem('og:started') === '1'; } catch { return true; } }
+function markStarted() { try { sessionStorage.setItem('og:started', '1'); } catch { /* 저장 안 됨 */ } }
 
 // ───────── 로그인 ─────────
 // ───────── 앱 안 브라우저(카카오톡·네이버앱·인스타 등) ─────────
@@ -218,36 +232,39 @@ async function doInstall() {
   document.body.appendChild($m);
 }
 
-function renderLogin(invited) {
+// 시작 화면: 움직이는 연기 배경 + 엠블럼 + 시작하기 → (로그인 안 돼 있으면) 로그인 → 로딩 → 메인
+// loggedIn = 이미 로그인돼 있어서 시작하기만 누르면 되는 경우
+function renderLogin(invited, loggedIn = false) {
+  const started = startedThisVisit();
   $app.innerHTML = `
-    <main class="login">
+    <main class="start ${started && !loggedIn ? 'show-login' : ''}">
+      <canvas class="st-bg"></canvas>
       <button class="bgm-btn" data-bgm aria-label="배경음악 켜고 끄기"></button>
-      <div class="login-card">
-        ${logo('lg')}
-
-        <div class="marquee">
-          <div class="marquee-inner">
-            ${invited ? '<p class="marquee-kicker">★ 초대장이 도착했어요 ★</p>' : ''}
-            <p class="marquee-text">${invited ? '친구가 초대한<br>' : ''}<em>O게임</em>에<br>참여하시겠습니까?</p>
+      <div class="st-center">
+        ${emblem('st-emb')}
+        ${titleHtml(invited ? '— 당신에게 초대장이 도착했습니다 —' : 'SURVIVAL GAME INVITATION')}
+        <div class="st-go">
+          <button class="st-start" data-start-btn><span>${invited ? '초대에 응하기' : '시작하기'}</span></button>
+          <p class="st-hint">TOUCH TO START</p>
+        </div>
+        <div class="st-login">
+          <p class="st-invite">${invited ? '친구가 당신을 <em>게임</em>에 초대했습니다.' : '당신은 <em>O게임</em>의 참가자로 선택되었습니다.'}<br><small>참가하시겠습니까?</small></p>
+          ${backend.mode === 'mock' ? `<div class="notice">🧪 <b>혼자 테스트 모드</b> · 로그인 없이 임시 플레이어로 들어가요.<br>
+            새 탭에 초대 링크를 붙여 넣으면 그 탭은 다른 플레이어가 돼요. 여기서 얻은 가넷·전적은 실제 계정과 상관없어요.</div>` : ''}
+          ${IN_APP && (backend.mode !== 'mock' || location.search.includes('inapp')) ? `<div class="inapp-note"><p>⚠️ 지금은 <b>앱 안의 브라우저</b>라서 <b>구글 로그인이 막혀 있어요.</b><br>
+            네이버로 참여하거나, 바깥 브라우저로 열어 주세요.</p>
+            <button class="btn primary sm" data-ext>${IS_ANDROID || IS_KAKAO ? '🌐 바깥 브라우저로 열기' : '🔗 주소 복사 (Safari에 붙여 넣기)'}</button>
+            ${!IS_KAKAO && !IS_ANDROID ? '<small>또는 오른쪽 아래/위 메뉴(⋯)에서 "Safari로 열기"를 눌러도 돼요</small>' : ''}</div>` : ''}
+          <div class="st-btns">
+            <button class="st-lbtn google" data-p="google"><span class="ico">G</span>Google로 참가하기</button>
+            <button class="st-lbtn naver" data-p="naver"><span class="ico">N</span>네이버로 참가하기</button>
           </div>
         </div>
-
-        ${backend.mode === 'mock' ? `<div class="notice">🧪 <b>혼자 테스트 모드</b> · 로그인 없이 임시 플레이어로 들어가요.<br>
-          새 탭에 초대 링크를 붙여 넣으면 그 탭은 다른 플레이어가 돼요. 여기서 얻은 가넷·전적은 실제 계정과 상관없어요.</div>` : ''}
-
-        ${IN_APP && (backend.mode !== 'mock' || location.search.includes('inapp')) ? `<div class="inapp-note"><p>⚠️ 지금은 <b>앱 안의 브라우저</b>라서 <b>구글 로그인이 막혀 있어요.</b><br>
-          네이버로 참여하거나, 바깥 브라우저로 열어 주세요.</p>
-          <button class="btn primary sm" data-ext>${IS_ANDROID || IS_KAKAO ? '🌐 바깥 브라우저로 열기' : '🔗 주소 복사 (Safari에 붙여 넣기)'}</button>
-          ${!IS_KAKAO && !IS_ANDROID ? '<small>또는 오른쪽 아래/위 메뉴(⋯)에서 "Safari로 열기"를 눌러도 돼요</small>' : ''}</div>` : ''}
-
-        <div class="login-buttons">
-          <button class="arcade-btn google" data-p="google"><span class="ico">G</span>Google로 참여하기</button>
-          <button class="arcade-btn naver" data-p="naver"><span class="ico">N</span>네이버로 참여하기</button>
-        </div>
-        <p class="insert-coin">▶ INSERT COIN ◀</p>
-        <p class="version">${APP_VERSION} · <a href="/about.html">서비스 소개</a> · <a href="/privacy.html">개인정보 처리방침</a></p>
       </div>
+      <p class="st-ver">${APP_VERSION} · <a href="/about.html">서비스 소개</a> · <a href="/privacy.html">개인정보 처리방침</a></p>
     </main>`;
+  const $start = $app.querySelector('.start');
+  const stopSmoke = smoke($app.querySelector('.st-bg'));
   $app.querySelector('[data-ext]')?.addEventListener('click', openExternal);
   $app.querySelectorAll('[data-p]').forEach((b) => {
     b.onclick = async () => {
@@ -269,11 +286,19 @@ function renderLogin(invited) {
     paintBgm();
   };
   paintBgm();
-  if (bgmWanted() && !bgmPlaying()) {
-    // 전에 켜 두었다면, 화면을 처음 누를 때 자동으로 다시 재생
-    const resume = async () => { await startBgm().catch(() => {}); paintBgm(); };
-    $app.querySelector('.login').addEventListener('pointerdown', resume, { once: true });
-  }
+  let bgmOff = false; try { bgmOff = localStorage.getItem('og:bgm') === 'off'; } catch { /* 없음 */ }
+  const playBgm = async () => { if (!bgmOff && !bgmPlaying()) { await startBgm().catch(() => {}); paintBgm(); } };
+  if (started && !bgmPlaying()) $start.addEventListener('pointerdown', playBgm, { once: true });
+
+  // 시작하기
+  $app.querySelector('[data-start-btn]').onclick = () => {
+    playBgm();
+    markStarted();
+    $start.classList.add('go');
+    if (user) setTimeout(route, 650); // 이미 로그인 → 로딩 화면으로
+    else setTimeout(() => $start.classList.add('show-login'), 380);
+  };
+  return stopSmoke;
 }
 
 // ───────── 공통 헤더 ─────────
@@ -1560,6 +1585,7 @@ let phonePlay = false, fsManualOff = false, rotSkip = false;
 function setPhonePlay(on) {
   if (on === phonePlay) return;
   phonePlay = on;
+  if (on) lockLandscape(); // 홈 화면 앱으로 실행 중이면 전체 화면 요청 없이도 바로 가로로 돌아가요
   if (!on) {
     fsManualOff = false; rotSkip = false; document.querySelector('.rot-hint')?.remove();
     exitOurFull();
