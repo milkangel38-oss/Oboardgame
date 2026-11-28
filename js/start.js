@@ -1,34 +1,8 @@
 // 시작 화면 (움직이는 연기 배경 + 엠블럼 + 시작하기) · 로딩 화면
 // 분위기: 어둡고 신비로운 서바이벌 게임 초대장. 그림은 모두 O게임 오리지널(코드로 그림)이에요.
 
-// 금빛 팔각 엠블럼 + 가운데 O 고리 + 붉은 심장빛
-export const emblem = (cls = '') => `<svg class="emb ${cls}" viewBox="0 0 200 200" aria-hidden="true">
-  <defs>
-    <linearGradient id="embG" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fff1c4"/><stop offset=".28" stop-color="#e2b766"/><stop offset=".55" stop-color="#8a5f22"/>
-      <stop offset=".75" stop-color="#f4d58b"/><stop offset="1" stop-color="#6b4615"/>
-    </linearGradient>
-    <linearGradient id="embG2" x1="1" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff6d8"/><stop offset=".4" stop-color="#d9a84f"/><stop offset=".7" stop-color="#7a5019"/><stop offset="1" stop-color="#f0cd7c"/>
-    </linearGradient>
-    <radialGradient id="embCore" cx=".5" cy=".5" r=".5">
-      <stop offset="0" stop-color="#ffd0c0"/><stop offset=".25" stop-color="#ff3b2f"/><stop offset=".7" stop-color="#8e0a14"/><stop offset="1" stop-color="#2a0306" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="embIn" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#2a2140"/><stop offset="1" stop-color="#07050d"/></radialGradient>
-  </defs>
-  <polygon points="62,6 138,6 194,62 194,138 138,194 62,194 6,138 6,62" fill="url(#embG)"/>
-  <polygon points="66,16 134,16 184,66 184,134 134,184 66,184 16,134 16,66" fill="#1a1222"/>
-  <polygon points="69,22 131,22 178,69 178,131 131,178 69,178 22,131 22,69" fill="url(#embIn)" stroke="url(#embG2)" stroke-width="2"/>
-  <g class="emb-ticks" stroke="url(#embG)" stroke-width="3" stroke-linecap="round">
-    <line x1="100" y1="27" x2="100" y2="37"/><line x1="100" y1="163" x2="100" y2="173"/><line x1="27" y1="100" x2="37" y2="100"/><line x1="163" y1="100" x2="173" y2="100"/>
-  </g>
-  <circle class="emb-core" cx="100" cy="100" r="44" fill="url(#embCore)"/>
-  <circle cx="100" cy="100" r="47" fill="none" stroke="#3a2608" stroke-width="22" opacity=".6"/>
-  <circle cx="100" cy="100" r="46" fill="none" stroke="url(#embG)" stroke-width="18"/>
-  <circle cx="100" cy="100" r="55" fill="none" stroke="url(#embG2)" stroke-width="1.5" opacity=".8"/>
-  <circle cx="100" cy="100" r="37" fill="none" stroke="url(#embG2)" stroke-width="1.5" opacity=".8"/>
-  <path class="emb-shine" d="M70 62 A46 46 0 0 1 128 60" fill="none" stroke="#fffbe8" stroke-width="4" stroke-linecap="round" opacity=".75"/>
-</svg>`;
+// 금빛 팔각 엠블럼 (그림) + 붉은 보석 빛 맥박 + 금속 위로 스치는 빛
+export const emblem = (cls = '') => `<span class="emb ${cls}" aria-hidden="true"><img src="/img/emblem.webp" alt="" draggable="false"><i class="emb-glow"></i><i class="emb-sweep"></i></span>`;
 
 // 금속 글씨 제목 (O게임)
 export const titleHtml = (sub) => `<h1 class="st-title" data-text="O게임"><span>O게임</span></h1>
