@@ -1,5 +1,5 @@
 // 서버 전용 도우미: 로그인 토큰 확인 + Firestore 읽기/쓰기 (추가 패키지 없이 Node 기본 기능만 사용)
-// 가넷·전적·최고 기록처럼 '값어치 있는' 데이터는 브라우저가 아니라 여기(서버)에서만 저장해요.
+// 인장·전적·최고 기록처럼 '값어치 있는' 데이터는 브라우저가 아니라 여기(서버)에서만 저장해요.
 const crypto = require('crypto');
 const { getServiceAccount, b64url } = require('./firebase-token');
 

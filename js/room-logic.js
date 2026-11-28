@@ -7,7 +7,7 @@ import { censor } from './badwords.js';
 //   status: 'waiting' | 'playing' | 'finished',
 //   players: { [uid]: { uid, name, photo, ready, order, joinedAt } },
 //   game: 게임별 상태 | null,
-//   result: { message, winners: [uid], ranking?: [{uid, score, place, garnets}], rewards?: {uid: 가넷}, aborted? } | null,
+//   result: { message, winners: [uid], ranking?: [{uid, score, place, garnets}], rewards?: {uid: 인장}, aborted? } | null,
 //   matchId: 몇 번째 판인지,
 //   createdAt
 // }
@@ -57,7 +57,7 @@ export function leave(room, uid, reason = 'leave') {
   if (room.status === 'playing') {
     room.status = 'finished';
     room.result = {
-      message: reason === 'disconnect' ? `${leaving.name}님의 연결이 끊겨 게임이 끝났어요 (가넷 지급 없음)` : `${leaving.name}님이 나가서 게임이 끝났어요 (가넷 지급 없음)`,
+      message: reason === 'disconnect' ? `${leaving.name}님의 연결이 끊겨 게임이 끝났어요 (인장 지급 없음)` : `${leaving.name}님이 나가서 게임이 끝났어요 (인장 지급 없음)`,
       winners: [], aborted: true,
     };
   }
@@ -79,7 +79,7 @@ export function dropIfGone(room, uid, timeoutMs) {
   return leave(room, uid, 'disconnect');
 }
 
-// 접속이 끊긴 사람 내보내기 (대기 중이든 게임 중이든). 게임 중이면 게임이 끝나요(가넷 없음).
+// 접속이 끊긴 사람 내보내기 (대기 중이든 게임 중이든). 게임 중이면 게임이 끝나요(인장 없음).
 export function dropAbsent(room, uid) {
   return room.players[uid] ? leave(room, uid, 'disconnect') : room;
 }

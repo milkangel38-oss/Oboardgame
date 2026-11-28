@@ -116,7 +116,7 @@ export function createBackend(config) {
       });
     },
 
-    // 가넷·전적·최고 기록은 서버(/api)가 확인하고 저장해요 (브라우저에서는 바꿀 수 없게 보안 규칙으로 막혀 있어요)
+    // 인장·전적·최고 기록은 서버(/api)가 확인하고 저장해요 (브라우저에서는 바꿀 수 없게 보안 규칙으로 막혀 있어요)
     async callApi(path, body) {
       const token = await auth.currentUser?.getIdToken();
       if (!token) throw new Error('로그인이 필요해요');

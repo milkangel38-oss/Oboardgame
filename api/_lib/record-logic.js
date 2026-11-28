@@ -1,5 +1,5 @@
-// 게임 결과 → 가넷·전적 기록 규칙 (서버에서만 실행). 순수 함수라 테스트하기 쉬워요.
-// 게임마다: 최소 인원, 한 판에 받을 수 있는 가넷 범위 (게임 파일의 rewards와 맞춰 주세요)
+// 게임 결과 → 인장·전적 기록 규칙 (서버에서만 실행). 순수 함수라 테스트하기 쉬워요.
+// 게임마다: 최소 인원, 한 판에 받을 수 있는 인장 범위 (게임 파일의 rewards와 맞춰 주세요)
 const GAMES = {
   avalon: { min: 5, max: 2, server: true }, // server: 서버가 진행 → 서버가 만든 결과만 인정
   chosung: { min: 2, max: 4 },
@@ -20,7 +20,7 @@ const GAMES = {
 };
 const BEST_KEYS = { merge: 20000 }; // 혼자 하는 게임 최고 기록: 받을 수 있는 최대 점수
 const PER_HOUR = 20;                // 한 시간에 기록할 수 있는 판 수 (조작 방지용 상한, ghist 30개 안에서 셀 수 있게)
-const DAY_GARNETS = 150;            // 하루에 받을 수 있는 가넷 상한 (조작 방지)
+const DAY_GARNETS = 150;            // 하루에 받을 수 있는 인장 상한 (조작 방지)
 const RECENT = 30;                  // 같은 판 중복 기록 방지용으로 기억하는 판 수
 
 function err(status, message) { const e = new Error(message); e.status = status; return e; }
@@ -63,11 +63,11 @@ function recordFor(room, prof, uid, now = Date.now(), srv = null) {
 
   const day = new Date(now + 9 * 3600_000).toISOString().slice(0, 10); // 한국 날짜
   const rl = p.rl && p.rl.day === day ? p.rl : { day, g: 0 };
-  if (garnets > 0 && rl.g + garnets > DAY_GARNETS) throw err(429, '오늘 받을 수 있는 가넷을 다 받았어요');
+  if (garnets > 0 && rl.g + garnets > DAY_GARNETS) throw err(429, '오늘 받을 수 있는 인장을 다 받았어요');
   const stats = p.stats && typeof p.stats === 'object' ? p.stats : {};
   const g = { plays: 0, wins: 0, garnets: 0, ...(stats[room.gameId] || {}) };
   g.plays += 1;
-  if (garnets > 0) g.wins += 1; // 가넷을 받으면 승, 못 받으면 패
+  if (garnets > 0) g.wins += 1; // 인장을 받으면 승, 못 받으면 패
   g.garnets += garnets;
   const total = Math.max(0, (Number(p.garnets) || 0) + garnets);
   return {

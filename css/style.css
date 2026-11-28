@@ -198,12 +198,12 @@ input:focus { outline: 2px solid rgba(62, 230, 255, .5); border-color: var(--cya
   color: var(--tier); border: 1px solid var(--tier); background: color-mix(in srgb, var(--tier) 12%, transparent);
 }
 .profile-sum { font-size: 13px; color: var(--muted); margin-top: 1px; }
-.garnet { width: 1.05em; height: 1.05em; display: inline-block; vertical-align: -.15em; margin-right: .2em; filter: drop-shadow(0 0 3px rgba(255, 60, 90, .55)) drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.garnet { width: 1.15em; height: 1.15em; display: inline-block; vertical-align: -.2em; margin-right: .2em; object-fit: contain; filter: drop-shadow(0 0 3px rgba(255, 170, 60, .45)) drop-shadow(0 1px 1px rgba(0, 0, 0, .6)); }
 .profile-garnet { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-family: var(--display); font-size: 15px; }
 .profile-garnet .garnet { font-size: 20px; }
-.profile-garnet b { font-family: var(--logo); font-weight: 400; font-size: 22px; color: #ff8a96; text-shadow: 0 0 10px rgba(255, 79, 99, .5); }
+.profile-garnet b { font-family: var(--logo); font-weight: 400; font-size: 22px; color: #f1cf86; text-shadow: 0 0 10px rgba(255, 190, 80, .45); }
 .profile-garnet span { color: var(--muted); font-size: 13px; }
-.res-garnet { font-family: var(--logo); font-size: 16px; color: #ff8a96; }
+.res-garnet { font-family: var(--logo); font-size: 16px; color: #f1cf86; }
 .profile-sum b { color: var(--gold); }
 .chevron { font-size: 20px; color: var(--muted); transition: transform .2s; padding: 4px; }
 .profile.collapsed .chevron { transform: rotate(-90deg); }

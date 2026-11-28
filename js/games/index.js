@@ -2,11 +2,11 @@
 //
 // 게임 모듈이 갖춰야 할 것:
 //   id, name, emoji, category('mini'|'genius'|'variety'|'board'), minPlayers, maxPlayers, duration, description, rules(문자열 배열)
-//   rewards: [1등 가넷, 2등 가넷, ...]
+//   rewards: [1등 인장, 2등 인장, ...]
 //   options: [{ key, label, choices, default }]  → 방장이 시작 전에 고르는 설정 (room.options 로 setup에 전달)
 //   setup(players, room)                 → 첫 게임 상태
 //   move(state, move, uid, playersMap)   → { state, result? }  (잘못된 수는 throw)
-//       result = { message, winners: [uid], ranking: [{uid, score, place, garnets}], rewards: {uid: 가넷} }
+//       result = { message, winners: [uid], ranking: [{uid, score, place, garnets}], rewards: {uid: 인장} }
 //   render(el, ctx)                      → 화면 그리기. ctx = { state, me, players, finished, room, sendMove(move, {silent}) }
 // 카드 그림은 art.js 에 게임 id로 추가해요.
 import numbers from './numbers.js';

@@ -113,7 +113,7 @@ export default {
     '출제자와 이미 그림을 그린 사람은 정답이 나올 때까지 말하거나 채팅할 수 없어요. 아직 안 그린 사람들은 자유롭게 채팅해요.',
     '마지막 정답자가 완성된 그림을 보고 30초 안에 정답을 입력해요.',
     `맞히면 모두 +${PTS}점, 틀리면 모두 −${PTS}점 (협동게임이라 점수는 모두 같아요).`,
-    '가넷: 최종 팀 점수 10점당 모두 가넷 1개 (예: 30점 → +3). 최종 점수가 마이너스면 그만큼 차감돼요 (예: −20점 → −2)',
+    '인장: 최종 팀 점수 10점당 모두 인장 1개 (예: 30점 → +3). 최종 점수가 마이너스면 그만큼 차감돼요 (예: −20점 → −2)',
   ],
 
   setup(players, room) {
@@ -223,7 +223,7 @@ export default {
     let foot = '';
     if (finished || state.phase === 'done') {
       const g = garnetsFor(state.score);
-      foot = `<div class="dk-final ${g > 0 ? 'ok' : g < 0 ? 'no' : ''}"><b>${g > 0 ? '🎉 협동 성공!' : g < 0 ? '😢 협동 실패' : '🙂 본전'}</b><span>팀 점수 ${state.score}점 → 모두 ${g ? `${GARNET}${g > 0 ? '+' : '−'}${Math.abs(g)}` : '가넷 변동 없음'}</span></div>`;
+      foot = `<div class="dk-final ${g > 0 ? 'ok' : g < 0 ? 'no' : ''}"><b>${g > 0 ? '🎉 협동 성공!' : g < 0 ? '😢 협동 실패' : '🙂 본전'}</b><span>팀 점수 ${state.score}점 → 모두 ${g ? `${GARNET}${g > 0 ? '+' : '−'}${Math.abs(g)}` : '인장 변동 없음'}</span></div>`;
     } else if (isPlayer && ['ready', 'result'].includes(state.phase)) {
       const r = state.ready[me];
       foot = `<button class="dk-go" data-ready ${r ? 'disabled' : ''}>${r ? '다른 사람 기다리는 중…' : state.phase === 'ready' ? '준비' : '다음 라운드 준비 →'}</button>`;

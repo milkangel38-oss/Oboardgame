@@ -1,9 +1,9 @@
 // 보드게임: 숫자눈치게임 (4~8명)
 // - 모두 0~9 숫자카드 10장을 들고 시작
-// - 가넷이 가장 많은 사람이 첫 라운드 선 플레이어를 정하고, 선부터 입장 순서대로 한 명씩 카드를 몰래 내요 (색은 공개)
+// - 인장이 가장 많은 사람이 첫 라운드 선 플레이어를 정하고, 선부터 입장 순서대로 한 명씩 카드를 몰래 내요 (색은 공개)
 // - 모두 내면 동시에 공개, 라운드 승자가 다음 라운드 선 플레이어
 // - 중복되지 않은 숫자 중 가장 큰 숫자를 낸 사람이 10점 (9가 겹치면 그다음 큰 숫자)
-// - 10라운드 후 점수 순위대로 가넷 보상
+// - 10라운드 후 점수 순위대로 인장 보상
 import { GARNET } from '../profile.js';
 import { turnAlert } from './turn-alert.js';
 
@@ -12,7 +12,7 @@ const PICK_MS = 30000;    // 라운드 제한 시간
 const REVEAL_MS = 4500;
 const CHOOSE_MS = 30000;  // 선 플레이어 고르는 시간   // 공개 결과를 보여주는 시간
 const POINTS = 10;
-const REWARDS = [3, 2, 1]; // 1등, 2등, 3등 가넷
+const REWARDS = [3, 2, 1]; // 1등, 2등, 3등 인장
 
 const colorOf = (n) => (n % 2 ? 'black' : 'white'); // 홀수 검정 · 짝수(0 포함) 흰색
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -93,17 +93,17 @@ export default {
   description: '안 겹친 가장 큰 숫자가 이긴다!',
   rules: [
     '모두 0~9 숫자카드 10장을 가지고 시작해요.',
-    '처음에는 가넷을 가장 많이 가진 사람이 1라운드 선 플레이어를 정해요.',
+    '처음에는 인장을 가장 많이 가진 사람이 1라운드 선 플레이어를 정해요.',
     `선 플레이어부터 입장 순서대로 한 명씩, 내 차례에 ${PICK_MS / 1000}초 안에 카드 한 장을 골라 '제출하기'를 눌러요. 모두 내면 동시에 공개!`,
     '홀수 카드는 검정, 짝수 카드(0 포함)는 흰색이에요. 누가 카드를 내면 그 색이 모두에게 보여요!',
     '가장 큰 숫자를 낸 사람이 10점을 얻어요.',
     '가장 큰 숫자가 겹치면 무효! 겹치지 않은 그다음 큰 숫자가 점수를 얻어요.',
     '라운드에서 점수를 얻은 사람이 다음 라운드 선 플레이어가 돼요. (모두 겹쳐서 아무도 못 얻으면 선은 그대로)',
     '시간 안에 못 내면 남은 카드 중 가장 작은 숫자가 자동으로 나가요.',
-    '10라운드 후 점수 순위로 1등 가넷 3개, 2등 2개, 3등 1개!',
+    '10라운드 후 점수 순위로 1등 인장 3개, 2등 2개, 3등 1개!',
   ],
 
-  // 자리: 입장 순서. 가넷이 가장 많은 사람(같으면 먼저 들어온 사람)이 첫 선 플레이어를 골라요
+  // 자리: 입장 순서. 인장이 가장 많은 사람(같으면 먼저 들어온 사람)이 첫 선 플레이어를 골라요
   setup(players) {
     const order = players.map((p) => p.uid);
     const chooser = [...players].sort((a, b) => (Number(b.garnets) || 0) - (Number(a.garnets) || 0))[0]?.uid || order[0];
@@ -130,7 +130,7 @@ export default {
 
     if (move?.type === 'first') {
       if (state.phase !== 'choose') throw new Error('__noop');
-      if (uid !== state.chooser) throw new Error('선 플레이어는 가넷이 가장 많은 사람이 정해요');
+      if (uid !== state.chooser) throw new Error('선 플레이어는 인장이 가장 많은 사람이 정해요');
       if (!state.order.includes(move.uid)) throw new Error('참가자가 아니에요');
       return { state: startRound(state, move.uid, now) };
     }
@@ -229,7 +229,7 @@ export default {
         </div>
         <div class="nb-bar"><i data-bar></i></div>
         <div class="nb-banner">${banner || (state.phase === 'choose'
-          ? (state.chooser === me ? '👑 가넷이 가장 많아요! 1라운드 <b>선 플레이어</b>를 골라 주세요' : `👑 가넷이 가장 많은 <b>${name(state.chooser)}</b>님이 선 플레이어를 고르는 중…`)
+          ? (state.chooser === me ? '👑 인장이 가장 많아요! 1라운드 <b>선 플레이어</b>를 골라 주세요' : `👑 인장이 가장 많은 <b>${name(state.chooser)}</b>님이 선 플레이어를 고르는 중…`)
           : state.phase === 'pick' ? (myTurn ? '<b>내 차례!</b> 숫자 카드 한 장을 골라 제출하세요' : `<b>${name(state.turn)}</b>님 차례예요`) : '')}</div>
         ${state.phase === 'choose' && state.chooser === me ? `<div class="nb-choose">${state.order.map((u) => `<button class="btn" data-first="${esc(u)}">${name(u)}${u === me ? ' (나)' : ''}</button>`).join('')}</div>` : ''}
         <ul class="nb-board">${rows}</ul>

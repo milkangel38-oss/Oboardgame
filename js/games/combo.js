@@ -3,7 +3,7 @@
 // - "합": 세 속성이 각각 "모두 같거나 모두 다른" 타일 3장 → +1점 (오답·중복은 감점 없음)
 // - "결": 남은 합이 없을 때 외치면 +3점, 라운드 종료 / 틀리면 -1점
 // - 합이든 결이든 틀리면 10초 동안 답을 외칠 수 없어요
-// - 방장이 정한 라운드(5~7) 후 승자 가넷 +2, 패자 가넷 -2
+// - 방장이 정한 라운드(5~7) 후 승자 인장 +2, 패자 인장 -2
 import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
 
@@ -59,7 +59,7 @@ export function result(order, scores, players) {
   const sa = scores[a] || 0, sb = scores[b] || 0;
   if (sa === sb) {
     return {
-      message: '무승부! 가넷 변화가 없어요',
+      message: '무승부! 인장 변화가 없어요',
       winners: [], draw: true,
       ranking: order.map((u) => ({ uid: u, score: scores[u] || 0, place: 1, garnets: 0 })),
       rewards: { [a]: 0, [b]: 0 },
@@ -110,12 +110,12 @@ export default {
   duration: '10~15분',
   rewards: [REWARD, -REWARD],
   rewardLabel: `승자 +${REWARD}`,
-  description: '합을 찾고 결을 외쳐라! 지면 가넷을 잃는다',
+  description: '합을 찾고 결을 외쳐라! 지면 인장을 잃는다',
   options: [
     { key: 'rounds', label: '라운드 수', choices: [5, 6, 7], default: 5 },
   ],
   rules: [
-    '⚔ 1:1 데스매치! 이긴 사람은 가넷 +2개, 진 사람은 가넷 −2개!',
+    '⚔ 1:1 데스매치! 이긴 사람은 인장 +2개, 진 사람은 인장 −2개!',
     '타일 9장에는 도형(원·세모·네모), 도형 색(빨강·노랑·파랑), 배경색(흰색·회색·검정)이 있어요.',
     '세 속성이 각각 "모두 같거나 모두 다른" 타일 3장이 [합]이에요.',
     '타일 3장을 골라 [합!]을 외치면 +1점. 틀리거나 이미 나온 합이면 감점은 없어요.',

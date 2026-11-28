@@ -7,7 +7,7 @@
 // - 라운드 시작 후 20초 동안 두 설명자가 상대 설명자용 함정단어(최대 3개)를 설치
 //   상대 설명에 함정단어가 들어가면 "함정단어입니다" — 보낼 수 없음. 라운드가 끝나면 함정 공개
 // - 맞히는 사람들도 캐릭터(얼굴 = 프로필)로 아래에 서 있고, 채팅·정답은 그 캐릭터 머리 위 말풍선으로 (정답을 외치면 손을 들어요)
-// - 라운드(5~10) 후 이긴 팀 모두 가넷 +2
+// - 라운드(5~10) 후 이긴 팀 모두 인장 +2
 import { soundEvent } from '../sound.js';
 import { GARNET } from '../profile.js';
 import { personHtml } from './face.js';
@@ -80,7 +80,7 @@ export function result(state, players) {
   const all = [...state.teams.A, ...state.teams.B];
   if (A === B) {
     return {
-      message: `${A} : ${B} 무승부! 가넷 보상이 없어요`, winners: [], draw: true,
+      message: `${A} : ${B} 무승부! 인장 보상이 없어요`, winners: [], draw: true,
       ranking: all.map((u) => ({ uid: u, score: state.scores[teamOf(state, u)], place: 1, garnets: 0 })),
       rewards: Object.fromEntries(all.map((u) => [u, 0])),
     };
@@ -166,7 +166,7 @@ export default {
     '제시어는 사자성어, 의학·경제·과학·법 용어, 어려운 단어 중에서 나와요.',
     '맞히는 사람들은 채팅을 할 수 있어요. 채팅은 모두에게 보이고 팀 캐릭터 옆에 말풍선으로 나와요. (설명자는 채팅 불가)',
     '틀리면 그 팀 전체가 10초 동안 정답을 외칠 수 없어요. 설명 제한 시간은 없고, 방장은 문제를 넘길 수 있어요.',
-    '모든 라운드가 끝나면 이긴 팀 모두에게 가넷 +2개! (동점이면 보상 없음)',
+    '모든 라운드가 끝나면 이긴 팀 모두에게 인장 +2개! (동점이면 보상 없음)',
   ],
 
   setup(players, room) {

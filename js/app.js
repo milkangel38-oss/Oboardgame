@@ -250,7 +250,7 @@ function renderLogin(invited, loggedIn = false) {
         <div class="st-login">
           <p class="st-invite">${invited ? '친구가 당신을 <em>게임</em>에 초대했습니다.' : '당신은 <em>O게임</em>의 참가자로 선택되었습니다.'}<br><small>참가하시겠습니까?</small></p>
           ${backend.mode === 'mock' ? `<div class="notice">🧪 <b>혼자 테스트 모드</b> · 로그인 없이 임시 플레이어로 들어가요.<br>
-            새 탭에 초대 링크를 붙여 넣으면 그 탭은 다른 플레이어가 돼요. 여기서 얻은 가넷·전적은 실제 계정과 상관없어요.</div>` : ''}
+            새 탭에 초대 링크를 붙여 넣으면 그 탭은 다른 플레이어가 돼요. 여기서 얻은 인장·전적은 실제 계정과 상관없어요.</div>` : ''}
           ${IN_APP && (backend.mode !== 'mock' || location.search.includes('inapp')) ? `<div class="inapp-note"><p>⚠️ 지금은 <b>앱 안의 브라우저</b>라서 <b>구글 로그인이 막혀 있어요.</b><br>
             네이버로 참여하거나, 바깥 브라우저로 열어 주세요.</p>
             <button class="btn primary sm" data-ext>${IS_ANDROID || IS_KAKAO ? '🌐 바깥 브라우저로 열기' : '🔗 주소 복사 (Safari에 붙여 넣기)'}</button>
@@ -504,7 +504,7 @@ function friendStatus(p) {
 const personAttrs = (p) => `data-person="${esc(p.uid)}" data-pname="${esc(p.name)}" data-pphoto="${esc(p.photo)}"`;
 
 const FR_FOLD_KEY = 'og:friendsFolded';
-// 친구 전적: 티어 · 보유 가넷 · N전 N승 N패 · 승률
+// 친구 전적: 티어 · 보유 인장 · N전 N승 N패 · 승률
 function friendRecord(uid) {
   const p = fdocs[uid];
   if (!p) return '';
@@ -865,7 +865,7 @@ function drawProfile() {
         <div class="profile-name">${nickEdit !== null
           ? `<span class="nick-form" data-nickform><input maxlength="12" value="${esc(nickEdit)}" aria-label="새 닉네임"><button class="btn sm primary" data-nicksave>저장</button><button class="btn sm ghost" data-nickcancel>취소</button></span>`
           : `<b>${esc(my.name)}</b><button class="nick-btn" data-nick title="닉네임 변경">✎ 변경</button><span class="tier-badge">${s.tier.icon} ${s.tier.name}</span>`}</div>
-        <div class="profile-garnet">${GARNET}<b>${s.garnets}</b><span>가넷</span></div>
+        <div class="profile-garnet">${GARNET}<b>${s.garnets}</b><span>O의 인장</span></div>
         <div class="profile-sum">${s.plays ? `${s.plays}전 ${s.wins}승 ${s.losses}패 · 승률 <b>${s.rate}%</b>` : '아직 기록이 없어요. 첫 판을 시작해 보세요!'}</div>
       </div>
       <span class="chevron" aria-hidden="true">▾</span>
@@ -873,7 +873,7 @@ function drawProfile() {
     <div class="profile-body">
       <div class="tier-progress">
         <div class="tier-row">
-          <span>${s.tier.icon} ${s.tier.name} · <b>가넷 ${s.garnets}개</b></span>
+          <span>${s.tier.icon} ${s.tier.name} · <b>인장 ${s.garnets}개</b></span>
           <span class="muted">${s.next ? `${s.next.icon} ${s.next.name}까지 ${s.next.min - s.garnets}개` : '최고 티어 달성!'}</span>
         </div>
         <div class="bar"><i style="width:${s.progress}%"></i></div>
@@ -886,9 +886,9 @@ function drawProfile() {
             <span class="rec-rate">${r.plays ? `${r.rate}%` : '-'}</span></li>`;
         }).join('')}
       </ul>
-      <p class="hint">등수와 관계없이 가넷을 받으면 <b>승</b>, 못 받으면 <b>패</b>예요 · 보유 가넷 수로 티어가 정해져요</p>
+      <p class="hint">등수와 관계없이 인장을 받으면 <b>승</b>, 못 받으면 <b>패</b>예요 · 보유 인장 수로 티어가 정해져요</p>
       <div class="ghist">
-        <div class="ghist-t">최근 가넷 내역</div>
+        <div class="ghist-t">최근 인장 내역</div>
         ${(profile?.ghist || []).length ? `<ul>${profile.ghist.slice(0, 10).map((h) => {
           const gm = getGame(h.game);
           const d = new Date(h.at);
@@ -896,9 +896,9 @@ function drawProfile() {
             <span class="gh-game">${gm ? `${gm.emoji} ${esc(gm.name)}` : esc(h.game)}${h.place && !gm?.coopGame ? ` · ${h.place}등` : gm?.coopGame ? ' · 협동' : ''}</span>
             <span class="gh-g ${h.g > 0 ? 'plus' : h.g < 0 ? 'minus' : ''}">${h.g > 0 ? `지급 +${h.g}` : h.g < 0 ? `차감 −${Math.abs(h.g)}` : '변동 없음'}</span>
             <span class="gh-total">${GARNET}${h.total}</span></li>`;
-        }).join('')}</ul>` : '<p class="hint">게임을 마치면 가넷 지급·차감 내역이 여기에 쌓여요</p>'}
+        }).join('')}</ul>` : '<p class="hint">게임을 마치면 인장 지급·차감 내역이 여기에 쌓여요</p>'}
       </div>
-      <p class="hint">가넷은 게임 결과로만 얻는 무료 포인트예요. 돈으로 사거나 바꿀 수 없고, 다른 사람에게 줄 수도 없어요.</p>
+      <p class="hint"><b>O의 인장</b>은 게임 결과로만 얻는 무료 포인트예요. 돈으로 사거나 바꿀 수 없고, 다른 사람에게 줄 수도 없어요.</p>
     </div>`;
 
   const toggle = () => {
@@ -1320,7 +1320,7 @@ function drawRestartVote(room) {
   rv.$.querySelector('[data-rvcancel]')?.addEventListener('click', () => backend.mutateRoom(room.code, (r) => R.cancelRestart(r, 'host')).catch(() => {}));
 }
 
-// ── 게임 종료 결과창: 끝나면 한 번 띄워 순위·승자·가넷을 정리해 보여 줘요 (모든 게임 공통) ──
+// ── 게임 종료 결과창: 끝나면 한 번 띄워 순위·승자·인장을 정리해 보여 줘요 (모든 게임 공통) ──
 const endModal = { key: '', $el: null, timer: 0 };
 function closeEndModal() {
   clearTimeout(endModal.timer); endModal.timer = 0;
@@ -1540,7 +1540,7 @@ function mountVolume() {
 // 게임이 끝나면 내 전적에 한 번만 기록
 function recordIfFinished(room) {
   if (room.status !== 'finished' || !room.result || room.result.aborted || !room.matchId) return;
-  if (getGame(room.gameId)?.solo) return; // 혼자 하는 게임은 전적·가넷 없음 (랭킹만)
+  if (getGame(room.gameId)?.solo) return; // 혼자 하는 게임은 전적·인장 없음 (랭킹만)
   const key = `${room.code}:${room.matchId}`;
   if (recordedMatches.has(key)) return;
   recordedMatches.add(key);
@@ -1625,7 +1625,7 @@ function gameMenu(askLeave) {
     $m.querySelector('[data-out]').onclick = ask;
   };
   const ask = () => {
-    $m.innerHTML = `<div class="gm-box"><div class="gm-t">나가시겠습니까?</div><p class="gm-warn">⚠️ 경기 중에 나가면 <b>보상(가넷)을 받을 수 없어요.</b></p>
+    $m.innerHTML = `<div class="gm-box"><div class="gm-t">나가시겠습니까?</div><p class="gm-warn">⚠️ 경기 중에 나가면 <b>보상(인장)을 받을 수 없어요.</b></p>
       <div class="gm-btns row"><button class="btn block" data-x>취소</button><button class="btn block gm-out" data-yes>나가기</button></div></div>`;
     $m.querySelector('[data-x]').onclick = close;
     $m.querySelector('[data-yes]').onclick = () => { close(); window.__leaveConfirmed = true; document.querySelector('[data-leave]')?.click(); };

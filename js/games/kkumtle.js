@@ -134,7 +134,7 @@ export default {
     '폭발하면 땅이 사라지고, 맞은 오리는 날아가요. 바다에 빠지거나 하늘에서 떨어지면 탈락!',
     '화면은 끌어서 움직이고, 휠(모바일은 두 손가락)로 확대 · 축소해요. 오른쪽 위 미니맵을 눌러도 이동해요.',
     '상대 팀 오리를 모두 쓰러뜨리면 라운드 승리! 라운드를 더 많이 이긴 팀이 최종 승리 (같으면 딜량이 많은 팀).',
-    '가넷: 승리 팀 모두 +2',
+    '인장: 승리 팀 모두 +2',
   ],
 
   setup(players, room) {
@@ -1373,7 +1373,7 @@ function exitMenu(c, direct) {
   };
   const ask = () => {
     const playing = c.ctx.state.phase !== 'done' && !c.ctx.finished;
-    $m.innerHTML = `<div class="kw-mbox"><div class="kw-mt">나가시겠습니까?</div>${playing ? '<p class="kw-warn">⚠️ 경기 중에 나가면 <b>보상(가넷)을 받을 수 없어요.</b></p>' : ''}<div class="kw-mbtns row"><button class="btn block" data-x>취소</button><button class="btn block kw-out" data-yes>나가기</button></div></div>`;
+    $m.innerHTML = `<div class="kw-mbox"><div class="kw-mt">나가시겠습니까?</div>${playing ? '<p class="kw-warn">⚠️ 경기 중에 나가면 <b>보상(인장)을 받을 수 없어요.</b></p>' : ''}<div class="kw-mbtns row"><button class="btn block" data-x>취소</button><button class="btn block kw-out" data-yes>나가기</button></div></div>`;
     $m.querySelector('[data-x]').onclick = () => ($m.hidden = true);
     $m.querySelector('[data-yes]').onclick = () => {
       $m.hidden = true;

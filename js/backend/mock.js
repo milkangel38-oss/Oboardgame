@@ -148,10 +148,10 @@ export function createBackend() {
       const stats = p.stats || {};
       const g = { plays: 0, wins: 0, garnets: 0, ...(stats[gameId] || {}) };
       g.plays += 1;
-      if (garnets > 0) g.wins += 1; // 가넷을 받으면 승, 못 받으면 패
+      if (garnets > 0) g.wins += 1; // 인장을 받으면 승, 못 받으면 패
       g.garnets += garnets;
       const total = Math.max(0, (p.garnets || 0) + garnets);
-      const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30); // 최근 가넷 내역
+      const ghist = [{ at: Date.now(), game: gameId, place, g: garnets, total }, ...(p.ghist || [])].slice(0, 30); // 최근 인장 내역
       saveProfile(uid, { ...p, stats: { ...stats, [gameId]: g }, garnets: total, ghist, lastMatch: matchKey });
     },
 

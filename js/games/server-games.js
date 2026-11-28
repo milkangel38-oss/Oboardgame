@@ -55,7 +55,7 @@ export function serverApply(room, srv, uid, move, env = {}) {
   return { room: next, server, mine, changedMine, roomChanged, mineChanged: changedMine.length > 0 };
 }
 
-// 가넷 기록용: 서버 사본에 남은 결과 (방 문서의 result는 믿지 않아요)
+// 인장 기록용: 서버 사본에 남은 결과 (방 문서의 result는 믿지 않아요)
 export function serverResult(room, srv) {
   if (!srv?.result || !srv.nonce || srv.match !== room?.matchId) return null;
   return { result: srv.result, order: srv.order || [], key: `${room.code}:${room.matchId}:${srv.nonce}` };

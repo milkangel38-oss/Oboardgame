@@ -1,4 +1,4 @@
-// POST /api/record  { code }  — 끝난 게임의 내 가넷·전적을 서버가 확인하고 저장해요.
+// POST /api/record  { code }  — 끝난 게임의 내 인장·전적을 서버가 확인하고 저장해요.
 // GET  /api/record?check=1   — 서버 설정 점검 (서비스 계정으로 Firestore에 접근되는지)
 const { uidFrom, getDoc, transact, send, readJson, accessToken } = require('./_lib/google');
 const { recordFor, GAMES } = require('./_lib/record-logic');
